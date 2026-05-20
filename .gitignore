@@ -1,0 +1,18 @@
+# Rust
+target/
+
+# Node / Frontend
+node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Runtime artifacts (gitignored per architecture spec)
+data/
+logs/
+*.db
+*.db-shm
+*.db-wal
+
+# Env
+.env
+.env.local
