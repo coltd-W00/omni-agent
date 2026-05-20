@@ -1,5 +1,6 @@
 mod error;
 mod state;
+mod db;
 
 use std::collections::HashMap;
 use std::str::FromStr;
@@ -39,6 +40,9 @@ async fn main() -> anyhow::Result<()> {
     let opts = sqlx::sqlite::SqliteConnectOptions::from_str(&db_url)?
         .create_if_missing(true);
     let pool = sqlx::SqlitePool::connect_with(opts).await?;
+
+    db::run_migrations(&pool).await?;
+    info!("Database migrations applied");
 
     let state = AppState {
         db: pool,

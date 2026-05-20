@@ -25,6 +25,10 @@ implemented until tests or validation evidence exist.
 | 1.1 | `frontend/` và `backend/` tồn tại trong repo | no | no | no | yes | implemented | `ls omni-agent/` shows `frontend/` và `backend/` |
 | 1.1 | `.gitignore` chứa `data/` và `logs/` | no | no | no | yes | implemented | `.gitignore` có dòng `data/` và `logs/` |
 | 1.1 | `backend/src/` chứa `main.rs`, `error.rs`, `state.rs` | no | no | no | yes | implemented | `ls backend/src/` shows all 3 files |
+| 1.2 | Backend startup creates SQLite DB and applies migrations | no | yes | no | yes | implemented | `cargo run` with temporary `HOME` logs `Database migrations applied` and creates `.omni-agent/omni-agent.db` |
+| 1.2 | Migrations are idempotent on existing DB | yes | yes | no | yes | implemented | `cargo test` passes `db::tests::migrations_are_idempotent`; second `cargo run` starts successfully |
+| 1.2 | SQLite schema has `projects`, `tasks`, `sessions`, `runs`, `comments` with required columns/defaults/unique session task | yes | yes | no | no | implemented | `cargo test` passes `db::tests::schema_matches_story_contract` |
+| 1.2 | Existing `/health` and fallback route behavior remain unchanged after migrations | no | no | no | yes | implemented | `curl -i http://127.0.0.1:8080/health` → HTTP 200 `{"status":"ok"}`; `/unknown` → HTTP 404 `{"error":"not_found","message":"Route not found"}` |
 
 ## Evidence Rules
 
