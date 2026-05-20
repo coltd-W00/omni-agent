@@ -150,23 +150,23 @@ NFR-7:  Epic 3 — Resume performance ≤30s (optimistic UI)
 NFR-8:  Epic 2/3 — Realtime polling (TanStack Query refetchInterval)
 
 UX-DR1:  Epic 1 — Design Token CSS Variables
-UX-DR2:  Epic 2 — StatusBadge Component
-UX-DR3:  Epic 2 — TaskCard Component
-UX-DR4:  Epic 2 — AgentAvatar Component
-UX-DR5:  Epic 2 — SessionBadge Component
-UX-DR6:  Epic 2 — Button Component System
-UX-DR7:  Epic 2 — ToastNotification Component
-UX-DR8:  Epic 2 — ConfirmationDialog Component
+UX-DR2:  Epic 2 — StatusBadge Component (Story 2.0)
+UX-DR3:  Epic 2 — TaskCard Component (Story 2.0)
+UX-DR4:  Epic 2 — AgentAvatar Component (Story 2.0)
+UX-DR5:  Epic 2 — SessionBadge Component (Story 2.0)
+UX-DR6:  Epic 2 — Button Component System (Story 2.0)
+UX-DR7:  Epic 2 — ToastNotification Component (Story 2.0)
+UX-DR8:  Epic 2 — ConfirmationDialog Component (Story 2.0)
 UX-DR9:  Epic 1 — AppShell Layout
 UX-DR10: Epic 2 — Task Board Kanban View
 UX-DR11: Epic 2 — Task Detail Panel
-UX-DR12: Epic 3 — Summary Tab (comment + resume inline)
-UX-DR13: Epic 3 — Comments Tab
-UX-DR14: Epic 3 — Runs Tab
-UX-DR15: Epic 3 — RunTimeline Component
-UX-DR16: Epic 3 — Logs Tab
+UX-DR12: Epic 3 — Summary Tab (Story 3.5a)
+UX-DR13: Epic 3 — Comments Tab (Story 3.5b)
+UX-DR14: Epic 3 — Runs Tab (Story 3.5b)
+UX-DR15: Epic 3 — RunTimeline Component (Story 3.5b)
+UX-DR16: Epic 3 — Logs Tab (Story 3.5b)
 UX-DR17: Epic 4 — Dashboard (Morning Briefing)
-UX-DR18: Epic 2 — Empty States
+UX-DR18: Epic 2 — Empty States (Story 2.0)
 UX-DR19: Epic 4 — Keyboard Shortcuts & Accessibility pass
 UX-DR20: Epic 4 — Responsive Breakpoints
 
@@ -178,8 +178,9 @@ Loc có thể khởi chạy app lần đầu: monorepo được setup, DB schema
 **UX-DRs covered:** UX-DR1 (Design Tokens), UX-DR9 (AppShell Layout)
 
 ### Epic 2: Project & Task Management
-Loc có thể tạo Projects và Tasks, xem Task Board dạng kanban, mở Task Detail để xem và chỉnh sửa task. Core workflow: tạo task → assign agent → xem board.
+Loc có thể tạo Projects và Tasks, xem Task Board dạng kanban, và mở Task Detail để xem/chỉnh sửa task. Core workflow hoàn chỉnh: tạo task → assign agent → xem board. Toàn bộ shared UI components và empty states sẵn sàng.
 **FRs covered:** FR-0, FR-1, FR-2, FR-3, FR-4, FR-11, FR-12
+**Stories:** 2.0 (Shared UI), 2.1 (Project CRUD), 2.2 (Task CRUD & Agent Assignment), 2.3 (Task Board), 2.4 (Task Detail Panel)
 **UX-DRs covered:** UX-DR2, UX-DR3, UX-DR4, UX-DR5, UX-DR6, UX-DR7, UX-DR8, UX-DR10, UX-DR11, UX-DR18
 
 ### Epic 3: Session Lifecycle & Agent Execution
@@ -318,11 +319,63 @@ So that all views share a consistent navigation structure.
 
 Loc có thể tạo Projects và Tasks, xem Task Board dạng kanban, và mở Task Detail để xem/chỉnh sửa task. Core workflow hoàn chỉnh: tạo task → assign agent → xem board. Toàn bộ shared UI components và empty states sẵn sàng.
 
-### Story 2.1: Project Management & Shared UI Components
+### Story 2.0: Shared UI Components
 
 As a developer using omni-agent,
-I want to create and manage Projects, and have shared UI components available,
-So that tasks can be organized within projects and all views have a consistent, accessible UI foundation.
+I want shared UI components (Button, Toast, ConfirmationDialog, StatusBadge, AgentAvatar, SessionBadge, TaskCard, Empty States) available,
+So that all views have a consistent, accessible UI foundation before feature stories are built.
+
+**Depends on:** Story 1.3 (Design Tokens), Story 1.4 (AppShell Layout)
+
+**Acceptance Criteria:**
+
+**Given** any action button (Primary/Secondary/Ghost/Destructive)
+**When** rendered
+**Then** correct variant styles apply using CSS token variables (no hardcoded hex)
+**And** loading state shows inline spinner with text unchanged
+**And** disabled state shows opacity 40% with `cursor: not-allowed`
+
+**Given** a Toast notification
+**When** triggered (success/warning/error/info)
+**Then** it appears bottom-right, slides in from bottom, auto-dismisses after 4s (error toasts do not auto-dismiss)
+**And** at most 3 toasts stack simultaneously
+
+**Given** a ConfirmationDialog
+**When** opened
+**Then** focus is trapped inside, title is the specific action name, Cancel is left ghost, Confirm is right destructive red
+**And** `Escape` key closes the dialog
+
+**Given** a StatusBadge component
+**When** rendered with any of the 9 status variants (Draft/Ready/Assigned/Running/Paused/NeedsReview/ChangesRequested/Completed/Failed/Cancelled)
+**Then** correct background/text/border token colors apply
+**And** Running variant shows pulse dot animation
+**And** `aria-label="Status: {StatusName}"` is present
+
+**Given** an AgentAvatar component
+**When** rendered with an agent name
+**Then** it shows initials in a circle, background color derived from name hash, and a runtime overlay badge (⚙ Codex / ✦ Claude)
+
+**Given** a SessionBadge component
+**When** rendered in each of 4 states (No session / Active / Resumable / Closed)
+**Then** correct styles and `aria-label` are applied per variant
+
+**Given** a TaskCard component
+**When** rendered with task data
+**Then** it shows: Project tag pill, AgentAvatar chip, Title (2 lines max, ellipsis), SessionBadge, footer (comments count, last activity time)
+**And** hover state upgrades shadow from `--shadow-sm` to `--shadow-md`
+
+**Given** any empty state screen (No projects / No tasks / No comments / Search no results / etc.)
+**When** rendered
+**Then** icon (48px), heading, description, and optional CTA button are shown
+**And** text never reads "No data found"
+
+### Story 2.1: Project Management
+
+As a developer using omni-agent,
+I want to create and manage Projects,
+So that tasks can be organized within projects and the Task Board filters to the active project.
+
+**Depends on:** Story 2.0 (Shared UI Components)
 
 **Acceptance Criteria:**
 
@@ -346,22 +399,6 @@ So that tasks can be organized within projects and all views have a consistent, 
 **When** attempting to delete
 **Then** the API returns an error and the UI displays "Cannot delete project with existing tasks"
 
-**Given** any action button (Primary/Secondary/Ghost/Destructive)
-**When** rendered
-**Then** correct variant styles apply using CSS token variables (no hardcoded hex)
-**And** loading state shows inline spinner with text unchanged
-**And** disabled state shows opacity 40% with `cursor: not-allowed`
-
-**Given** a Toast notification
-**When** triggered (success/warning/error/info)
-**Then** it appears bottom-right, slides in from bottom, auto-dismisses after 4s (error toasts do not auto-dismiss)
-**And** at most 3 toasts stack simultaneously
-
-**Given** a ConfirmationDialog
-**When** opened
-**Then** focus is trapped inside, title is the specific action name, Cancel is left ghost, Confirm is right destructive red
-**And** `Escape` key closes the dialog
-
 ### Story 2.2: Task CRUD & Agent Assignment
 
 As a developer using omni-agent,
@@ -378,7 +415,8 @@ So that I can organize work and prepare tasks for agent execution.
 **Given** a valid task form submission
 **When** saved
 **Then** `POST /api/projects/{id}/tasks` creates the task with status `Draft` and ID format `{PROJECT_KEY}-NNN`
-**And** the Task Detail Panel opens automatically showing the new task
+**And** the new task appears on the Task Board in the Draft column
+**And** the new TaskCard is scrolled into view and highlighted briefly
 
 **Given** a Task in Draft or Ready status
 **When** clicking "Assign Agent" in the Action Bar
@@ -437,12 +475,6 @@ So that I can instantly see the state of all work in the active project.
 **Given** no active project exists
 **When** the board loads
 **Then** full-page empty state shows: icon, "No projects yet", "Create your first project" CTA button
-
-**Given** a StatusBadge component
-**When** rendered with any of the 9 status variants
-**Then** correct background/text/border token colors apply
-**And** Running variant shows pulse dot animation
-**And** `aria-label="Status: {StatusName}"` is present
 
 ### Story 2.4: Task Detail Panel
 
@@ -646,11 +678,13 @@ So that I can always access the full output even after restarting the app.
 **When** both operations occur
 **Then** they are non-blocking (async) and do not block each other or the HTTP handler
 
-### Story 3.5: Session UI — Summary, Comments, Runs & Logs Tabs
+### Story 3.5a: Session Summary Tab & Optimistic Resume UI
 
 As a developer using omni-agent,
-I want to see live session status, add comments inline, view run history, and access logs — all within the Task Detail Panel,
-So that I can manage the full session lifecycle without leaving the panel.
+I want to see live session status and resume sessions with an inline comment in the Summary Tab,
+So that I can manage the active session lifecycle without leaving the Task Detail Panel.
+
+**Depends on:** Stories 3.1, 3.2, 3.3
 
 **Acceptance Criteria:**
 
@@ -668,8 +702,19 @@ So that I can manage the full session lifecycle without leaving the panel.
 
 **Given** a task transitions to `Running`
 **When** the Summary Tab is open
-**Then** a live timeline appears showing human-readable steps: "Starting session…", "Sending comment to agent", "Agent running…"
-**And** the timeline auto-refreshes every 5s (`aria-live="polite"`)
+**Then** a live status feed appears showing human-readable steps: "Starting session…", "Sending comment to agent", "Agent running…"
+**And** the status feed auto-refreshes every 5s (`aria-live="polite"`) using TanStack Query polling
+**And** links to the full RunTimeline are shown in the Runs Tab (Story 3.5b)
+
+### Story 3.5b: Comments, Runs & Logs Tabs + RunTimeline
+
+As a developer using omni-agent,
+I want to view comment history, run history, and raw logs — all within the Task Detail Panel,
+So that I have full visibility into what was sent to the agent and what the agent produced.
+
+**Depends on:** Stories 3.3, 3.4, 3.5a, 2.4 (tab container)
+
+**Acceptance Criteria:**
 
 **Given** the Comments Tab
 **When** opened
