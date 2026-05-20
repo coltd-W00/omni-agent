@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OmniAgent — Design Directions</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg-app: #F4F5F7;
+  --bg-card: #FFFFFF;
+  --bg-hover: #F0F1F3;
+  --border: #E4E5E7;
+  --border-strong: #D1D2D4;
+  --text-primary: #111827;
+  --text-secondary: #6B7280;
+  --text-disabled: #9CA3AF;
+  --brand: #4F46E5;
+  --brand-hover: #4338CA;
+  --brand-light: #EEF2FF;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.06);
+  --shadow-md: 0 4px 8px rgba(0,0,0,0.08);
+  --shadow-lg: 0 12px 24px rgba(0,0,0,0.10);
+
+  /* Status colors */
+  --s-running-bg: #F5F3FF; --s-running-text: #6D28D9; --s-running-dot: #7C3AED;
+  --s-review-bg: #FFFBEB;  --s-review-text: #B45309;
+  --s-changes-bg: #FFF7ED; --s-changes-text: #C2410C;
+  --s-done-bg: #F0FDF4;    --s-done-text: #15803D;
+  --s-blocked-bg: #FEF2F2; --s-blocked-text: #DC2626;
+  --s-ready-bg: #EFF6FF;   --s-ready-text: #1D4ED8;
+  --s-assigned-bg: #EEF2FF;--s-assigned-text: #4338CA;
+  --s-draft-bg: #F3F4F6;   --s-draft-text: #6B7280;
+}
+
+body { font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #1a1a2e; color: var(--text-primary); }
+
+/* ── Selector ── */
+.selector { display: flex; gap: 8px; padding: 20px 24px; background: #12122a; border-bottom: 1px solid #2d2d4e; position: sticky; top: 0; z-index: 100; }
+.selector h1 { color: #fff; font-size: 18px; font-weight: 600; margin-right: 16px; line-height: 36px; }
+.tab-btn { padding: 8px 18px; border-radius: 8px; border: 1px solid #3d3d6e; background: transparent; color: #aaa; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.15s; }
+.tab-btn:hover { background: #2a2a4e; color: #fff; }
+.tab-btn.active { background: var(--brand); border-color: var(--brand); color: #fff; }
+
+/* ── Direction panel ── */
+.direction { display: none; }
+.direction.active { display: block; }
+.dir-label { text-align: center; padding: 16px; color: #888; font-size: 13px; background: #12122a; }
+.dir-label strong { color: #ccc; }
+
+/* ── Shared shell ── */
+.shell { display: flex; height: calc(100vh - 100px); min-height: 600px; background: var(--bg-app); overflow: hidden; }
+
+/* ── Sidebar ── */
+.sidebar { width: 220px; flex-shrink: 0; background: var(--bg-card); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow-y: auto; }
+.sidebar-logo { height: 52px; display: flex; align-items: center; gap: 8px; padding: 0 16px; border-bottom: 1px solid var(--border); }
+.logo-icon { width: 28px; height: 28px; background: var(--brand); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-size: 14px; }
+.logo-text { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.sidebar-project { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+.project-switcher { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-radius: 6px; cursor: pointer; background: var(--bg-hover); }
+.project-dot { width: 16px; height: 16px; border-radius: 4px; background: var(--brand); display: flex; align-items: center; justify-content: center; color: white; font-size: 9px; font-weight: 700; }
+.project-name { font-size: 12px; font-weight: 500; flex-grow: 1; }
+.project-arrow { color: var(--text-disabled); font-size: 10px; }
+.sidebar-nav { padding: 8px; flex-grow: 1; }
+.nav-section { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; color: var(--text-disabled); padding: 12px 8px 4px; text-transform: uppercase; }
+.nav-item { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 6px; cursor: pointer; font-size: 13px; color: var(--text-secondary); position: relative; }
+.nav-item:hover { background: var(--bg-hover); }
+.nav-item.active { background: var(--brand-light); color: var(--brand); font-weight: 500; }
+.nav-badge { margin-left: auto; background: #EF4444; color: white; font-size: 10px; font-weight: 600; padding: 1px 5px; border-radius: 10px; min-width: 16px; text-align: center; }
+.nav-badge.amber { background: #F59E0B; }
+.sidebar-user { padding: 12px; border-top: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+.user-avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--brand); display: flex; align-items: center; justify-content: center; color: white; font-size: 12px; font-weight: 600; }
+.user-name { font-size: 13px; font-weight: 500; }
+
+/* ── TopBar ── */
+.topbar { height: 52px; background: var(--bg-card); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 20px; gap: 12px; }
+.topbar-title { font-size: 14px; font-weight: 600; flex-grow: 1; }
+.search-box { display: flex; align-items: center; gap: 6px; background: var(--bg-app); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; font-size: 12px; color: var(--text-secondary); width: 200px; }
+.btn-primary { background: var(--brand); color: white; border: none; border-radius: 8px; padding: 7px 14px; font-size: 13px; font-weight: 500; cursor: pointer; white-space: nowrap; }
+.btn-ghost { background: transparent; color: var(--text-secondary); border: 1px solid var(--border); border-radius: 8px; padding: 7px 14px; font-size: 13px; cursor: pointer; }
+.icon-btn { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border); background: transparent; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 14px; color: var(--text-secondary); }
+
+/* ── Status badges ── */
+.badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; white-space: nowrap; }
+.badge-running  { background: var(--s-running-bg);  color: var(--s-running-text); }
+.badge-review   { background: var(--s-review-bg);   color: var(--s-review-text); }
+.badge-changes  { background: var(--s-changes-bg);  color: var(--s-changes-text); }
+.badge-done     { background: var(--s-done-bg);     color: var(--s-done-text); }
+.badge-blocked  { background: var(--s-blocked-bg);  color: var(--s-blocked-text); }
+.badge-ready    { background: var(--s-ready-bg);    color: var(--s-ready-text); }
+.badge-assigned { background: var(--s-assigned-bg); color: var(--s-assigned-text); }
+.badge-draft    { background: var(--s-draft-bg);    color: var(--s-draft-text); }
+
+.dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; display: inline-block; }
+.dot.pulse { animation: pulse 1.5s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+/* ── Tag / chip ── */
+.tag { display: inline-flex; align-items: center; gap: 3px; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; }
+.tag-erp { background: #DBEAFE; color: #1D4ED8; }
+.tag-dice { background: #FCE7F3; color: #BE185D; }
+.tag-harness { background: #D1FAE5; color: #065F46; }
+.agent-chip { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-secondary); }
+.agent-dot { width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: 700; color: white; }
+.agent-bc { background: #4F46E5; }
+.agent-p  { background: #7C3AED; }
+.agent-fc { background: #2563EB; }
+.agent-hp { background: #059669; }
+
+/* ── Runtime badge ── */
+.runtime { display: inline-flex; align-items: center; gap: 3px; padding: 2px 6px; border-radius: 4px; font-size: 10px; background: var(--bg-app); color: var(--text-secondary); border: 1px solid var(--border); }
+.session-badge { display: inline-flex; align-items: center; gap: 3px; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 500; }
+.session-active { background: var(--s-running-bg); color: var(--s-running-text); }
+.session-resumable { background: var(--s-ready-bg); color: var(--s-ready-text); }
+.session-closed { background: var(--s-draft-bg); color: var(--s-draft-text); }
+.session-none { background: transparent; color: var(--text-disabled); border: 1px dashed var(--border-strong); }
+
+/* ── Main area ── */
+.main { flex-grow: 1; display: flex; flex-direction: column; overflow: hidden; }
+.main-content { flex-grow: 1; overflow-y: auto; overflow-x: auto; padding: 20px; }
+</style>
+
+/* ══════════════════════════════
+   DIRECTION A — Linear-inspired
+   ══════════════════════════════ */
+
+/* Kanban board */
+.board { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 12px; height: 100%; }
+.column { width: 260px; flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; }
+.col-header { display: flex; align-items: center; gap: 6px; padding: 8px 4px; font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+.col-count { color: var(--text-disabled); font-weight: 400; }
+
+.task-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 12px; cursor: pointer; transition: box-shadow 0.15s, border-color 0.15s; }
+.task-card:hover { box-shadow: var(--shadow-md); border-color: var(--border-strong); }
+.card-row1 { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.card-title { font-size: 13px; font-weight: 500; line-height: 1.4; margin-bottom: 8px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.card-row3 { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.card-footer { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--text-disabled); }
+.card-footer-right { margin-left: auto; }
+
+/* ══════════════════════════════
+   DIRECTION B — Enterprise Dashboard
+   ══════════════════════════════ */
+
+.board-b .task-card { padding: 14px 16px; }
+.card-b-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 8px; }
+.card-b-title { font-size: 14px; font-weight: 500; line-height: 1.4; margin-bottom: 10px; }
+.card-b-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.card-b-summary { font-size: 12px; color: var(--text-secondary); line-height: 1.5; border-left: 3px solid var(--border-strong); padding-left: 8px; margin-bottom: 10px; }
+.card-b-footer { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--text-disabled); }
+
+/* ══════════════════════════════
+   DIRECTION C — Focus Mode (with detail panel open)
+   ══════════════════════════════ */
+
+.focus-layout { display: flex; height: 100%; overflow: hidden; }
+.focus-list { width: 320px; flex-shrink: 0; border-right: 1px solid var(--border); overflow-y: auto; background: var(--bg-card); }
+.focus-list-header { padding: 16px; border-bottom: 1px solid var(--border); }
+.focus-list-header h3 { font-size: 14px; font-weight: 600; }
+.focus-list-header p { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+.focus-item { padding: 12px 16px; border-bottom: 1px solid var(--border); cursor: pointer; }
+.focus-item:hover { background: var(--bg-hover); }
+.focus-item.selected { background: var(--brand-light); border-left: 3px solid var(--brand); padding-left: 13px; }
+.focus-item-title { font-size: 13px; font-weight: 500; margin-bottom: 4px; line-height: 1.4; }
+.focus-item-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+
+.focus-detail { flex-grow: 1; overflow-y: auto; }
+.detail-header { padding: 20px 24px 16px; border-bottom: 1px solid var(--border); }
+.detail-id { font-size: 12px; color: var(--text-secondary); margin-bottom: 6px; }
+.detail-title { font-size: 18px; font-weight: 600; margin-bottom: 10px; line-height: 1.3; }
+.detail-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.detail-session { font-size: 12px; color: var(--text-secondary); }
+.detail-actions { padding: 12px 24px; border-bottom: 1px solid var(--border); display: flex; gap: 8px; background: var(--bg-app); }
+.detail-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); padding: 0 24px; background: var(--bg-card); }
+.detail-tab { padding: 10px 14px; font-size: 13px; color: var(--text-secondary); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.detail-tab.active { color: var(--brand); border-bottom-color: var(--brand); font-weight: 500; }
+.detail-body { padding: 20px 24px; }
+.section-block { margin-bottom: 20px; }
+.section-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-disabled); margin-bottom: 8px; }
+.section-text { font-size: 13px; color: var(--text-secondary); line-height: 1.6; }
+.section-highlight { font-size: 13px; color: var(--text-primary); line-height: 1.6; background: var(--bg-app); border-radius: 8px; padding: 12px; }
+.comment-box { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 13px; font-family: inherit; resize: none; color: var(--text-primary); background: var(--bg-card); outline: none; transition: border-color 0.15s; }
+.comment-box:focus { border-color: var(--brand); box-shadow: 0 0 0 3px rgba(79,70,229,0.12); }
+.comment-hint { font-size: 11px; color: var(--text-disabled); margin-top: 4px; }
+.resume-row { display: flex; gap: 8px; margin-top: 10px; }
+
+/* Timeline */
+.timeline { padding: 0; }
+.tl-item { display: flex; gap: 12px; padding-bottom: 16px; position: relative; }
+.tl-item::before { content: ''; position: absolute; left: 5px; top: 14px; bottom: 0; width: 2px; background: var(--border); }
+.tl-item:last-child::before { display: none; }
+.tl-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--s-done-text); flex-shrink: 0; margin-top: 3px; z-index: 1; }
+.tl-dot.running { background: var(--s-running-dot); animation: pulse 1.5s infinite; }
+.tl-dot.pending { background: var(--border-strong); }
+.tl-text { font-size: 13px; color: var(--text-primary); flex-grow: 1; }
+.tl-time { font-size: 11px; color: var(--text-disabled); white-space: nowrap; }
+
+/* Dashboard sections */
+.dash-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.dash-section { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.dash-section-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px 12px; border-bottom: 1px solid var(--border); }
+.dash-section-title { font-size: 14px; font-weight: 600; }
+.dash-section-sub { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+.dash-section-link { font-size: 12px; color: var(--brand); cursor: pointer; }
+.dash-section-body { padding: 12px 20px; }
+.dash-card { border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 10px; }
+.dash-card:last-child { margin-bottom: 0; }
+.dash-card-title { font-size: 13px; font-weight: 500; margin: 4px 0; }
+.dash-card-meta { font-size: 12px; color: var(--text-secondary); }
+.dash-card-reason { font-size: 12px; color: var(--text-secondary); margin: 6px 0; }
+.dash-card-actions { display: flex; gap: 8px; margin-top: 10px; }
+.dash-card-actions .btn-primary { padding: 5px 12px; font-size: 12px; border-radius: 6px; }
+.dash-card-actions .btn-ghost { padding: 5px 12px; font-size: 12px; border-radius: 6px; }
+.activity-item { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.activity-item:last-child { border-bottom: none; }
+.activity-agent { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; color: white; flex-shrink: 0; margin-top: 1px; }
+.activity-text { font-size: 12px; color: var(--text-secondary); flex-grow: 1; line-height: 1.5; }
+.activity-text strong { color: var(--text-primary); font-weight: 500; }
+.activity-time { font-size: 11px; color: var(--text-disabled); white-space: nowrap; }
+
+/* Stats bar */
+.stats-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+.stat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; }
+.stat-number { font-size: 22px; font-weight: 600; color: var(--text-primary); }
+.stat-label { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+
+
+</style>
+</head>
+<body>
+
+<div class="selector">
+  <h1>OmniAgent</h1>
+  <button class="tab-btn active" onclick="show('a')">A — Linear-inspired (Kanban)</button>
+  <button class="tab-btn" onclick="show('b')">B — Enterprise Dashboard</button>
+  <button class="tab-btn" onclick="show('c')">C — Focus Mode (Detail open)</button>
+</div>
+
+<!-- ═══════════════════════════════════════
+     SHARED SIDEBAR HTML snippet (reused via JS clone)
+     ═══════════════════════════════════════ -->
+<template id="sidebar-tpl">
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">⚡</div>
+      <span class="logo-text">OmniAgent</span>
+    </div>
+    <div class="sidebar-project">
+      <div class="project-switcher">
+        <div class="project-dot">E</div>
+        <span class="project-name">ERP-CB-CENTRES</span>
+        <span class="project-arrow">▾</span>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-item"><span>📊</span> Dashboard</div>
+      <div class="nav-item"><span>📥</span> Inbox <span class="nav-badge">3</span></div>
+      <div class="nav-section">Tasks</div>
+      <div class="nav-item active"><span>📋</span> All Tasks</div>
+      <div class="nav-item"><span>✅</span> My Tasks</div>
+      <div class="nav-item"><span>🔍</span> Review Queue <span class="nav-badge amber">2</span></div>
+      <div class="nav-section">Agents</div>
+      <div class="nav-item"><span>🤖</span> Agents</div>
+      <div class="nav-item"><span>▶</span> Sessions</div>
+      <div class="nav-section">Project</div>
+      <div class="nav-item"><span>📁</span> Settings</div>
+    </nav>
+    <div class="sidebar-user">
+      <div class="user-avatar">L</div>
+      <span class="user-name">Loc</span>
+    </div>
+  </aside>
+</template>
+
+
+<!-- ═══════════════════════════════════════
+     DIRECTION A — Linear-inspired Kanban
+     ═══════════════════════════════════════ -->
+<div id="dir-a" class="direction active">
+  <div class="dir-label"><strong>Direction A — Linear-inspired:</strong> Compact cards, fast scanning, high density. Mental model: "work inbox".</div>
+  <div class="shell">
+    <div id="sb-a"></div>
+    <div class="main">
+      <div class="topbar">
+        <span class="topbar-title">Task Board</span>
+        <div class="search-box">🔍 <span>Search… ⌘K</span></div>
+        <button class="btn-primary">+ New Task</button>
+        <div class="icon-btn">🔔</div>
+      </div>
+      <div class="main-content">
+        <div class="board">
+
+          <!-- Running -->
+          <div class="column">
+            <div class="col-header"><span class="dot pulse" style="color:#7C3AED"></span> Running <span class="col-count">(1)</span></div>
+            <div class="task-card">
+              <div class="card-row1">
+                <span class="tag tag-erp">ERP-CB</span>
+                <span class="agent-chip"><span class="agent-dot agent-bc">BC</span> backend-coder</span>
+              </div>
+              <div class="card-title">Fix login redirect after token refresh</div>
+              <div class="card-row3">
+                <span class="runtime">⚙ Codex CLI</span>
+                <span class="session-badge session-active"><span class="dot pulse" style="color:#6D28D9"></span> Active</span>
+              </div>
+              <div class="card-footer">
+                <span>● 1 comment</span>
+                <span class="card-footer-right">12m</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Needs Review -->
+          <div class="column">
+            <div class="col-header"><span class="dot" style="color:#B45309"></span> Needs Review <span class="col-count">(2)</span></div>
+            <div class="task-card">
+              <div class="card-row1">
+                <span class="tag tag-erp">ERP-CB</span>
+                <span class="agent-chip"><span class="agent-dot agent-p">P</span> planner</span>
+              </div>
+              <div class="card-title">Refactor audit event partitioning</div>
+              <div class="card-row3">
+                <span class="runtime">✦ Claude CLI</span>
+                <span class="session-badge session-resumable">↩ Resumable</span>
+              </div>
+              <div class="card-footer">
+                <span>● 0</span>
+                <span style="color:#B45309">⚑ 3 findings</span>
+                <span class="card-footer-right">45m</span>
+              </div>
+            </div>
+            <div class="task-card">
+              <div class="card-row1">
+                <span class="tag tag-erp">ERP-CB</span>
+                <span class="agent-chip"><span class="agent-dot agent-bc">BC</span> backend-coder</span>
+              </div>
+              <div class="card-title">Add rate limiting to auth endpoints</div>
+              <div class="card-row3">
+                <span class="runtime">⚙ Codex CLI</span>
+                <span class="session-badge session-resumable">↩ Resumable</span>
+              </div>
+              <div class="card-footer">
+                <span>● 1</span>
+                <span style="color:#B45309">⚑ 1 finding</span>
+                <span class="card-footer-right">1h</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Changes Requested -->
+          <div class="column">
+            <div class="col-header"><span class="dot" style="color:#C2410C"></span> Changes Req. <span class="col-count">(1)</span></div>
+            <div class="task-card">
+              <div class="card-row1">
+                <span class="tag tag-dice">DICE</span>
+                <span class="agent-chip"><span class="agent-dot agent-fc">FC</span> frontend-coder</span>
+              </div>
+              <div class="card-title">Improve Dice Monsters game UI layout</div>
+              <div class="card-row3">
+                <span class="runtime">⚙ Codex CLI</span>
+                <span class="session-badge session-resumable">↩ Resumable</span>
+              </div>
+              <div class="card-footer">
+                <span>● 2</span>
+                <span style="color:#B45309">⚑ 1 finding</span>
+                <span class="card-footer-right">2h</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Ready -->
+          <div class="column">
+            <div class="col-header"><span class="dot" style="color:#1D4ED8"></span> Ready <span class="col-count">(2)</span></div>
+            <div class="task-card">
+              <div class="card-row1">
+                <span class="tag tag-erp">ERP-CB</span>
+              </div>
+              <div class="card-title">Migrate user sessions to Redis</div>
+              <div class="card-row3">
+                <span class="session-badge session-none">─ No session</span>
+              </div>
+              <div class="card-footer"><span class="card-footer-right">3h</span></div>
+            </div>
+            <div class="task-card">
+              <div class="card-row1">
+                <span class="tag tag-dice">DICE</span>
+              </div>
+              <div class="card-title">Add sound effects to dice roll</div>
+              <div class="card-row3">
+                <span class="session-badge session-none">─ No session</span>
+              </div>
+              <div class="card-footer"><span class="card-footer-right">5h</span></div>
+            </div>
+          </div>
+
+          <!-- Completed -->
+          <div class="column">
+            <div class="col-header"><span class="dot" style="color:#15803D"></span> Completed <span class="col-count">(1)</span></div>
+            <div class="task-card" style="opacity:0.7">
+              <div class="card-row1">
+                <span class="tag tag-harness">HARNESS</span>
+                <span class="agent-chip"><span class="agent-dot agent-hp">H</span> harness-planner</span>
+              </div>
+              <div class="card-title">Create harness planner brief</div>
+              <div class="card-row3">
+                <span class="runtime">⚙ Codex CLI</span>
+                <span class="session-badge session-closed">✓ Closed</span>
+              </div>
+              <div class="card-footer">
+                <span>● 0</span>
+                <span class="card-footer-right">3h</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════
+     DIRECTION B — Enterprise Dashboard (Morning Dashboard view)
+     ═══════════════════════════════════════ -->
+<div id="dir-b" class="direction">
+  <div class="dir-label"><strong>Direction B — Enterprise Dashboard:</strong> Richer cards with agent summary, grouped by priority. Mental model: "morning briefing".</div>
+  <div class="shell">
+    <div id="sb-b"></div>
+    <div class="main">
+      <div class="topbar">
+        <span class="topbar-title">Dashboard</span>
+        <div class="search-box">🔍 <span>Search… ⌘K</span></div>
+        <button class="btn-primary">+ New Task</button>
+        <div class="icon-btn">🔔</div>
+      </div>
+      <div class="main-content">
+
+        <div style="margin-bottom:20px">
+          <div style="font-size:20px;font-weight:600;margin-bottom:4px">Good morning, Loc 👋</div>
+          <div style="font-size:13px;color:var(--text-secondary)">You have 2 tasks needing review and 1 task with changes requested.</div>
+        </div>
+
+        <div class="stats-bar">
+          <div class="stat-card"><div class="stat-number">7</div><div class="stat-label">Active Tasks</div></div>
+          <div class="stat-card"><div class="stat-number" style="color:#B45309">2</div><div class="stat-label">Needs Review</div></div>
+          <div class="stat-card"><div class="stat-number" style="color:#6D28D9">1</div><div class="stat-label">Running Now</div></div>
+          <div class="stat-card"><div class="stat-number" style="color:#15803D">1</div><div class="stat-label">Completed Today</div></div>
+        </div>
+
+        <div class="dash-grid">
+
+          <!-- Needs Review -->
+          <div class="dash-section">
+            <div class="dash-section-header">
+              <div>
+                <div class="dash-section-title">⚑ Needs Your Review</div>
+                <div class="dash-section-sub">2 tasks waiting for your decision</div>
+              </div>
+              <span class="dash-section-link">View all →</span>
+            </div>
+            <div class="dash-section-body">
+              <div class="dash-card">
+                <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+                  <span class="badge badge-review"><span class="dot"></span> Needs Review</span>
+                  <span style="font-size:11px;color:var(--text-secondary)">ERP-CB · planner / Claude CLI</span>
+                </div>
+                <div class="dash-card-title">Refactor audit event partitioning</div>
+                <div class="dash-card-reason">3 findings · Highest: ⚠ Medium · Agent completed 45 min ago</div>
+                <div class="dash-card-actions">
+                  <button class="btn-primary">Open Review</button>
+                  <button class="btn-ghost">Dismiss</button>
+                </div>
+              </div>
+              <div class="dash-card">
+                <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+                  <span class="badge badge-review"><span class="dot"></span> Needs Review</span>
+                  <span style="font-size:11px;color:var(--text-secondary)">ERP-CB · backend-coder / Codex CLI</span>
+                </div>
+                <div class="dash-card-title">Add rate limiting to auth endpoints</div>
+                <div class="dash-card-reason">1 finding · Highest: ℹ Info · Agent completed 1 hr ago</div>
+                <div class="dash-card-actions">
+                  <button class="btn-primary">Open Review</button>
+                  <button class="btn-ghost">Dismiss</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Running Sessions -->
+          <div class="dash-section">
+            <div class="dash-section-header">
+              <div>
+                <div class="dash-section-title"><span class="dot pulse" style="color:#7C3AED;margin-right:4px"></span> Running Sessions</div>
+                <div class="dash-section-sub">1 agent currently active</div>
+              </div>
+              <span class="dash-section-link">View all →</span>
+            </div>
+            <div class="dash-section-body">
+              <div class="dash-card" style="border-left:3px solid #7C3AED">
+                <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+                  <span class="badge badge-running"><span class="dot pulse"></span> Running</span>
+                  <span style="font-size:11px;color:var(--text-secondary)">ERP-CB-CENTRES</span>
+                </div>
+                <div class="dash-card-title">Fix login redirect after token refresh</div>
+                <div class="dash-card-reason">backend-coder · Codex CLI · Started 12 min ago</div>
+                <div class="dash-card-reason" style="color:#6D28D9;font-weight:500">Step: Editing files…</div>
+                <div class="dash-card-actions">
+                  <button class="btn-ghost">View Progress</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Changes Requested -->
+          <div class="dash-section">
+            <div class="dash-section-header">
+              <div>
+                <div class="dash-section-title">! Changes Requested</div>
+                <div class="dash-section-sub">1 task sent back to agent</div>
+              </div>
+            </div>
+            <div class="dash-section-body">
+              <div class="dash-card">
+                <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+                  <span class="badge badge-changes">! Changes Req.</span>
+                  <span style="font-size:11px;color:var(--text-secondary)">DICE · frontend-coder / Codex CLI</span>
+                </div>
+                <div class="dash-card-title">Improve Dice Monsters game UI layout</div>
+                <div class="dash-card-reason">2 comments · 1 finding · Last active 2 hrs ago</div>
+                <div class="dash-card-actions">
+                  <button class="btn-primary">Resume Session</button>
+                  <button class="btn-ghost">View Details</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Recent Activity -->
+          <div class="dash-section">
+            <div class="dash-section-header">
+              <div>
+                <div class="dash-section-title">Recent Agent Activity</div>
+                <div class="dash-section-sub">Last 6 hours</div>
+              </div>
+            </div>
+            <div class="dash-section-body">
+              <div class="activity-item">
+                <div class="activity-agent agent-bc">BC</div>
+                <div class="activity-text"><strong>backend-coder</strong> started Run #3 on "Fix login redirect"</div>
+                <span class="activity-time">12m</span>
+              </div>
+              <div class="activity-item">
+                <div class="activity-agent agent-p">P</div>
+                <div class="activity-text"><strong>planner</strong> completed review on "Refactor audit event"</div>
+                <span class="activity-time">45m</span>
+              </div>
+              <div class="activity-item">
+                <div class="activity-agent agent-fc">FC</div>
+                <div class="activity-text"><strong>frontend-coder</strong> requested changes on "Dice Monsters UI"</div>
+                <span class="activity-time">2h</span>
+              </div>
+              <div class="activity-item">
+                <div class="activity-agent agent-hp">H</div>
+                <div class="activity-text"><strong>harness-planner</strong> completed "Create harness planner brief"</div>
+                <span class="activity-time">3h</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════
+     DIRECTION C — Focus Mode (Task Detail open)
+     ═══════════════════════════════════════ -->
+<div id="dir-c" class="direction">
+  <div class="dir-label"><strong>Direction C — Focus Mode:</strong> Task list + full detail panel. Resume flow front and center. Mental model: "work on one task at a time".</div>
+  <div class="shell">
+    <div id="sb-c"></div>
+    <div class="main">
+      <div class="topbar">
+        <span class="topbar-title">All Tasks</span>
+        <div class="search-box">🔍 <span>Search… ⌘K</span></div>
+        <button class="btn-primary">+ New Task</button>
+        <div class="icon-btn">🔔</div>
+      </div>
+      <div style="flex-grow:1;overflow:hidden;display:flex">
+        <div class="focus-layout" style="width:100%">
+
+          <!-- Task list -->
+          <div class="focus-list">
+            <div class="focus-list-header">
+              <h3>All Tasks</h3>
+              <p>7 tasks · ERP-CB-CENTRES</p>
+            </div>
+            <div class="focus-item">
+              <div class="focus-item-title">Fix login redirect after token refresh</div>
+              <div class="focus-item-meta">
+                <span class="badge badge-running" style="font-size:10px"><span class="dot pulse"></span> Running</span>
+                <span class="agent-chip"><span class="agent-dot agent-bc" style="width:14px;height:14px;font-size:7px">BC</span></span>
+              </div>
+            </div>
+            <div class="focus-item selected">
+              <div class="focus-item-title">Refactor audit event partitioning</div>
+              <div class="focus-item-meta">
+                <span class="badge badge-review" style="font-size:10px">⚑ Needs Review</span>
+                <span class="agent-chip"><span class="agent-dot agent-p" style="width:14px;height:14px;font-size:7px">P</span></span>
+              </div>
+            </div>
+            <div class="focus-item">
+              <div class="focus-item-title">Improve Dice Monsters game UI layout</div>
+              <div class="focus-item-meta">
+                <span class="badge badge-changes" style="font-size:10px">! Changes Req.</span>
+                <span class="agent-chip"><span class="agent-dot agent-fc" style="width:14px;height:14px;font-size:7px">FC</span></span>
+              </div>
+            </div>
+            <div class="focus-item">
+              <div class="focus-item-title">Create harness planner brief</div>
+              <div class="focus-item-meta">
+                <span class="badge badge-done" style="font-size:10px">✓ Completed</span>
+                <span class="agent-chip"><span class="agent-dot agent-hp" style="width:14px;height:14px;font-size:7px">H</span></span>
+              </div>
+            </div>
+            <div class="focus-item">
+              <div class="focus-item-title">Add rate limiting to auth endpoints</div>
+              <div class="focus-item-meta">
+                <span class="badge badge-review" style="font-size:10px">⚑ Needs Review</span>
+                <span class="agent-chip"><span class="agent-dot agent-bc" style="width:14px;height:14px;font-size:7px">BC</span></span>
+              </div>
+            </div>
+            <div class="focus-item">
+              <div class="focus-item-title">Migrate user sessions to Redis</div>
+              <div class="focus-item-meta">
+                <span class="badge badge-ready" style="font-size:10px">● Ready</span>
+              </div>
+            </div>
+            <div class="focus-item">
+              <div class="focus-item-title">Add sound effects to dice roll</div>
+              <div class="focus-item-meta">
+                <span class="badge badge-draft" style="font-size:10px">● Backlog</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Task Detail -->
+          <div class="focus-detail">
+            <div class="detail-header">
+              <div class="detail-id">ERP-CB-004 · <span class="tag tag-erp">ERP-CB</span></div>
+              <div class="detail-title">Refactor audit event partitioning</div>
+              <div class="detail-badges">
+                <span class="badge badge-review"><span class="dot"></span> Needs Review</span>
+                <span class="agent-chip"><span class="agent-dot agent-p">P</span> planner</span>
+                <span class="runtime">✦ Claude CLI</span>
+                <span class="session-badge session-resumable">↩ Resumable</span>
+              </div>
+              <div class="detail-session">Session: Resumable · Completed 45 min ago · Run #1</div>
+            </div>
+
+            <div class="detail-actions">
+              <button class="btn-primary">Open Review</button>
+              <button class="btn-ghost">Resume Session</button>
+              <button class="btn-ghost">Add Comment</button>
+              <button class="btn-ghost">···</button>
+            </div>
+
+            <div class="detail-tabs">
+              <div class="detail-tab active">Summary</div>
+              <div class="detail-tab">Comments</div>
+              <div class="detail-tab">Runs</div>
+              <div class="detail-tab">Artifacts</div>
+              <div class="detail-tab">Logs</div>
+            </div>
+
+            <div class="detail-body">
+
+              <div class="section-block">
+                <div class="section-label">Current Status</div>
+                <div class="section-highlight">Agent completed Run #1. Partitioning logic refactored and tested. 3 edge cases identified that may require your review before proceeding.</div>
+              </div>
+
+              <div class="section-block">
+                <div class="section-label">Last Agent Summary <span style="font-weight:400;color:var(--text-disabled)">· Run #1 · 45 min ago</span></div>
+                <div class="section-text">
+                  Modified: <code style="font-size:12px;background:var(--bg-app);padding:1px 4px;border-radius:3px">src/audit/partition-router.ts</code>, <code style="font-size:12px;background:var(--bg-app);padding:1px 4px;border-radius:3px">src/audit/event-handler.ts</code><br>
+                  Tests: 24 passed · 0 failed<br>
+                  Findings: 3 items flagged for review
+                </div>
+              </div>
+
+              <div class="section-block">
+                <div class="section-label">💡 Next Suggested Action</div>
+                <div class="section-highlight" style="border-left:3px solid var(--brand);padding-left:12px">
+                  Review the 3 findings in the Review Queue. Accept or request changes to complete this task.
+                  <div style="margin-top:10px;display:flex;gap:8px">
+                    <button class="btn-primary" style="font-size:12px;padding:6px 12px">Open Review</button>
+                    <button class="btn-ghost" style="font-size:12px;padding:6px 12px">Mark Done</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="section-block">
+                <div class="section-label">Add Instructions for Next Run</div>
+                <textarea class="comment-box" rows="3" placeholder="Add instructions for the agent… e.g. Also handle the billing tenant ID case"></textarea>
+                <div class="comment-hint">This comment will be sent to the agent on next resume.</div>
+                <div class="resume-row">
+                  <button class="btn-primary">Resume with Comment</button>
+                  <button class="btn-ghost">Resume Session</button>
+                </div>
+              </div>
+
+              <div class="section-block">
+                <div class="section-label">Acceptance Criteria</div>
+                <div style="display:flex;flex-direction:column;gap:6px">
+                  <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+                    <input type="checkbox"> Partitioning logic separated by event domain
+                  </label>
+                  <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+                    <input type="checkbox"> All existing tests pass
+                  </label>
+                  <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+                    <input type="checkbox"> Retention policy documented
+                  </label>
+                </div>
+              </div>
+
+              <div class="section-block">
+                <div class="section-label">Recent Updates</div>
+                <div class="timeline">
+                  <div class="tl-item">
+                    <div class="tl-dot"></div>
+                    <div class="tl-text">Agent completed Run #1</div>
+                    <div class="tl-time">45m ago</div>
+                  </div>
+                  <div class="tl-item">
+                    <div class="tl-dot"></div>
+                    <div class="tl-text">Session started</div>
+                    <div class="tl-time">1h ago</div>
+                  </div>
+                  <div class="tl-item">
+                    <div class="tl-dot"></div>
+                    <div class="tl-text">Task assigned to planner / Claude CLI</div>
+                    <div class="tl-time">1h ago</div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<script>
+function show(id) {
+  document.querySelectorAll('.direction').forEach(d => d.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('dir-' + id).classList.add('active');
+  event.target.classList.add('active');
+}
+
+// Clone sidebar into each direction
+['a','b','c'].forEach(id => {
+  const tpl = document.getElementById('sidebar-tpl');
+  const clone = tpl.content.cloneNode(true);
+  document.getElementById('sb-' + id).replaceWith(clone);
+});
+</script>
+</body>
+</html>
