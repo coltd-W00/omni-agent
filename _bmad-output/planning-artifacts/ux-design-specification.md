@@ -1,5 +1,6 @@
 ---
-stepsCompleted: [1, 2, 3, 4, 5, 6, 7, 8]
+stepsCompleted: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+lastStep: 14
 inputDocuments:
   - "_bmad-output/planning-artifacts/prds/prd-omni-agent-2026-05-20/prd.md"
   - "docs/US-omni-agent.md"
@@ -1456,3 +1457,403 @@ Text "OmniAgent" + icon đơn giản. Không cần custom SVG logo cho MVP. App 
 **Focus:** Visible focus ring `--shadow-focus` 3px Indigo · Keyboard navigation toàn bộ interactive elements · Modal trap focus.
 
 **Motion:** Animations ≤ 200ms ease-out · Không looping animation ngoài Running pulse · Respect `prefers-reduced-motion`.
+
+---
+
+## Design Direction Decision
+
+### Design Directions Explored
+
+Ba hướng được khám phá qua file `ux-design-directions.html`:
+
+- **Direction A — Linear-inspired Kanban**: Compact cards, high density, column-based status scanning
+- **Direction B — Enterprise Dashboard**: Morning briefing, grouped by priority, richer cards với agent summary
+- **Direction C — Focus Mode**: Task list + full detail panel, resume flow front and center
+
+### Chosen Direction
+
+**Combo B + C + A (không chọn riêng lẻ):**
+
+| Role | Direction | Lý do |
+|------|-----------|-------|
+| Home / Default screen | B — Dashboard | "Morning briefing" — mở app là biết ngay task cần review, đang chạy, changes requested |
+| Main working screen | C — Focus Mode | Core loop: mở task → đọc trạng thái → gõ comment → resume. Detail panel đủ sâu |
+| Secondary view | A — Kanban Board | Drag & drop status, scan nhiều task, tracking pipeline tổng quan |
+
+### Design Rationale
+
+- Dashboard B làm home vì nó trả lời đúng câu hỏi buổi sáng: "Tôi cần làm gì ngay bây giờ?"
+- Focus Mode C làm màn hình chính vì comment box + Resume button nằm ngay trong summary — không navigate đi đâu, đúng với Experience Principle "Continuity over creation"
+- Kanban A là view phụ vì nó tốt cho scan trạng thái nhiều task nhưng không đủ sâu cho resume/session flow
+
+### Key UX Decisions Confirmed
+
+- **Action bar trong Detail Panel**: chỉ hiện actions phù hợp với state hiện tại (không duplicate)
+- **Comment box + Resume button**: luôn visible trong Summary tab, không cần tab switch
+- **Resume button label**: "Resume Session" khi không có comment, tự động gửi comment khi textarea có nội dung
+- **"Save Comment Only"**: option phụ để lưu comment mà không resume ngay
+- **Dismiss → Snooze**: action nguy hiểm được thay bằng "Snooze" để tránh mất track vô tình
+
+---
+
+## User Journey Flows
+
+### UJ-1: Tạo Task Mới và Assign Agent
+
+**Entry:** Loc nhận ra cần làm một việc mới, mở app.
+
+```mermaid
+flowchart TD
+    A([Mở app → Dashboard]) --> B[Bấm '+ New Task']
+    B --> C[Modal: nhập Title + Description\nAcceptance Criteria optional]
+    C --> D{Title trống?}
+    D -- Có --> E[Validation error inline\nDisable Submit]
+    E --> C
+    D -- Không --> F[Save → Task tạo ở Backlog]
+    F --> G[Task Detail Panel mở tự động]
+    G --> H[Bấm 'Assign Agent']
+    H --> I[Dropdown: chọn Agent + Role]
+    I --> J[Task → Assigned\nCard hiện Agent chip + Runtime badge]
+    J --> K([End: task sẵn sàng Start Session])
+```
+
+**Optimization:** Task Detail mở tự động sau tạo. Assign Agent là dropdown đơn giản, không phải form riêng.
+
+---
+
+### UJ-2: Start Session lần đầu
+
+**Entry:** Task ở trạng thái Assigned, Loc muốn giao cho agent chạy.
+
+```mermaid
+flowchart TD
+    A([Task Detail — Assigned]) --> B[Bấm 'Start Session']
+    B --> C[Button → loading 'Starting…']
+    C --> D{CLI binary tìm thấy?}
+    D -- Không --> E[Toast error: 'Agent not found. Check agent config.'\nTask giữ Assigned]
+    D -- Có --> F[Subprocess spawn\nCapture session ID]
+    F --> G{Session ID captured?}
+    G -- Timeout --> H[Warning toast\nInput thủ công session ID]
+    H --> I[User nhập ID → Confirm]
+    G -- Thành công --> J[Task → Running\nSession badge: Active + pulse]
+    I --> J
+    J --> K[Summary tab: live timeline bắt đầu]
+    K --> L([End: agent đang chạy])
+```
+
+**Optimization:** Không có confirm dialog trước Start. Session ID capture tự động — manual input chỉ là fallback.
+
+---
+
+### UJ-3: Resume Session cũ với Comment (Core Loop)
+
+**Entry:** Loc quay lại app sau một thời gian, task ở Paused/Changes Requested.
+
+```mermaid
+flowchart TD
+    A([Mở app → Dashboard]) --> B{Có task cần attention?}
+    B -- Có --> C[Card 'Changes Requested' hoặc 'Ready to Resume']
+    B -- Không --> D[Sidebar → All Tasks → tìm task]
+    C --> E[Bấm card → Task Detail Panel mở]
+    D --> E
+    E --> F[Summary tab: đọc Current Status + Last Agent Summary]
+    F --> G{Cần thêm instruction?}
+    G -- Có --> H[Gõ comment vào textarea inline]
+    G -- Không --> I[Bấm 'Resume Session' trực tiếp]
+    H --> J[Bấm 'Resume Session']
+    I --> K[Button loading 'Starting…']
+    J --> K
+    K --> L[Task → Running\nComment đánh dấu 'Sent to agent']
+    L --> M[Timeline live: 'Starting… Sending comment… Agent running…']
+    M --> N{Agent xong?}
+    N -- Completed --> O[Task → Needs Review\nToast: 'Agent completed — review now?']
+    N -- Failed --> P[Task → Blocked\nSummary: human-readable error + suggested action]
+    O --> Q([End: chờ review])
+    P --> R([End: xem lỗi, resume lại])
+```
+
+**Optimization:** Comment → Resume là flow liền mạch không navigate đi đâu. Resume button label tự thay đổi. Live timeline thay spinner mơ hồ.
+
+---
+
+### UJ-4: Review Findings và Mark Done
+
+**Entry:** Task ở Needs Review, Loc xem kết quả và quyết định.
+
+```mermaid
+flowchart TD
+    A([Toast hoặc Dashboard 'Needs Review' card]) --> B[Bấm 'Open Review']
+    B --> C[Review Detail: Agent Summary + Findings list]
+    C --> D[Đọc từng Finding card]
+    D --> E{Quyết định per-finding}
+    E -- Accept --> F[Finding đánh dấu Accepted]
+    E -- Ignore --> G[Finding dismiss — có thể undo]
+    E -- Send Back --> H[Text input instruction cụ thể cho finding đó]
+    F & G & H --> I{Còn finding chưa xử lý?}
+    I -- Có --> D
+    I -- Không --> J[Chọn Decision tổng thể]
+    J --> K{Decision}
+    K -- Approve --> L[Task → Completed · Session → Closed\nToast 'Done ✓']
+    K -- Request Changes --> M[Task → Changes Requested\nComment + findings gửi khi Resume]
+    K -- Close with unresolved --> N[Confirmation Dialog\n'N findings unresolved. Close anyway?']
+    N -- Confirm --> L
+    N -- Cancel --> J
+    L --> O([End: task done])
+    M --> P([End: task chờ resume])
+```
+
+**Optimization:** Per-finding actions giảm cognitive load — xử lý từng cái. Decision tổng thể chỉ xuất hiện sau khi đã đi qua findings.
+
+---
+
+### Journey Patterns
+
+**Context first:** Mọi journey bắt đầu bằng việc user thấy Current Status + Last Agent Summary trước khi action. Không bao giờ action ngay khi mở task.
+
+**Immediate state change:** Sau mỗi action (Start, Resume, Approve), UI cập nhật trạng thái ngay lập tức — không chờ API response xong mới đổi badge.
+
+**Human-readable + actionable errors:** Mọi error state có: (1) mô tả ngắn gọn ngôn ngữ tự nhiên, (2) suggested next action. Không để user stuck với error không có hướng giải quyết.
+
+**Stay in place:** Resume, Comment, Start Session đều xảy ra trong Task Detail Panel. Không navigate away. User chỉ navigate khi chủ động chọn (Open Review, View Timeline).
+
+---
+
+## Component Strategy
+
+### Design System Components (Reuse)
+
+| Component | Dùng cho |
+|-----------|---------|
+| Button (4 variants) | Actions toàn app |
+| Input / Textarea | Comment box, form fields |
+| Dialog / Modal | Create Task, Confirmation |
+| Tabs | Task Detail Panel tabs |
+| Dropdown / Select | Agent selector, filter, project switcher |
+| Tooltip | Icon button labels, truncated text |
+| Toast | Action feedback |
+| Checkbox | Acceptance criteria, finding actions |
+| Badge (base) | Extended thành StatusBadge |
+
+### Custom Components
+
+**StatusBadge**
+- Purpose: Hiển thị trạng thái task với màu + icon + text, không bao giờ chỉ màu
+- States: 9 variants — Draft / Ready / Assigned / Running / Needs Review / Changes Req. / Completed / Blocked / Cancelled
+- Sizes: sm (card footer) / md (card header) / lg (detail header)
+- Special: Running variant có pulse animation trên dot
+- Accessibility: Text label luôn có, không dựa vào màu đơn độc
+
+**TaskCard**
+- Purpose: Hiển thị task summary trong Kanban column và list view
+- Anatomy: Project tag + Agent chip | Title (2 lines max) | Runtime + Session badge | Footer (comments, findings, time)
+- States: default / hover / selected / completed (opacity 0.7)
+- Interaction: Click anywhere → mở Detail Panel
+- Content rules: Title max 2 lines truncate, findings count amber nếu > 0
+
+**RunTimeline**
+- Purpose: Hiển thị agent progress dưới dạng vertical timeline readable
+- Step states: completed (green dot) / in-progress (violet pulse) / failed (red ✕) / pending (gray)
+- Expandable: Click step → expand details, raw output ẩn sau "View raw →" link
+- Live mode: auto-refresh 5s khi session đang Running
+- Accessibility: Steps có text label, không chỉ màu dot
+
+**SessionBadge**
+- Purpose: Trạng thái session — thứ user cần biết để quyết định có Resume không
+- Variants: No session (dashed gray) / Active (violet pulse) / Resumable (blue) / Closed (muted green)
+- Usage: Card row 3, Detail Panel header
+
+**AgentAvatar**
+- Purpose: Visual identity cho agent — phân biệt giữa các agents
+- Anatomy: Circle, initials từ agent name, màu nền từ name hash
+- Runtime overlay: small badge góc phải (⚙ Codex / ✦ Claude)
+- Sizes: 14px (card chip) / 24px (activity feed) / 28px (card) / 36px (detail header)
+
+**ReviewFindingCard**
+- Purpose: Hiển thị một finding với context đủ để user quyết định
+- Anatomy: Severity badge | Area (file:line) | Issue text | Recommendation | Actions (Accept / Ignore / Send Back)
+- States: unreviewed / accepted / ignored / sent-back
+
+**DashboardSection**
+- Purpose: Container chuẩn cho mỗi section trong Dashboard
+- Anatomy: Header (title + subtitle + "View all") | Content area
+- Variants: card-grid (Review/Running), list (Ready to Assign, Completed), feed (Activity)
+
+### Implementation Roadmap
+
+**Phase 1 — Core (MVP flows):**
+StatusBadge · TaskCard · SessionBadge · AgentAvatar · Button variants · Toast · ConfirmationDialog
+
+**Phase 2 — Working screen:**
+RunTimeline · Task Detail tabs · ReviewFindingCard · Comment input + Resume flow
+
+**Phase 3 — Dashboard & Queue:**
+DashboardSection · Review Queue layout · Activity feed · Stats bar
+
+**Phase 4 — Polish:**
+Drag & drop Kanban · Keyboard shortcuts · Search (⌘K) · Empty states animation
+
+---
+
+## UX Consistency Patterns
+
+### Button Hierarchy
+
+Mỗi surface chỉ có một Primary action. Hierarchy nghiêm:
+
+| Level | Style | Dùng khi |
+|-------|-------|---------|
+| Primary | Indigo filled | Action quan trọng nhất của surface (Resume Session, Open Review, Save) |
+| Secondary/Ghost | Border only | Action phụ cùng level với primary (Save Comment Only, Cancel) |
+| Destructive | Red ghost | Action nguy hiểm, luôn cần confirm (Close Task, Delete) |
+| Icon button | No border | Actions thứ cấp không cần label (···, 🔔, ⚙) |
+
+Rule cứng: Không bao giờ 2 filled buttons cùng dòng. Destructive action không bao giờ là primary button.
+
+### Feedback Patterns
+
+**Toast (4s auto-dismiss, bottom-right):**
+- ✓ Success (green): "Session resumed", "Comment saved", "Task completed"
+- ⚠ Warning (amber): "Session ID not detected — enter manually"
+- ✕ Error (red): "Agent not found. Check config." — kèm action link nếu có
+- ℹ Info (blue): "Agent completed — Review now?" — kèm CTA button
+
+Toast không stack quá 3. Error toast không auto-dismiss — user phải dismiss thủ công.
+
+**Inline state change (optimistic):** Status badge đổi ngay khi action, không chờ API. Nếu API fail → revert + toast error.
+
+**Loading:** Button action đổi label thành "Starting…" + spinner trong button. Skeleton placeholder lần đầu load, silent background refresh sau đó.
+
+### Form Patterns
+
+**Validation:** Validate on blur, không onchange. Error message inline dưới field. Submit disable khi required field trống.
+
+**Comment box:**
+- Placeholder là ví dụ cụ thể, không generic
+- Textarea empty → button label "Resume Session"
+- Textarea có nội dung → comment tự gửi kèm khi Resume, label giữ nguyên
+- "Save Comment Only" là option phụ, không phải primary
+
+**New Task modal:** Title là field duy nhất required. Create → Detail Panel mở tự động.
+
+### Navigation Patterns
+
+**Task Detail Panel (slide-in 420px phải):**
+- Mở khi click TaskCard từ bất kỳ view nào, không navigate away
+- Đóng: X / Escape / backdrop click
+- Unsaved comment → confirmation "Discard changes?" trước khi đóng
+
+**Keyboard shortcuts (progressive disclosure):**
+
+| Shortcut | Action |
+|----------|--------|
+| ⌘K | Mở search |
+| ⌘N | New Task |
+| R | Resume (khi Detail Panel mở) |
+| Escape | Đóng panel/modal |
+
+Shortcuts chỉ hiện trong tooltip sau hover 500ms — không show ngay.
+
+### Modal & Overlay Patterns
+
+- Modal chỉ dùng cho: Create Task, Confirmation destructive, Manual session ID input
+- Không dùng modal cho: Resume flow, Comment, Status change (dùng inline)
+- Confirmation modal: Cancel là primary, Confirm destructive là red ghost
+- Backdrop click = Cancel
+
+### Empty States
+
+| State | Heading | CTA |
+|-------|---------|-----|
+| No tasks | "No tasks yet" | "+ Create your first task" |
+| No running sessions | "All quiet" | — |
+| No review items | "Nothing to review" | — |
+| Search no results | "No matches for '…'" | "Clear search" |
+
+### Status Change Patterns
+
+Status là output của actions — không đổi thủ công qua dropdown:
+
+| Action | Transition |
+|--------|-----------|
+| Start Session | Assigned → Running |
+| Resume Session | * → Running |
+| Agent completes | Running → Needs Review |
+| Approve Review | Needs Review → Completed |
+| Request Changes | Needs Review → Changes Requested |
+| Agent fails | Running → Blocked |
+| Assign Agent | Backlog/Ready → Assigned |
+
+Exception duy nhất: user có thể manually đổi Blocked → Ready để reset.
+
+---
+
+## Responsive Design & Accessibility
+
+### Responsive Strategy
+
+**Desktop-first (primary target: 1280px+, single monitor, Chrome):**
+
+| Zone | Width | Behavior |
+|------|-------|---------|
+| Sidebar | 220px fixed | Collapsible → icon-only (48px) tại ≤1280px |
+| Main content | flex-grow | Padding 20px |
+| Detail Panel | 420px slide-in | Push layout tại ≥1440px, overlay tại <1440px |
+
+**Breakpoints:**
+
+| Name | Width | Layout thay đổi |
+|------|-------|----------------|
+| Desktop L | ≥1440px | Detail Panel push (main co lại), full sidebar |
+| Desktop M | 1280–1439px | Detail Panel overlay trên main, full sidebar |
+| Desktop S | 1024–1279px | Sidebar icon-only mặc định, Detail Panel overlay |
+| Tablet | 768–1023px | Sidebar ẩn (drawer), Detail Panel full-width |
+| Mobile | <768px | Out of scope cho MVP |
+
+Mobile fallback: hiển thị message "OmniAgent works best on desktop. Mobile support coming soon."
+
+### Layout Adaptation Rules
+
+- **Kanban tại Desktop S:** columns scroll ngang, min-width 240px
+- **Dashboard:** `grid-template-columns: repeat(auto-fit, minmax(300px, 1fr))` tự reflow
+- **Focus Mode tại Tablet:** task list collapse thành drawer, Detail Panel full-width
+
+### Accessibility Strategy
+
+**Target: WCAG 2.1 AA (practical)**
+
+**Color contrast:**
+- Normal text 14px: ≥ 4.5:1 (Indigo #4F46E5 trên white đã verified ✓)
+- Large text 18px+ / 14px bold: ≥ 3:1
+- UI components (border, icon): ≥ 3:1
+- Không bao giờ dùng màu đơn độc — luôn kèm icon hoặc text
+
+**Keyboard navigation:**
+- Tab order: Sidebar → Topbar → Main → Detail Panel
+- Focus indicator: 2px Indigo ring, không bị xóa bởi `outline: none`
+- Detail Panel overlay: focus trap, Escape để đóng
+- TaskCard: Enter/Space để mở detail
+- Skip link: "Skip to main content" — ẩn mặc định, hiện khi Tab đầu tiên
+
+**Screen reader:**
+- StatusBadge: `aria-label="Status: Running"`
+- SessionBadge: `aria-label="Session resumable"`
+- Live timeline: `aria-live="polite"`
+- Icon buttons: `aria-label` bắt buộc
+- Modal: `role="dialog"`, `aria-labelledby`, focus vào heading khi mở
+
+**Touch targets (Tablet):** Minimum 44×44px. TaskCard full-row clickable. Buttons min-height 40px.
+
+### Implementation Guidelines
+
+**CSS:**
+- `rem` cho font sizes, `px` cho borders/shadows
+- Spacing 4px base unit: 4/8/12/16/20/24/32/40/48px
+- Detail Panel: `transform: translateX(100%)` → `translateX(0)`, transition 200ms ease
+
+**HTML semantics:**
+- `<main>`, `<nav>`, `<aside>` cho layout regions
+- `<section aria-labelledby>` cho mỗi Dashboard section
+- TaskCard là `<article>` hoặc `<li>` trong `<ul>`
+- Heading hierarchy: h1 (page title) → h2 (section) → h3 (card title)
+
+**Browser targets:** Chrome 120+ (primary), Firefox/Edge (secondary — không cần pixel-perfect). Screen readers: VoiceOver (Mac), NVDA (Windows) — basic pass required.
