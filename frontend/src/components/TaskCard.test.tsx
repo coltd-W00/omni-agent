@@ -51,6 +51,17 @@ describe("TaskCard", () => {
     expect(onClick).toHaveBeenCalledOnce();
   });
 
+  it("Space key triggers onClick on keyup", async () => {
+    const user = userEvent.setup();
+    const onClick = vi.fn();
+    renderCard(onClick);
+    screen.getByRole("button").focus();
+    await user.keyboard("[Space>]");
+    expect(onClick).not.toHaveBeenCalled();
+    await user.keyboard("[/Space]");
+    expect(onClick).toHaveBeenCalledOnce();
+  });
+
   it("title truncate class applied", () => {
     renderCard();
     expect(screen.getByRole("heading", { level: 3 })).toHaveClass(

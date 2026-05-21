@@ -46,7 +46,9 @@ describe("ConfirmationDialog", () => {
     const onConfirm = vi.fn();
     renderDialog({ onConfirm });
     await user.click(screen.getByRole("button", { name: "Delete" }));
-    expect(onConfirm).toHaveBeenCalledOnce();
+    expect(onConfirm).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "click" }),
+    );
   });
 
   it("click Cancel → onCancel called", async () => {
@@ -55,6 +57,31 @@ describe("ConfirmationDialog", () => {
     renderDialog({ onCancel });
     await user.click(screen.getByRole("button", { name: "Cancel" }));
     expect(onCancel).toHaveBeenCalled();
+  });
+
+  it("click backdrop → onCancel called", async () => {
+    const user = userEvent.setup();
+    const onCancel = vi.fn();
+    renderDialog({ onCancel });
+    await user.click(screen.getByRole("dialog"));
+    expect(onCancel).toHaveBeenCalled();
+  });
+
+  it("parent-controlled close does not call onCancel", () => {
+    const onCancel = vi.fn();
+    const { rerender } = renderDialog({ open: true, onCancel });
+    rerender(
+      <ConfirmationDialog
+        open={false}
+        title="Delete task"
+        description="This action cannot be undone."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        onConfirm={vi.fn()}
+        onCancel={onCancel}
+      />,
+    );
+    expect(onCancel).not.toHaveBeenCalled();
   });
 
   it("press Escape → onCancel called", async () => {

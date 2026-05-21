@@ -7,7 +7,7 @@ import SessionBadge from "./SessionBadge";
 
 interface TaskCardProps {
   task: Task;
-  project: { key: string };
+  project: { key: string; color?: string };
   agent: { name: string; runtime: "codex" | "claude" };
   sessionState: SessionState;
   commentsCount: number;
@@ -27,7 +27,16 @@ export default function TaskCard({
   const isClickable = onClick !== undefined;
 
   const handleKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
-    if (e.key === "Enter" || e.key === " ") {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      onClick?.();
+    } else if (e.key === " ") {
+      e.preventDefault();
+    }
+  };
+
+  const handleKeyUp = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === " ") {
       e.preventDefault();
       onClick?.();
     }
@@ -40,6 +49,7 @@ export default function TaskCard({
       tabIndex={isClickable ? 0 : undefined}
       onClick={isClickable ? onClick : undefined}
       onKeyDown={isClickable ? handleKeyDown : undefined}
+      onKeyUp={isClickable ? handleKeyUp : undefined}
     >
       {/* Header row: project tag + agent avatar */}
       <div className="app-task-card__header">

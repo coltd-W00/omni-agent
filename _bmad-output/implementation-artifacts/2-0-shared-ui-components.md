@@ -811,12 +811,12 @@ Story 2.0 KHÔNG mount component nào vào route — chỉ wire ToastProvider. V
 
 ### Review Findings
 
-- [ ] [Review][Patch] Toast auto-dismiss timer resets whenever the toast stack changes [frontend/src/components/Toast.tsx:90]
-- [ ] [Review][Patch] Toast removes items immediately and does not implement the required 150ms fade-out [frontend/src/components/Toast.css:14]
-- [ ] [Review][Patch] ConfirmationDialog does not implement backdrop click = Cancel [frontend/src/components/ConfirmationDialog.tsx:70]
-- [ ] [Review][Patch] ConfirmationDialog calls `onCancel` when the parent closes the dialog after a successful confirm [frontend/src/components/ConfirmationDialog.tsx:42]
-- [ ] [Review][Patch] ConfirmationDialog `onConfirm` does not receive the click event argument required by AC-3 [frontend/src/components/ConfirmationDialog.tsx:18]
-- [ ] [Review][Patch] Button `ghost` variant still reserves a transparent border despite AC-1 requiring no border [frontend/src/components/Button.css:42]
-- [ ] [Review][Patch] TaskCard `project` prop omits optional `color?: string` from the AC-7 public contract [frontend/src/components/TaskCard.tsx:10]
-- [ ] [Review][Patch] Toast tests use `fireEvent.click` for user interactions despite AC-10 requiring `@testing-library/user-event` [frontend/src/components/Toast.test.tsx:1]
-- [ ] [Review][Patch] TaskCard handles Space on `keydown`, so holding Space can trigger `onClick` repeatedly [frontend/src/components/TaskCard.tsx:29]
+- [x] [Review][Patch] Toast auto-dismiss timer resets whenever the toast stack changes [frontend/src/components/Toast.tsx:90]
+- [x] [Review][Patch] Toast removes items immediately and does not implement the required 150ms fade-out [frontend/src/components/Toast.css:14]
+- [x] [Review][Patch] ConfirmationDialog does not implement backdrop click = Cancel [frontend/src/components/ConfirmationDialog.tsx:70]
+- [x] [Review][Patch] ConfirmationDialog calls `onCancel` when the parent closes the dialog after a successful confirm [frontend/src/components/ConfirmationDialog.tsx:42]
+- [x] [Review][Patch] ConfirmationDialog `onConfirm` does not receive the click event argument required by AC-3 [frontend/src/components/ConfirmationDialog.tsx:18]
+- [x] [Review][Patch] Button `ghost` variant still reserves a transparent border despite AC-1 requiring no border [frontend/src/components/Button.css:42]
+- [x] [Review][Patch] TaskCard `project` prop omits optional `color?: string` from the AC-7 public contract [frontend/src/components/TaskCard.tsx:10]
+- [x] [Review][Patch] Toast tests use `fireEvent.click` for user interactions despite AC-10 requiring `@testing-library/user-event` [frontend/src/components/Toast.test.tsx:1]
+- [x] [Review][Patch] TaskCard handles Space on `keydown`, so holding Space can trigger `onClick` repeatedly [frontend/src/components/TaskCard.tsx:29]

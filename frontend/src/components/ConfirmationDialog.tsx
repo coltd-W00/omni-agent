@@ -1,5 +1,6 @@
 import "./ConfirmationDialog.css";
 import { useRef, useEffect } from "react";
+import type { MouseEvent } from "react";
 import ReactDOM from "react-dom";
 import Button from "./Button";
 
@@ -15,7 +16,7 @@ interface ConfirmationDialogProps {
    * If this callback throws/rejects, the dialog will NOT auto-close.
    * Caller must call setOpen(false) after successful handling.
    */
-  onConfirm: () => void | Promise<void>;
+  onConfirm: (event: MouseEvent<HTMLButtonElement>) => void | Promise<void>;
   onCancel: () => void;
 }
 
@@ -30,8 +31,14 @@ export default function ConfirmationDialog({
   onCancel,
 }: ConfirmationDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const closeReasonRef = useRef<"cancel" | null>(null);
   const titleId = "app-confirm-dialog-title";
   const descId = "app-confirm-dialog-desc";
+
+  const closeAsCancel = () => {
+    closeReasonRef.current = "cancel";
+    dialogRef.current?.close();
+  };
 
   // Sync open prop → showModal / close
   useEffect(() => {
@@ -40,18 +47,34 @@ export default function ConfirmationDialog({
     if (open && !dialog.open) {
       dialog.showModal();
     } else if (!open && dialog.open) {
+      closeReasonRef.current = null;
       dialog.close();
     }
   }, [open]);
 
-  // Listen to close event (Esc / backdrop / programmatic) → call onCancel
+  // Only user-initiated close actions call onCancel; parent-controlled closes do not.
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
-    const handleClose = () => onCancel();
+    const handleClose = () => {
+      if (closeReasonRef.current === "cancel") {
+        onCancel();
+      }
+      closeReasonRef.current = null;
+    };
     dialog.addEventListener("close", handleClose);
     return () => dialog.removeEventListener("close", handleClose);
   }, [onCancel]);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const handleCancel = () => {
+      closeReasonRef.current = "cancel";
+    };
+    dialog.addEventListener("cancel", handleCancel);
+    return () => dialog.removeEventListener("cancel", handleCancel);
+  }, []);
 
   // JSDOM doesn't implement native Escape → cancel → close flow for <dialog>.
   // Add document-level keydown listener to handle Escape manually.
@@ -59,6 +82,7 @@ export default function ConfirmationDialog({
     if (!open) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
+        closeReasonRef.current = "cancel";
         dialogRef.current?.close();
       }
     };
@@ -72,6 +96,11 @@ export default function ConfirmationDialog({
       className="app-confirm-dialog"
       aria-labelledby={titleId}
       aria-describedby={description ? descId : undefined}
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) {
+          closeAsCancel();
+        }
+      }}
     >
       <h2 id={titleId} className="app-confirm-dialog__title">
         {title}
@@ -87,17 +116,15 @@ export default function ConfirmationDialog({
           variant="ghost"
           size="md"
           autoFocus
-          onClick={() => {
-            dialogRef.current?.close();
-          }}
+          onClick={closeAsCancel}
         >
           {cancelLabel ?? "Cancel"}
         </Button>
         <Button
           variant={variant === "destructive" ? "destructive" : "primary"}
           size="md"
-          onClick={() => {
-            void onConfirm();
+          onClick={(event) => {
+            void onConfirm(event);
           }}
         >
           {confirmLabel}

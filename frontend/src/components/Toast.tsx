@@ -1,5 +1,5 @@
 import "./Toast.css";
-import React, { createContext, useContext, useReducer, useEffect } from "react";
+import React, { createContext, useContext, useReducer, useEffect, useCallback } from "react";
 import ReactDOM from "react-dom";
 
 export type ToastTone = "success" | "warning" | "error" | "info";
@@ -13,6 +13,7 @@ interface ToastItem {
   id: string;
   tone: ToastTone;
   message: string;
+  exiting: boolean;
 }
 
 export interface ToastContextValue {
@@ -22,7 +23,8 @@ export interface ToastContextValue {
 
 type ToastAction =
   | { type: "SHOW"; payload: ToastItem }
-  | { type: "DISMISS"; id: string };
+  | { type: "BEGIN_DISMISS"; id: string }
+  | { type: "REMOVE"; id: string };
 
 function toastReducer(state: ToastItem[], action: ToastAction): ToastItem[] {
   switch (action.type) {
@@ -30,7 +32,11 @@ function toastReducer(state: ToastItem[], action: ToastAction): ToastItem[] {
       const next = state.length >= 3 ? state.slice(1) : state;
       return [...next, action.payload];
     }
-    case "DISMISS":
+    case "BEGIN_DISMISS":
+      return state.map((toast) => (
+        toast.id === action.id ? { ...toast, exiting: true } : toast
+      ));
+    case "REMOVE":
       return state.filter((t) => t.id !== action.id);
     default:
       return state;
@@ -51,11 +57,34 @@ const TONE_ICON: Record<ToastTone, string> = {
   info: "ℹ",
 };
 
-function ToastItem({ item, onDismiss }: { item: ToastItem; onDismiss: () => void }) {
+function ToastItem({
+  item,
+  onDismiss,
+  onRemove,
+}: {
+  item: ToastItem;
+  onDismiss: () => void;
+  onRemove: () => void;
+}) {
   const role = item.tone === "error" ? "alert" : "status";
+
+  useEffect(() => {
+    if (item.tone === "error") return undefined;
+
+    const timer = setTimeout(onDismiss, 4000);
+    return () => clearTimeout(timer);
+  }, [item.id, item.tone]);
+
+  useEffect(() => {
+    if (!item.exiting) return undefined;
+
+    const timer = setTimeout(onRemove, 150);
+    return () => clearTimeout(timer);
+  }, [item.id, item.exiting]);
+
   return (
     <div
-      className={`app-toast app-toast--${item.tone}`}
+      className={`app-toast app-toast--${item.tone}${item.exiting ? " app-toast--exiting" : ""}`}
       role={role}
     >
       <span className="app-toast__icon" aria-hidden="true">
@@ -77,30 +106,15 @@ function ToastItem({ item, onDismiss }: { item: ToastItem; onDismiss: () => void
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, dispatch] = useReducer(toastReducer, []);
 
-  const showToast = (input: ToastInput): string => {
+  const showToast = useCallback((input: ToastInput): string => {
     const id = newId();
-    dispatch({ type: "SHOW", payload: { id, ...input } });
+    dispatch({ type: "SHOW", payload: { id, ...input, exiting: false } });
     return id;
-  };
+  }, []);
 
-  const dismissToast = (id: string) => {
-    dispatch({ type: "DISMISS", id });
-  };
-
-  useEffect(() => {
-    const timers: ReturnType<typeof setTimeout>[] = [];
-    for (const toast of toasts) {
-      if (toast.tone !== "error") {
-        const t = setTimeout(() => {
-          dispatch({ type: "DISMISS", id: toast.id });
-        }, 4000);
-        timers.push(t);
-      }
-    }
-    return () => {
-      for (const t of timers) clearTimeout(t);
-    };
-  }, [toasts]);
+  const dismissToast = useCallback((id: string) => {
+    dispatch({ type: "BEGIN_DISMISS", id });
+  }, []);
 
   const container = ReactDOM.createPortal(
     <div className="app-toast-container">
@@ -109,6 +123,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
           key={item.id}
           item={item}
           onDismiss={() => dismissToast(item.id)}
+          onRemove={() => dispatch({ type: "REMOVE", id: item.id })}
         />
       ))}
     </div>,

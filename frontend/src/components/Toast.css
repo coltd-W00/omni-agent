@@ -22,6 +22,15 @@
   }
 }
 
+@keyframes app-toast-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
 .app-toast {
   width: 360px;
   padding: var(--space-3) var(--space-4);
@@ -32,6 +41,10 @@
   gap: var(--space-2);
   animation: app-toast-slide-in 0.2s ease-out;
   pointer-events: auto;
+}
+
+.app-toast--exiting {
+  animation: app-toast-fade-out 0.15s ease-out forwards;
 }
 
 .app-toast__icon {

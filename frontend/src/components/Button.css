@@ -42,7 +42,7 @@
 .app-button--ghost {
   background: transparent;
   color: var(--text-primary);
-  border: 1px solid transparent;
+  border: none;
 }
 .app-button--ghost:hover:not(:disabled) {
   background: var(--bg-hover);
