@@ -1,0 +1,58 @@
+/* EmptyState — app-empty-state-* prefix */
+
+.app-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-family: var(--font-family-sans);
+}
+
+/* Full variant */
+.app-empty-state--full {
+  padding: var(--space-10) var(--space-4);
+  text-align: center;
+  max-width: 360px;
+  margin: 0 auto;
+}
+.app-empty-state--full .app-empty-state__icon {
+  font-size: 48px;
+  color: var(--text-disabled);
+  margin-bottom: var(--space-4);
+}
+.app-empty-state--full .app-empty-state__heading {
+  font-size: var(--font-size-heading-m);
+  line-height: var(--line-height-heading-m);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--space-2);
+}
+.app-empty-state--full .app-empty-state__description {
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+  color: var(--text-secondary);
+  margin-bottom: var(--space-5);
+}
+
+/* Inline variant */
+.app-empty-state--inline {
+  padding: var(--space-6) var(--space-3);
+  text-align: center;
+}
+.app-empty-state--inline .app-empty-state__icon {
+  font-size: 32px;
+  color: var(--text-disabled);
+  margin-bottom: var(--space-2);
+}
+.app-empty-state--inline .app-empty-state__heading {
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: var(--space-1);
+}
+.app-empty-state--inline .app-empty-state__description {
+  font-size: var(--font-size-body-s);
+  line-height: var(--line-height-body-s);
+  color: var(--text-secondary);
+  margin-bottom: var(--space-3);
+}

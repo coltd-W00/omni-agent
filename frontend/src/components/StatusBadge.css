@@ -1,0 +1,86 @@
+/* StatusBadge — app-status-badge-* prefix */
+
+.app-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  border-radius: var(--radius-sm);
+  border: 1px solid;
+  font-weight: 500;
+  white-space: nowrap;
+  font-family: var(--font-family-sans);
+}
+
+/* Sizes */
+.app-status-badge--sm {
+  height: 20px;
+  padding: 0 var(--space-2);
+  font-size: 10px;
+}
+.app-status-badge--md {
+  height: 24px;
+  padding: 0 var(--space-2);
+  font-size: 12px;
+}
+.app-status-badge--lg {
+  height: 28px;
+  padding: 0 var(--space-3);
+  font-size: 13px;
+  border-radius: var(--radius-md);
+}
+
+/* Status variants */
+.app-status-badge--draft {
+  background: var(--status-draft-bg);
+  color: var(--status-draft-text);
+  border-color: var(--status-draft-border);
+}
+.app-status-badge--ready {
+  background: var(--status-ready-bg);
+  color: var(--status-ready-text);
+  border-color: var(--status-ready-border);
+}
+.app-status-badge--assigned {
+  background: var(--status-assigned-bg);
+  color: var(--status-assigned-text);
+  border-color: var(--status-assigned-border);
+}
+.app-status-badge--running {
+  background: var(--status-running-bg);
+  color: var(--status-running-text);
+  border-color: var(--status-running-border);
+}
+.app-status-badge--needs-review {
+  background: var(--status-needs-review-bg);
+  color: var(--status-needs-review-text);
+  border-color: var(--status-needs-review-border);
+}
+.app-status-badge--changes-requested {
+  background: var(--status-changes-requested-bg);
+  color: var(--status-changes-requested-text);
+  border-color: var(--status-changes-requested-border);
+}
+.app-status-badge--completed {
+  background: var(--status-completed-bg);
+  color: var(--status-completed-text);
+  border-color: var(--status-completed-border);
+}
+.app-status-badge--failed {
+  background: var(--status-failed-bg);
+  color: var(--status-failed-text);
+  border-color: var(--status-failed-border);
+}
+.app-status-badge--cancelled {
+  background: var(--status-cancelled-bg);
+  color: var(--status-cancelled-text);
+  border-color: var(--status-cancelled-border);
+}
+
+/* Pulse animation for running */
+@keyframes app-status-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+.app-status-badge__dot--pulse {
+  animation: app-status-pulse 1.5s infinite;
+}

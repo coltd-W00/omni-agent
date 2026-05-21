@@ -1,0 +1,57 @@
+/* AgentAvatar — app-agent-avatar-* prefix */
+/* Codex orange #F97316 per UX spec 8.2 — runtime brand color (không có entry trong tokens.css). */
+/* Claude violet dùng var(--status-running-text) = #6D28D9, đã match UX spec 8.2. */
+
+.app-agent-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 50%;
+  font-family: var(--font-family-sans);
+  font-weight: 600;
+  position: relative;
+  user-select: none;
+}
+
+/* Runtime overlay badge */
+.app-agent-avatar__runtime {
+  position: absolute;
+  bottom: -1px;
+  right: -1px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  line-height: 1;
+  border: 1px solid var(--bg-card);
+}
+
+/* Runtime overlay sizes */
+.app-agent-avatar__runtime--sm {
+  width: 12px;
+  height: 12px;
+  font-size: 7px;
+}
+.app-agent-avatar__runtime--md {
+  width: 14px;
+  height: 14px;
+  font-size: 8px;
+}
+.app-agent-avatar__runtime--lg {
+  width: 16px;
+  height: 16px;
+  font-size: 9px;
+}
+
+/* Runtime overlay colors per UX 8.2 */
+/* Codex orange #F97316 KHÔNG có entry trong tokens.css vì UX spec định nghĩa đây là runtime brand color. */
+.app-agent-avatar__runtime--codex {
+  background: #F97316;
+  color: var(--text-inverse);
+}
+.app-agent-avatar__runtime--claude {
+  background: var(--status-running-text);
+  color: var(--text-inverse);
+}
