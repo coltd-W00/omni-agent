@@ -1,6 +1,6 @@
 # Story 1.2: Database Schema & Migrations
 
-**Status:** review
+**Status:** done
 **Epic:** 1 — Project Foundation & Infrastructure
 **Story ID:** 1.2
 **Story Key:** 1-2-database-schema-and-migrations
