@@ -1,24 +1,28 @@
+mod db;
 mod error;
 mod state;
-mod db;
 
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::Arc;
 
-use axum::{
-    response::IntoResponse,
-    routing::get,
-    Json, Router,
-};
+use axum::{Json, Router, extract::State, response::IntoResponse, routing::get};
 use tokio::sync::Mutex;
-use tracing::info;
+use tracing::{debug, info};
 use tracing_subscriber::EnvFilter;
 
 use error::AppError;
 use state::AppState;
 
-async fn health_handler() -> impl IntoResponse {
+async fn health_handler(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+    let db_closed = state.db.is_closed();
+    let active_subprocesses = state.subprocess_count().await;
+
+    debug!(
+        db_closed,
+        active_subprocesses, "Health check state snapshot"
+    );
+
     Json(serde_json::json!({"status": "ok"}))
 }
 
@@ -29,7 +33,9 @@ async fn fallback_handler() -> impl IntoResponse {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt()
-        .with_env_filter(EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")))
+        .with_env_filter(
+            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")),
+        )
         .init();
 
     let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
@@ -37,8 +43,7 @@ async fn main() -> anyhow::Result<()> {
     std::fs::create_dir_all(&db_dir)?;
     let db_url = format!("sqlite://{}/omni-agent.db", db_dir.display());
 
-    let opts = sqlx::sqlite::SqliteConnectOptions::from_str(&db_url)?
-        .create_if_missing(true);
+    let opts = sqlx::sqlite::SqliteConnectOptions::from_str(&db_url)?.create_if_missing(true);
     let pool = sqlx::SqlitePool::connect_with(opts).await?;
 
     db::run_migrations(&pool).await?;

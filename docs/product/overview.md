@@ -30,7 +30,8 @@ Implementation đã bắt đầu ở Epic 1 foundation.
 - Backend Rust/Axum scaffold tồn tại trong `backend/`.
 - SQLite migration đầu tiên tạo các bảng `projects`, `tasks`, `sessions`,
   `runs`, và `comments`.
-- `frontend/` hiện chỉ là placeholder; Vite React scaffold thuộc story sau.
+- `frontend/` đã có Vite React TypeScript scaffold, design tokens,
+  `global.css`, và dev proxy `/api` tới backend.
 - Runtime database và logs thuộc `~/.omni-agent/`, không commit vào repo.
 
 ## Source Artifacts

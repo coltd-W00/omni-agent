@@ -13,7 +13,8 @@ Implementation đã bắt đầu.
 - Product planning artifacts nằm trong `_bmad-output/planning-artifacts/`.
 - Living product docs nằm trong `docs/product/`.
 - Backend foundation đã có trong `backend/`.
-- Frontend hiện mới là placeholder; Vite React scaffold thuộc story sau.
+- Frontend foundation đã có trong `frontend/`: Vite React TypeScript scaffold,
+  design tokens, global CSS, và dev proxy `/api` tới backend.
 
 ## Current Backend
 
@@ -29,6 +30,20 @@ Expected local server:
 
 On startup the backend creates `~/.omni-agent/omni-agent.db` and applies SQLx
 migrations from `backend/src/db/migrations/`.
+
+## Current Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Expected local server:
+
+- `http://localhost:5173/`
+- `GET http://localhost:5173/api/health` proxies to backend `/health` while
+  Story 1.1 backend routes are still unprefixed.
 
 ## Documentation
 

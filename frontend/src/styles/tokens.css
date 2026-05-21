@@ -1,0 +1,109 @@
+/* tokens.css — single source of truth cho design values.
+   Nguồn: _bmad-output/planning-artifacts/ux-design-specification.md, Section 1.2.
+   Bất kỳ thay đổi giá trị nào phải update UX spec trước.
+*/
+
+:root {
+  /* ==== Neutrals ==== */
+  --bg-app: #F4F5F7;
+  --bg-card: #FFFFFF;
+  --bg-hover: #F0F1F3;
+  --border: #E4E5E7;
+  --border-strong: #D1D2D4;
+  --text-primary: #111827;
+  --text-secondary: #6B7280;
+  --text-disabled: #9CA3AF;
+  --text-inverse: #FFFFFF;
+
+  /* ==== Brand ==== */
+  --brand-primary: #4F46E5;   /* Indigo 600 */
+  --brand-hover:   #4338CA;   /* Indigo 700 */
+  --brand-light:   #EEF2FF;   /* Indigo 50 */
+
+  /* ==== Status — 9 triples (bg / text / border) ==== */
+  /* Draft / Created */
+  --status-draft-bg:     #F3F4F6;
+  --status-draft-text:   #6B7280;
+  --status-draft-border: #E5E7EB;
+
+  /* Ready */
+  --status-ready-bg:     #EFF6FF;
+  --status-ready-text:   #1D4ED8;
+  --status-ready-border: #BFDBFE;
+
+  /* Assigned */
+  --status-assigned-bg:     #EEF2FF;
+  --status-assigned-text:   #4338CA;
+  --status-assigned-border: #C7D2FE;
+
+  /* Running */
+  --status-running-bg:     #F5F3FF;
+  --status-running-text:   #6D28D9;
+  --status-running-border: #DDD6FE;
+
+  /* Needs Review */
+  --status-needs-review-bg:     #FFFBEB;
+  --status-needs-review-text:   #B45309;
+  --status-needs-review-border: #FDE68A;
+
+  /* Changes Requested */
+  --status-changes-requested-bg:     #FFF7ED;
+  --status-changes-requested-text:   #C2410C;
+  --status-changes-requested-border: #FED7AA;
+
+  /* Completed (= Done backend status) */
+  --status-completed-bg:     #F0FDF4;
+  --status-completed-text:   #15803D;
+  --status-completed-border: #BBF7D0;
+
+  /* Failed (= Blocked) */
+  --status-failed-bg:     #FEF2F2;
+  --status-failed-text:   #DC2626;
+  --status-failed-border: #FECACA;
+
+  /* Cancelled */
+  --status-cancelled-bg:     #F9FAFB;
+  --status-cancelled-text:   #9CA3AF;
+  --status-cancelled-border: #F3F4F6;
+
+  /* Paused alias — UX spec không có row riêng cho Paused; theo MVP task lifecycle (Paused = task tạm dừng giữa các Run), dùng cùng visual với Running cho đến khi UX spec cập nhật. Xem Spec Gap bên dưới. */
+  --status-paused-bg:     var(--status-running-bg);
+  --status-paused-text:   var(--status-running-text);
+  --status-paused-border: var(--status-running-border);
+
+  /* ==== Spacing — 4px base unit ==== */
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  20px;
+  --space-6:  24px;
+  --space-8:  32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* ==== Radius ==== */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  /* ==== Shadow ==== */
+  --shadow-sm:    0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-md:    0 4px 8px rgba(0, 0, 0, 0.08);
+  --shadow-lg:    0 12px 24px rgba(0, 0, 0, 0.10);
+  --shadow-focus: 0 0 0 3px rgba(79, 70, 229, 0.25);
+
+  /* ==== Font families ==== */
+  --font-family-sans: Inter, Geist, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-family-mono: ui-monospace, "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+
+  /* ==== Typography roles (size / line-height) ==== */
+  --font-size-heading-l: 20px;  --line-height-heading-l: 28px;
+  --font-size-heading-m: 16px;  --line-height-heading-m: 24px;
+  --font-size-heading-s: 14px;  --line-height-heading-s: 20px;
+  --font-size-body:      14px;  --line-height-body:      20px;
+  --font-size-body-s:    13px;  --line-height-body-s:    18px;
+  --font-size-caption:   12px;  --line-height-caption:   16px;
+  --font-size-mono:      13px;  --line-height-mono:      20px;
+}

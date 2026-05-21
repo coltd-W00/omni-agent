@@ -3,8 +3,9 @@
 Application stack đã được chọn cho omni-agent MVP.
 
 Implementation hiện mới ở foundation layer: Rust/Axum backend scaffold,
-SQLx/SQLite migration, và frontend placeholder. Tài liệu này giữ cả selected
-architecture hiện tại và boundary rules cho future stories.
+SQLx/SQLite migration, và Vite React frontend scaffold với design tokens. Tài
+liệu này giữ cả selected architecture hiện tại và boundary rules cho future
+stories.
 
 ## Stack Đã Chọn
 
@@ -29,10 +30,21 @@ backend/
         1_init.sql
 
 frontend/
-  .gitkeep
+  package.json
+  vite.config.ts
+  tsconfig.json
+  tsconfig.app.json
+  tsconfig.node.json
+  index.html
+  src/
+    main.tsx
+    App.tsx
+    styles/
+      tokens.css
+      global.css
 ```
 
-Frontend scaffold và application modules dự kiến phải đi theo selected stories,
+Frontend application modules sau scaffold vẫn phải đi theo selected stories,
 không tạo ngoài story đã chọn.
 
 ## Runtime Locations
