@@ -1,6 +1,6 @@
 # Story 1.4: AppShell Layout & Routing
 
-**Status:** ready-for-dev
+**Status:** done
 **Epic:** 1 — Project Foundation & Infrastructure
 **Story ID:** 1.4
 **Story Key:** 1-4-appshell-layout-and-routing
@@ -283,6 +283,25 @@ KHÔNG tạo: `frontend/src/api/`, `frontend/src/hooks/`, `frontend/src/features
   - [ ] 8.3 Cập nhật `_bmad-output/implementation-artifacts/sprint-status.yaml`: `1-4-appshell-layout-and-routing: backlog` → `ready-for-dev`. Update `last_updated` field.
   - [ ] 8.4 KHÔNG tạo `docs/decisions/` mới trừ khi developer phát hiện vấn đề mới phải decide (vd: chọn CSS Modules vs plain CSS có lý do mới ngoài Dev Notes section bên dưới).
 
+### Review Findings
+
+- [x] [Review][Patch] Hardcode pixel value cho border-radius trong AppShell.css [frontend/src/components/AppShell.css] — fixed bằng `var(--radius-sm)`.
+- [x] [Review][Patch] Sai lệch aria-label của avatar người dùng trong Sidebar.tsx [frontend/src/components/Sidebar.tsx] — fixed bằng label trên avatar container và ẩn initial khỏi accessibility tree.
+- [x] [Review][Patch] Project Switcher button disabled styles [frontend/src/components/AppShell.css] — fixed bằng selector `:disabled` explicit, giữ visual placeholder không bị browser dim tùy ý.
+- [x] [Review][Patch] Accessibility Gaps ở Sidebar [frontend/src/components/Sidebar.tsx] — fixed bằng cách tránh nested navigation landmark và thêm accessible label cho Project Switcher placeholder.
+- [x] [Review][Defer] Thiếu Error Boundary bảo vệ ứng dụng khi xảy ra lỗi render ở Route [frontend/src/main.tsx:12-19] — deferred, pre-existing
+- [x] [Review][Defer] Cấu hình scroll container chưa tối ưu cho Sidebar [frontend/src/components/AppShell.css] — deferred, pre-existing
+- [x] [Review][Defer] Thiếu Code Splitting / Lazy Loading cho các Route component [frontend/src/App.tsx] — deferred, pre-existing
+
+### Review Finding Assessment — 2026-05-21
+
+| Finding | Phân loại | Quyết định | Lý do |
+|---|---|---|---|
+| Hardcode pixel value cho border-radius | Cần fix ngay | Fixed | Story yêu cầu dùng design token khi token tồn tại; `--radius-sm` đã có trong `tokens.css`. |
+| Sai lệch aria-label của avatar người dùng | Cần fix ngay | Fixed | Label cũ đặt trên `span` có visible text nên dễ bị đọc dư/sai; container avatar mới giữ semantic rõ hơn. |
+| Project Switcher button disabled styles | Cần fix ngay | Fixed | Disabled button có browser default opacity/color khác nhau; selector explicit giữ placeholder đúng visual contract. |
+| Accessibility Gaps ở Sidebar | Cần fix ngay | Fixed | Patch nhỏ, không đổi behavior; loại bỏ nested navigation landmark không cần thiết và bổ sung accessible label cho placeholder. |
+
 ---
 
 ## Dev Notes
@@ -524,9 +543,12 @@ export default function AppShell() {
 }
 
 .app-sidebar__project-switcher {
+  display: flex;
+  align-items: center;
+  width: calc(100% - (var(--space-3) * 2));
   margin: var(--space-2) var(--space-3);
   height: 34px;
-  padding: 0 var(--space-3);
+  padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
   background: var(--bg-card);
@@ -534,6 +556,15 @@ export default function AppShell() {
   text-align: left;
   cursor: not-allowed;
   font-size: var(--font-size-body);
+  line-height: var(--line-height-caption);
+}
+
+.app-sidebar__project-switcher:disabled {
+  opacity: 1;
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  cursor: not-allowed;
+  -webkit-text-fill-color: var(--text-secondary);
 }
 
 .app-sidebar__nav {
@@ -550,10 +581,10 @@ export default function AppShell() {
 }
 
 .app-sidebar__item {
-  display: block;
+  display: flex;
+  align-items: center;
   height: 34px;
-  line-height: 34px;
-  padding: 0 var(--space-3);
+  padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
   text-decoration: none;
@@ -575,7 +606,6 @@ export default function AppShell() {
   padding: var(--space-4);
   display: flex;
   align-items: center;
-  gap: var(--space-3);
 }
 
 .app-sidebar__avatar-circle {
@@ -625,11 +655,12 @@ export default function Sidebar() {
         className="app-sidebar__project-switcher"
         data-testid="project-switcher-placeholder"
         disabled
+        aria-label="Default Project, coming in Story 2.1"
         title="Coming in Story 2.1"
       >
         Default Project ⌄
       </button>
-      <nav className="app-sidebar__nav">
+      <div className="app-sidebar__nav">
         <ul>
           <li>
             <NavLink to="/dashboard" className={itemClass}>
@@ -642,9 +673,14 @@ export default function Sidebar() {
             </NavLink>
           </li>
         </ul>
-      </nav>
-      <div className="app-sidebar__avatar" data-testid="user-avatar-placeholder">
-        <span className="app-sidebar__avatar-circle" aria-label="User avatar (Loc)">
+      </div>
+      <div
+        className="app-sidebar__avatar"
+        data-testid="user-avatar-placeholder"
+        role="img"
+        aria-label="User avatar placeholder: L"
+      >
+        <span className="app-sidebar__avatar-circle" aria-hidden="true">
           L
         </span>
       </div>
@@ -759,16 +795,46 @@ KHÔNG fix các gap này trong story 1.4 — chỉ document và defer đúng sto
 
 ### Agent Model Used
 
-_TBD — điền sau khi dev agent execute_
+GPT-5 Codex
 
 ### Debug Log References
 
-_TBD_
+- `cd frontend && npm install react-router@7.15.1` — pass, 0 vulnerabilities.
+- `cd frontend && npx tsc --noEmit` — pass.
+- `cd frontend && npm run build` — pass, Vite build tạo `frontend/dist/`.
+- Review patch 2026-05-21: `cd frontend && npx tsc --noEmit` — pass.
+- Review patch 2026-05-21: `cd frontend && npm run build` — pass.
+- `npm run dev -- --host 127.0.0.1` + Playwright Python/Chrome browser check — pass:
+  - `/` redirect tới `/dashboard`.
+  - TopBar computed `height: 52px`, `position: sticky`, `top: 0px`, `z-index: 100`.
+  - Sidebar computed `width: 220px`.
+  - Main computed `padding: 24px`, `min-width: 0px`.
+  - `/dashboard` active nav computed `font-weight: 500`, `color: rgb(79, 70, 229)`.
+  - Click `All Tasks` đổi URL tới `/board`, render `board-route`, TopBar/Sidebar giữ nguyên DOM node.
+  - `/random-unknown-route` render `not-found-route` trong AppShell; link `Quay lại Dashboard` đổi URL về `/dashboard`.
 
 ### Completion Notes List
 
-_TBD_
+- Đã thêm React Router v7 declarative routing qua `react-router` package, không cài `react-router-dom`.
+- Đã thay Story 1.3 token probe bằng AppShell layout dùng TopBar, Sidebar, Main Work Area và nested `<Outlet />`.
+- Đã thêm route placeholders cho Dashboard, Task Board và NotFound đúng scope; chưa thêm business UI, search, badges, Project Switcher dropdown, Detail Panel, responsive collapse, hoặc frontend test framework.
+- CSS strategy dùng plain colocated `frontend/src/components/AppShell.css`, matching Dev Notes; không dùng CSS Modules.
+- Product truth không đổi; validation expectation cho Story 1.4 được cập nhật trong `docs/TEST_MATRIX.md`.
 
 ### File List
 
-_TBD — dev agent phải liệt kê tất cả file tạo mới / sửa / xóa_
+- `frontend/package.json`
+- `frontend/package-lock.json`
+- `frontend/src/main.tsx`
+- `frontend/src/App.tsx`
+- `frontend/src/components/AppShell.tsx`
+- `frontend/src/components/AppShell.css`
+- `frontend/src/components/TopBar.tsx`
+- `frontend/src/components/Sidebar.tsx`
+- `frontend/src/routes/DashboardRoute.tsx`
+- `frontend/src/routes/BoardRoute.tsx`
+- `frontend/src/routes/NotFoundRoute.tsx`
+- `_bmad-output/implementation-artifacts/1-4-appshell-layout-and-routing.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `docs/TEST_MATRIX.md`
+- `docs/stories/backlog.md`

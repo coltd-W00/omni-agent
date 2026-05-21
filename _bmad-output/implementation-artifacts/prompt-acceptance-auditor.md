@@ -18,148 +18,143 @@ Trả về kết quả dưới dạng danh sách Markdown các phát hiện (fin
 
 ## 1. Diff đầu vào:
 ```diff
-diff --git a/_bmad-output/implementation-artifacts/1-3-frontend-scaffold-and-design-tokens.md b/_bmad-output/implementation-artifacts/1-3-frontend-scaffold-and-design-tokens.md
-index b425d55..bb7d5df 100644
---- a/_bmad-output/implementation-artifacts/1-3-frontend-scaffold-and-design-tokens.md
-+++ b/_bmad-output/implementation-artifacts/1-3-frontend-scaffold-and-design-tokens.md
-@@ -1,6 +1,6 @@
- # Story 1.3: Frontend Scaffold & Design Tokens
+diff --git a/_bmad-output/implementation-artifacts/1-4-appshell-layout-and-routing.md b/_bmad-output/implementation-artifacts/1-4-appshell-layout-and-routing.md
+index ad2e3c0..ec00c28 100644
+--- a/_bmad-output/implementation-artifacts/1-4-appshell-layout-and-routing.md
++++ b/_bmad-output/implementation-artifacts/1-4-appshell-layout-and-routing.md
+@@ -285,15 +285,24 @@
  
--**Status:** implemented
-+**Status:** in-progress
- **Epic:** 1 — Project Foundation & Infrastructure
- **Story ID:** 1.3
- **Story Key:** 1-3-frontend-scaffold-and-design-tokens
-@@ -98,6 +98,16 @@ So that frontend có thể giao tiếp với backend và mọi component đều
-   - [x] 8.5 Backend chạy nền (`cd backend && cargo run` ở terminal khác) → `curl -i http://localhost:5173/api/health` → `HTTP/1.1 200 OK` với body `{"status":"ok"}` (AC-2).
-   - [x] 8.6 `git status` — chỉ thấy file mới/sửa trong `frontend/`, `_bmad-output/implementation-artifacts/`, `docs/`. KHÔNG thấy `node_modules/`, `dist/`, `.vite/`.
+ ### Review Findings
  
-+### Review Findings
+-- [ ] [Review][Patch] Hardcode pixel value cho border-radius trong AppShell.css [frontend/src/components/AppShell.css]
+-- [ ] [Review][Patch] Sai lệch aria-label của avatar người dùng trong Sidebar.tsx [frontend/src/components/Sidebar.tsx]
+-- [ ] [Review][Patch] Project Switcher button disabled styles [frontend/src/components/AppShell.css]
+-- [ ] [Review][Patch] Accessibility Gaps ở Sidebar [frontend/src/components/Sidebar.tsx]
++- [x] [Review][Patch] Hardcode pixel value cho border-radius trong AppShell.css [frontend/src/components/AppShell.css] — fixed bằng `var(--radius-sm)`.
++- [x] [Review][Patch] Sai lệch aria-label của avatar người dùng trong Sidebar.tsx [frontend/src/components/Sidebar.tsx] — fixed bằng label trên avatar container và ẩn initial khỏi accessibility tree.
++- [x] [Review][Patch] Project Switcher button disabled styles [frontend/src/components/AppShell.css] — fixed bằng selector `:disabled` explicit, giữ visual placeholder không bị browser dim tùy ý.
++- [x] [Review][Patch] Accessibility Gaps ở Sidebar [frontend/src/components/Sidebar.tsx] — fixed bằng cách tránh nested navigation landmark và thêm accessible label cho Project Switcher placeholder.
+ - [x] [Review][Defer] Thiếu Error Boundary bảo vệ ứng dụng khi xảy ra lỗi render ở Route [frontend/src/main.tsx:12-19] — deferred, pre-existing
+ - [x] [Review][Defer] Cấu hình scroll container chưa tối ưu cho Sidebar [frontend/src/components/AppShell.css] — deferred, pre-existing
+ - [x] [Review][Defer] Thiếu Code Splitting / Lazy Loading cho các Route component [frontend/src/App.tsx] — deferred, pre-existing
+ 
++### Review Finding Assessment — 2026-05-21
 +
-+- [x] [Review][Patch] Regex pattern for API prefix in proxy config is loose [frontend/vite.config.ts:16] — fixed by anchoring rewrite to `/api` followed by `/` or end-of-path.
-+- [x] [Review][Patch] Bullet symbol (●) missing in the probe component's status badge [frontend/src/App.tsx] — fixed.
-+- [x] [Review][Patch] Non-null assertion on root DOM element in main.tsx [frontend/src/main.tsx:6] — fixed with explicit root guard before `createRoot`.
-+- [x] [Review][Patch] Unused React Import in main.tsx [frontend/src/main.tsx] — fixed by importing `StrictMode` and `createRoot` directly.
-+- [x] [Review][Patch] SEO description meta tag is missing in index.html [frontend/index.html] — fixed.
-+- [x] [Review][Defer] No Dark Mode support in CSS design tokens [frontend/src/styles/tokens.css] — deferred, pre-existing
-+- [x] [Review][Defer] Missing Error Boundary at root in main.tsx [frontend/src/main.tsx] — deferred, pre-existing
++| Finding | Phân loại | Quyết định | Lý do |
++|---|---|---|---|
++| Hardcode pixel value cho border-radius | Cần fix ngay | Fixed | Story yêu cầu dùng design token khi token tồn tại; `--radius-sm` đã có trong `tokens.css`. |
++| Sai lệch aria-label của avatar người dùng | Cần fix ngay | Fixed | Label cũ đặt trên `span` có visible text nên dễ bị đọc dư/sai; container avatar mới giữ semantic rõ hơn. |
++| Project Switcher button disabled styles | Cần fix ngay | Fixed | Disabled button có browser default opacity/color khác nhau; selector explicit giữ placeholder đúng visual contract. |
++| Accessibility Gaps ở Sidebar | Cần fix ngay | Fixed | Patch nhỏ, không đổi behavior; loại bỏ nested navigation landmark không cần thiết và bổ sung accessible label cho placeholder. |
 +
  ---
  
  ## Dev Notes
-diff --git a/_bmad-output/implementation-artifacts/sprint-status.yaml b/_bmad-output/implementation-artifacts/sprint-status.yaml
-index 9172bad..0256815 100644
---- a/_bmad-output/implementation-artifacts/sprint-status.yaml
-+++ b/_bmad-output/implementation-artifacts/sprint-status.yaml
-@@ -35,7 +35,7 @@
- # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
- 
- generated: "2026-05-21T00:35:18+07:00"
--last_updated: "2026-05-21T12:52:00+07:00"
-+last_updated: "2026-05-21T15:35:34+07:00"
- project: omni-agent
- project_key: NOKEY
- tracking_system: file-system
-@@ -46,7 +46,7 @@ development_status:
-   epic-1: in-progress
-   1-1-monorepo-setup-and-backend-scaffold: done
-   1-2-database-schema-and-migrations: review
--  1-3-frontend-scaffold-and-design-tokens: ready-for-dev
-+  1-3-frontend-scaffold-and-design-tokens: in-progress
-   1-4-appshell-layout-and-routing: ready-for-dev
-   epic-1-retrospective: optional
- 
-diff --git a/frontend/index.html b/frontend/index.html
-index e2a2fba..fa34fad 100644
---- a/frontend/index.html
-+++ b/frontend/index.html
-@@ -3,6 +3,10 @@
-   <head>
-     <meta charset="UTF-8" />
-     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-+    <meta
-+      name="description"
-+      content="Local task board for AI CLI agents."
-+    />
-     <title>omni-agent</title>
-   </head>
-   <body>
-diff --git a/frontend/src/App.tsx b/frontend/src/App.tsx
-index 535beda..a70e152 100644
---- a/frontend/src/App.tsx
-+++ b/frontend/src/App.tsx
-@@ -19,7 +19,7 @@ export default function App() {
-           fontSize: "var(--font-size-caption)",
-         }}
-       >
--        Running (token probe)
-+        ● Running (token probe)
-       </span>
-     </main>
-   );
-diff --git a/frontend/src/main.tsx b/frontend/src/main.tsx
-index fda7223..3bdc071 100644
---- a/frontend/src/main.tsx
-+++ b/frontend/src/main.tsx
-@@ -1,10 +1,16 @@
--import React from "react";
--import ReactDOM from "react-dom/client";
-+import { StrictMode } from "react";
-+import { createRoot } from "react-dom/client";
- import App from "./App";
- import "./styles/global.css";
- 
--ReactDOM.createRoot(document.getElementById("root")!).render(
--  <React.StrictMode>
-+const roo
-+const rootElement = document.getElementById("root");
-+
-+if (!rootElement) {
-+  throw new Error("Root element #root not found");
+diff --git a/frontend/src/components/AppShell.css b/frontend/src/components/AppShell.css
+index 152eb24..139f4c7 100644
+--- a/frontend/src/components/AppShell.css
++++ b/frontend/src/components/AppShell.css
+@@ -65,7 +65,7 @@
+   margin: var(--space-2) var(--space-3);
+   height: 34px;
+   padding: var(--space-2) var(--space-3);
+-  border-radius: 6px; /* UX-DR9 project switcher radius */
++  border-radius: var(--radius-sm);
+   border: 1px solid var(--border);
+   background: var(--bg-card);
+   color: var(--text-secondary);
+@@ -73,7 +73,13 @@
+   cursor: not-allowed;
+   font-size: var(--font-size-body);
+   line-height: var(--line-height-caption);
 +}
 +
-+createRoot(rootElement).render(
-+  <StrictMode>
-     <App />
--  </React.StrictMode>,
-+  </StrictMode>,
- );
-diff --git a/frontend/vite.config.ts b/frontend/vite.config.ts
-index ccdbf0e..74b5ed5 100644
---- a/frontend/vite.config.ts
-+++ b/frontend/vite.config.ts
-@@ -13,7 +13,7 @@ export default defineConfig({
-         // Backend hiện CHƯA prefix /api (Story 1.1 chỉ có GET /health).
-         // Rewrite tạm để verify AC-2 mà không sửa backend.
-         // TODO(Story 2.1): xóa rewrite khi backend mount handlers dưới /api/*.
--        rewrite: (path) => path.replace(/^\/api/, ""),
-+        rewrite: (path) => path.replace(/^\/api(?=\/|$)/, ""),
-       },
-     },
-   },
++.app-sidebar__project-switcher:disabled {
+   opacity: 1;
++  background: var(--bg-card);
++  color: var(--text-secondary);
++  cursor: not-allowed;
+   -webkit-text-fill-color: var(--text-secondary);
+ }
+ 
+@@ -95,7 +101,7 @@
+   align-items: center;
+   height: 34px;
+   padding: var(--space-2) var(--space-3);
+-  border-radius: 6px; /* UX-DR9 nav item radius */
++  border-radius: var(--radius-sm);
+   color: var(--text-primary);
+   text-decoration: none;
+   font-size: var(--font-size-body);
+diff --git a/frontend/src/components/Sidebar.tsx b/frontend/src/components/Sidebar.tsx
+index 55a9783..176b724 100644
+--- a/frontend/src/components/Sidebar.tsx
++++ b/frontend/src/components/Sidebar.tsx
+@@ -14,11 +14,12 @@ export default function Sidebar() {
+         className="app-sidebar__project-switcher"
+         data-testid="project-switcher-placeholder"
+         disabled
++        aria-label="Default Project, coming in Story 2.1"
+         title="Coming in Story 2.1"
+       >
+         Default Project ⌄
+       </button>
+-      <nav className="app-sidebar__nav">
++      <div className="app-sidebar__nav">
+         <ul>
+           <li>
+             <NavLink to="/dashboard" className={itemClass}>
+@@ -31,9 +32,14 @@ export default function Sidebar() {
+             </NavLink>
+           </li>
+         </ul>
+-      </nav>
+-      <div className="app-sidebar__avatar" data-testid="user-avatar-placeholder">
+-        <span className="app-sidebar__avatar-circle" aria-label="User avatar placeholder">
++      </div>
++      <div
++        className="app-sidebar__avatar"
++        data-testid="user-avatar-placeholder"
++        role="img"
++        aria-label="User avatar placeholder: L"
++      >
++        <span className="app-sidebar__avatar-circle" aria-hidden="true">
+           L
+         </span>
+       </div>
 ```
 
 ---
 
-## 2. Spec File (1-3-frontend-scaffold-and-design-tokens.md):
+## 2. Spec File (1-4-appshell-layout-and-routing.md):
 ```markdown
-# Story 1.3: Frontend Scaffold & Design Tokens
+# Story 1.4: AppShell Layout & Routing
 
 **Epic:** 1 — Project Foundation & Infrastructure
-**Story ID:** 1.3
-**Story Key:** 1-3-frontend-scaffold-and-design-tokens
+**Story ID:** 1.4
+**Story Key:** 1-4-appshell-layout-and-routing
 
 ### Acceptance Criteria
-- AC-1: Given repository đã clone / When chạy `npm install` rồi `npm run dev` trong `frontend/` / Then Vite dev server khởi động tại `http://localhost:5173` And TypeScript strict mode được bật trong `frontend/tsconfig.json` (`"strict": true`).
-- AC-2: Given Vite dev server đang chạy And backend đang chạy tại `127.0.0.1:8080` / When request `GET http://localhost:5173/api/health` / Then request được proxy tới `http://127.0.0.1:8080/health` và trả `200 OK` với body `{"status":"ok"}`.
-- AC-3: Given file `frontend/src/styles/tokens.css` / When inspect các CSS variables / Then Neutrals, Brand, 9 status color triples đầy đủ, spacing, radius, shadow, font tokens đầy đủ.
-- AC-4: Given `tokens.css` được import trong `main.tsx` / When bất kỳ component nào dùng `var(--brand-primary)` / Then đúng giá trị màu được áp dụng (verify bằng probe component trong `App.tsx`).
-- AC-5: Thư mục frontend/ chứa: package.json (React 19 + TypeScript strict), tsconfig.json, vite.config.ts (proxy /api -> 8080), index.html, src/main.tsx, src/App.tsx, src/styles/tokens.css, src/styles/global.css.
+- AC-1 (TopBar layout): Given app load tại http://localhost:5173 / When inspect layout / Then TopBar render với height: 52px, full width, sticky (position: sticky; top: 0; z-index: 100), background: var(--bg-card), có border-bottom: 1px solid var(--border).
+- AC-2 (Sidebar layout): Given app load / When inspect sidebar / Then Sidebar có width: 220px, fixed bên trái, background: var(--bg-card), border-right: 1px solid var(--border), full viewport height, scrollable khi nội dung dài.
+- AC-3 (Main Work Area): Given app load / When inspect main area / Then Main Work Area flex-grow: 1, background: var(--bg-app), padding: 24px (var(--space-6)), scrollable independent với sidebar, min-width: 0 (cho phép children co lại).
+- AC-4 (Sidebar contents — MVP subset của UX-DR9): Given sidebar đã render / When inspect contents / Then chứa các phần tử sau theo thứ tự từ trên xuống:
+  - Header row (52px height, align với TopBar): text OmniAgent dùng color: var(--brand-primary), font-weight: 600.
+  - Project Switcher placeholder (1 row 34px, padding 8px 12px, border-radius 6px): hiển thị text Default Project ⌄ không click được trong story này; có data-testid="project-switcher-placeholder". Story 2.1 sẽ thay bằng functional dropdown.
+  - Nav items (mỗi item: <a> render qua NavLink của React Router, 34px height, padding 8px 12px, border-radius 6px):
+    - Dashboard -> /dashboard
+    - Board -> /board
+  - User profile / avatar placeholder: hiển thị ở dưới cùng của sidebar (pinned bottom), hình tròn 32x32px, hiển thị chữ cái đầu của username của user hiện tại (ví dụ: "L" cho user "Loc"), hover có tooltip hoặc accessible text "User avatar placeholder". Có data-testid="user-avatar-placeholder".
+- AC-5 (Client-side routing): Given user click vào NavLink Dashboard / When check URL / Then URL chuyển sang /dashboard, component DashboardRoute render.
+- AC-6 (Active link state): Given user ở /dashboard / When inspect sidebar / Then NavLink Dashboard có text color var(--brand-primary) và background var(--bg-active), NavLink Board ở state mặc định.
+- AC-7 (Catch-all route): Given user truy cập route không tồn tại / When page load / Then render NotFoundRoute component, hiển thị 404 error message và Link quay lại Dashboard.
+- AC-8 (No re-mount AppShell): Given user chuyển hướng giữa các route / When inspect render / Then AppShell component (cùng Sidebar/TopBar) KHÔNG bị re-mount, chỉ phần nội dung trong Main Work Area được update.
 ```
 
 ---
 
 ## 3. Project Context:
 - **TypeScript/React (Frontend):** TypeScript strict mode bắt buộc.
-- **Naming:** React components: PascalCase cho tên file và component (`TaskCard.tsx`). CSS variables: kebab-case.
+- **Naming:** React components: PascalCase cho tên file và component. CSS variables: kebab-case.
 - **Design System (CSS variables):** Font stack: Inter, Geist, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif. Bắt buộc dùng CSS variables đã định nghĩa, không hardcode hex.
+```
