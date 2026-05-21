@@ -1,7 +1,3 @@
-mod db;
-mod error;
-mod state;
-
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -11,8 +7,7 @@ use tokio::sync::Mutex;
 use tracing::{debug, info};
 use tracing_subscriber::EnvFilter;
 
-use error::AppError;
-use state::AppState;
+use omni_agent_backend::{db, error::AppError, handlers, state::AppState};
 
 async fn health_handler(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     let db_closed = state.db.is_closed();
@@ -27,7 +22,10 @@ async fn health_handler(State(state): State<Arc<AppState>>) -> impl IntoResponse
 }
 
 async fn fallback_handler() -> impl IntoResponse {
-    AppError::NotFound("Route not found".to_string())
+    AppError::NotFound {
+        code: "not_found",
+        message: "Route not found".to_string(),
+    }
 }
 
 #[tokio::main]
@@ -54,8 +52,19 @@ async fn main() -> anyhow::Result<()> {
         subprocess_map: Arc::new(Mutex::new(HashMap::new())),
     };
 
+    let api_router = Router::new()
+        .route(
+            "/projects",
+            get(handlers::projects::list_projects).post(handlers::projects::create_project),
+        )
+        .route(
+            "/projects/{id}",
+            axum::routing::delete(handlers::projects::delete_project),
+        );
+
     let app = Router::new()
         .route("/health", get(health_handler))
+        .nest("/api", api_router)
         .fallback(fallback_handler)
         .with_state(Arc::new(state));
 
