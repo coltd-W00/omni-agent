@@ -52,7 +52,7 @@ development_status:
 
   # Epic 2: Project & Task Management
   epic-2: in-progress
-  2-0-shared-ui-components: backlog
+  2-0-shared-ui-components: ready-for-dev
   2-1-project-management: ready-for-dev
   2-2-task-crud-and-agent-assignment: backlog
   2-3-task-board-kanban-view: backlog
