@@ -1,0 +1,66 @@
+/* TaskCard — app-task-card-* prefix */
+
+.app-task-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  font-family: var(--font-family-sans);
+}
+
+.app-task-card--clickable:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-strong);
+  cursor: pointer;
+}
+
+/* Header row */
+.app-task-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Project tag pill */
+.app-task-card__project-tag {
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  padding: 2px var(--space-2);
+  font-size: var(--font-size-caption);
+  font-weight: 500;
+}
+
+/* Title: max 2 lines with truncate */
+.app-task-card__title {
+  font-size: var(--font-size-body);
+  font-weight: 500;
+  color: var(--text-primary);
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Session row */
+.app-task-card__session {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Footer */
+.app-task-card__footer {
+  display: flex;
+  align-items: center;
+  font-size: var(--font-size-caption);
+  color: var(--text-secondary);
+}
+
+.app-task-card__spacer {
+  flex: 1;
+}

@@ -1,0 +1,36 @@
+/* ConfirmationDialog — app-confirm-dialog-* prefix */
+
+.app-confirm-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.app-confirm-dialog {
+  border: none;
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  box-shadow: var(--shadow-lg);
+  max-width: 480px;
+  width: 90vw;
+  font-family: var(--font-family-sans);
+}
+
+.app-confirm-dialog__title {
+  font-size: var(--font-size-heading-m);
+  line-height: var(--line-height-heading-m);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 var(--space-4);
+}
+
+.app-confirm-dialog__description {
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+  color: var(--text-secondary);
+  margin: 0 0 var(--space-6);
+}
+
+.app-confirm-dialog__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+}
