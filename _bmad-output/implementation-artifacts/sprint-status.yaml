@@ -1,5 +1,5 @@
 # generated: 2026-05-21T00:35:18+07:00
-# last_updated: 2026-05-21T17:30:00+07:00
+# last_updated: 2026-05-21T23:25:00+07:00
 # project: omni-agent
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: "2026-05-21T00:35:18+07:00"
-last_updated: "2026-05-21T17:30:00+07:00"
+last_updated: "2026-05-21T23:25:00+07:00"
 project: omni-agent
 project_key: NOKEY
 tracking_system: file-system
@@ -54,7 +54,7 @@ development_status:
   epic-2: in-progress
   2-0-shared-ui-components: ready-for-dev
   2-1-project-management: ready-for-dev
-  2-2-task-crud-and-agent-assignment: backlog
+  2-2-task-crud-and-agent-assignment: ready-for-dev
   2-3-task-board-kanban-view: backlog
   2-4-task-detail-panel: backlog
   epic-2-retrospective: optional
