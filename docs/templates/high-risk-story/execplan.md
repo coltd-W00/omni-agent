@@ -1,16 +1,16 @@
 # Exec Plan
 
-## Goal
+## Mục Tiêu
 
 Chúng ta đang cố tạo ra outcome gì?
 
-## Scope
+## Phạm Vi
 
-In scope:
+Trong scope:
 
 - Item.
 
-Out of scope:
+Ngoài scope:
 
 - Item.
 

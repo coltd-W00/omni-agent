@@ -15,16 +15,16 @@ future user-provided spec.
 
 ## Folders
 
-- `product/`: current product truth, để trống cho đến khi spec được dẫn xuất.
+- `product/`: current product truth được dẫn xuất từ accepted omni-agent spec.
 - `stories/`: feature packets và backlog.
 - `decisions/`: durable decisions và tradeoffs.
-- `demo/`: walkthroughs cụ thể cho thấy harness biến input thành agent-ready
-  work như thế nào.
 - `templates/`: reusable spec-intake, story, plan, decision, và validation
   formats.
 
 ## Trạng Thái Hiện Tại
 
-Harness v0 tồn tại trước implementation. Các docs này định nghĩa project sẽ
-phát triển như thế nào; chúng không hàm ý app code, tests, CI, hoặc deployment
-automation đã tồn tại.
+Harness v0 đã được dùng để bắt đầu implementation. Backend foundation và
+database migration đầu tiên đã tồn tại; frontend scaffold, product handlers,
+session lifecycle, và UI vẫn thuộc các stories tiếp theo.
+
+Historical planning và implementation artifacts hiện nằm trong `_bmad-output/`.

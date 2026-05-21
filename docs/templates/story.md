@@ -1,6 +1,6 @@
-# US-XXX Story Title
+# US-XXX Tiêu Đề Story
 
-## Status
+## Trạng Thái
 
 planned
 
@@ -12,7 +12,7 @@ tiny | normal | high-risk
 
 Mô tả behavior mà story này phải làm thành sự thật.
 
-## Relevant Product Docs
+## Product Docs Liên Quan
 
 - `docs/product/...`
 

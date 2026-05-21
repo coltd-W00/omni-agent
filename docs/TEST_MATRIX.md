@@ -2,10 +2,11 @@
 
 File này map product behavior tới proof.
 
-Chưa có product behavior nào được định nghĩa hoặc implemented. Không mark một
-row là implemented cho đến khi có tests hoặc validation evidence.
+Không mark một row là implemented cho đến khi có tests hoặc validation
+evidence. Planning artifacts có thể là evidence cho story readiness, nhưng
+implemented status cần code-level proof hoặc recorded manual verification.
 
-## Status Values
+## Giá Trị Status
 
 | Status | Meaning |
 | --- | --- |
@@ -19,9 +20,20 @@ row là implemented cho đến khi có tests hoặc validation evidence.
 
 | Story | Contract | Unit | Integration | E2E | Platform | Status | Evidence |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| TBD | Thêm rows khi story packets được tạo | no | no | no | no | planned | none |
+| 1.1 Monorepo Setup & Backend Scaffold | `backend/` starts Axum server; `GET /health` returns `{"status":"ok"}`; unknown routes return error envelope; `frontend/` placeholder exists | no | manual | no | no | implemented | `_bmad-output/implementation-artifacts/1-1-monorepo-setup-and-backend-scaffold.md` |
+| 1.2 Database Schema & Migrations | Startup creates SQLite DB and applies schema for `projects`, `tasks`, `sessions`, `runs`, `comments`; migration is idempotent | yes | manual | no | no | in_progress | `cargo test` in `backend/` passed on 2026-05-21; `_bmad-output/implementation-artifacts/1-2-database-schema-and-migrations.md`; `backend/src/db/mod.rs` tests |
+| 1.3 Frontend Scaffold & Design Tokens | Vite React TypeScript scaffold, API proxy, and design tokens | no | no | no | no | planned | `_bmad-output/implementation-artifacts/sprint-status.yaml` |
+| 1.4 AppShell Layout & Routing | App shell, routing, sidebar/topbar layout | no | no | no | no | planned | `_bmad-output/implementation-artifacts/sprint-status.yaml` |
+| 2.1 Project Management | Project CRUD and delete-with-tasks guard | no | no | no | no | planned | `_bmad-output/planning-artifacts/epics.md` |
+| 2.2 Task CRUD & Agent Assignment | Task creation/edit/delete and agent assignment state transition | no | no | no | no | planned | `_bmad-output/planning-artifacts/epics.md` |
+| 2.3 Task Board Kanban View | Each task appears in exactly one status column with status polling | no | no | no | no | planned | `_bmad-output/planning-artifacts/epics.md` |
+| 2.4 Task Detail Panel | State-valid actions, session panel, and detail tabs | no | no | no | no | planned | `_bmad-output/planning-artifacts/epics.md` |
+| 3.1 Start Session | AgentStrategy and CLI subprocess start with session ID capture | no | no | no | no | planned | `_bmad-output/planning-artifacts/epics.md` |
+| 3.2 Session Exit Detection | Exit-code status mapping, cancel, browser-close independence, graceful shutdown | no | no | no | no | planned | `_bmad-output/planning-artifacts/epics.md` |
+| 3.3 Resume Session & Comments | Resume existing session with comment input and sent tracking | no | no | no | no | planned | `_bmad-output/planning-artifacts/epics.md` |
+| 3.4 Run Log Dual Storage | Full log file plus bounded DB tail | no | no | no | no | planned | `_bmad-output/planning-artifacts/epics.md` |
 
-## Evidence Rules
+## Rule Evidence
 
 - Unit proof bao phủ pure domain và application rules.
 - Integration proof bao phủ backend enforcement, data integrity, provider

@@ -1,16 +1,16 @@
-# NNNN Decision Title
+# NNNN Tiêu Đề Decision
 
 Date: YYYY-MM-DD
 
-## Status
+## Trạng Thái
 
 Proposed | Accepted | Superseded | Rejected
 
-## Context
+## Bối Cảnh
 
 Problem, constraint, hoặc ambiguity nào buộc phải có decision này?
 
-## Decision
+## Quyết Định
 
 Chúng ta đã quyết định gì?
 
@@ -18,7 +18,7 @@ Chúng ta đã quyết định gì?
 
 1. Alternative.
 
-## Consequences
+## Hệ Quả
 
 Positive:
 

@@ -1,18 +1,18 @@
-# Overview
+# Tổng Quan
 
-## Current Behavior
+## Behavior Hiện Tại
 
 Mô tả product hoặc repo behavior hiện tại.
 
-## Target Behavior
+## Behavior Mục Tiêu
 
 Mô tả behavior sau khi story hoàn tất.
 
-## Affected Users
+## Users Bị Ảnh Hưởng
 
 - Role.
 
-## Affected Product Docs
+## Product Docs Bị Ảnh Hưởng
 
 - `docs/product/...`
 

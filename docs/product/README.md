@@ -1,14 +1,16 @@
 # Product Docs
 
-Thư mục này cố ý generic và gần như rỗng trong Harness v0.
+Thư mục này chứa living product contract của omni-agent, được backfill từ BMAD
+planning artifacts sau spec intake.
 
-Khi user cung cấp project spec, dẫn xuất các file product contract nhỏ hơn ở
-đây thay vì giữ một spec lớn làm living plan. Đặt tên file theo product domains
-thật sự tồn tại trong spec đó, ví dụ `overview.md`, `billing.md`,
-`workflows.md`, `permissions.md`, hoặc `api-conventions.md`.
+## Files
 
-Không tạo domain files trước spec chỉ để lấp đầy folder. Empty structure lành
-mạnh hơn fake product truth.
+- `overview.md`: product vision, user, scope, và implementation status.
+- `requirements.md`: functional, non-functional, entity, và lifecycle contract.
+- `technical-contract.md`: stack, API shape, database, agent execution, và log
+  rules.
+
+Detailed historical source vẫn nằm trong `_bmad-output/planning-artifacts/`.
 
 ## Update Rule
 

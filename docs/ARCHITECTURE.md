@@ -1,14 +1,50 @@
-# Architecture
+# Kiến Trúc
 
-Chưa chọn application stack.
+Application stack đã được chọn cho omni-agent MVP.
 
-Chưa có application code. Tài liệu này định nghĩa các câu hỏi architecture
-tổng quát và boundary rules mà future implementation nên điều chỉnh sau khi có
-user-provided spec và stack decision.
+Implementation hiện mới ở foundation layer: Rust/Axum backend scaffold,
+SQLx/SQLite migration, và frontend placeholder. Tài liệu này giữ cả selected
+architecture hiện tại và boundary rules cho future stories.
 
-## Discovery Before Shape
+## Stack Đã Chọn
 
-Trước khi đề xuất implementation shape, xác định:
+- Frontend: React + TypeScript + Vite.
+- Backend: Rust + Axum + Tokio.
+- Database: SQLite via SQLx connection pool.
+- Agent execution: Codex CLI và Claude CLI qua subprocess.
+- Runtime: local-only, single-user, no cloud sync.
+
+## Cấu Trúc Hiện Tại
+
+```text
+backend/
+  Cargo.toml
+  src/
+    main.rs
+    error.rs
+    state.rs
+    db/
+      mod.rs
+      migrations/
+        1_init.sql
+
+frontend/
+  .gitkeep
+```
+
+Frontend scaffold và application modules dự kiến phải đi theo selected stories,
+không tạo ngoài story đã chọn.
+
+## Runtime Locations
+
+- SQLite database: `~/.omni-agent/omni-agent.db`.
+- Run logs: `~/.omni-agent/logs/{task_id}/{run_id}.log`.
+- Dev backend port: `127.0.0.1:8080`.
+- Vite dev port dự kiến: `5173`, proxy `/api` tới backend.
+
+## Discovery Trước Khi Chọn Shape
+
+Trước khi đề xuất implementation shape mới hoặc mở rộng stack, xác định:
 
 - Product surfaces: browser, mobile, desktop, CLI, API, worker, hoặc service.
 - Runtime stack: language, framework, database, queues, providers, và hosting.
@@ -19,7 +55,7 @@ Trước khi đề xuất implementation shape, xác định:
 
 Ghi stack choices vào `docs/decisions/` khi chúng ràng buộc future work đáng kể.
 
-## Default Layering
+## Layering Mặc Định
 
 ```text
 domain
@@ -29,7 +65,7 @@ domain
               <- app surfaces
 ```
 
-## Candidate Structure
+## Cấu Trúc Candidate
 
 ```text
 app/
@@ -66,7 +102,10 @@ surfaces/
 Đây là thinking template, không phải scaffold. Chỉ tạo folders thật khi một
 story đi vào implementation và selected stack cần chúng.
 
-## Dependency Rule
+Với backend hiện tại, ưu tiên modules hẹp theo story trước khi mở rộng theo
+full template.
+
+## Rule Dependency
 
 Inner layers không được depend on outer layers.
 
@@ -78,7 +117,7 @@ Inner layers không được depend on outer layers.
 | interface | tất cả backend layers | UI state hoặc platform shell assumptions |
 | app surfaces | API contracts và app-facing clients | domain internals trực tiếp |
 
-## Parse-First Boundary Rule
+## Rule Boundary Parse-First
 
 Unknown data phải được parse tại boundaries trước khi đi vào inner code.
 
@@ -106,7 +145,7 @@ Inner layers nên làm việc với meaningful product types như `UserId`,
 `AccountId`, `WorkspaceId`, `Role`, `DateRange`, hoặc domain-specific IDs, thay
 vì lặp lại validation trên raw strings.
 
-## Command/Query Boundary
+## Boundary Command/Query
 
 Nếu product có cả reads và writes, giữ command/query separation rõ ở code level
 ngay cả khi storage layer đơn giản:
@@ -116,7 +155,39 @@ ngay cả khi storage layer đơn giản:
 - Shared domain rules nằm trong domain/application, không nằm trong
   controllers.
 
-## Observability Contract
+## Boundary State Machine
+
+Task status transitions phải được enforce trong backend service logic, không
+chỉ trong frontend rendering. Khi service modules đã tồn tại, handlers không
+được mutate `task.status` trực tiếp.
+
+MVP task statuses:
+
+- `Draft`
+- `Ready`
+- `Assigned`
+- `Running`
+- `Paused`
+- `Failed`
+- `Done`
+- `Cancelled`
+
+Session statuses:
+
+- `none`
+- `running`
+- `paused`
+- `closed`
+
+## Boundary Agent
+
+Agent-specific CLI behavior phải nằm sau agent strategy abstraction.
+
+- Codex resume: `codex resume <uuid>`.
+- Claude resume: `claude --continue --session-id <uuid>`.
+- Services không được duplicate command formatting theo từng handler.
+
+## Contract Observability
 
 Future server nên emit một canonical JSON log line cho mỗi request với:
 

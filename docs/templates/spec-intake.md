@@ -2,7 +2,7 @@
 
 Date: YYYY-MM-DD
 
-## Source
+## Nguồn
 
 Spec đến từ đâu?
 
@@ -10,7 +10,7 @@ Spec đến từ đâu?
 - Attached file:
 - External reference:
 
-## Project Summary
+## Tóm Tắt Project
 
 Product chúng ta đang build là gì, cho ai, và vì sao?
 
@@ -30,7 +30,7 @@ Chỉ liệt kê epics đã đủ rõ để đặt tên. Chưa tạo mọi story
 | --- | --- | --- |
 | E01 | | unsliced |
 
-## Architecture Questions
+## Câu Hỏi Architecture
 
 - Runtime stack:
 - Product surfaces:

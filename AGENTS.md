@@ -1,11 +1,15 @@
 # Agent Operating Guide
 
-Repository này đang ở Harness v0. Chưa có product implementation.
+Repository này đã dùng Harness v0 để bắt đầu implementation sản phẩm
+omni-agent.
 
-Công việc hiện tại của agents là bảo tồn và phát triển collaboration harness
-trước khi viết application code. Không scaffold application source folders,
-platform shells, package scripts, CI, hoặc tests trừ khi một story sau này rõ
-ràng đưa project vào implementation.
+Product contract hiện được dẫn xuất từ BMAD planning artifacts trong
+`_bmad-output/planning-artifacts/` và được backfill vào `docs/product/`. App
+implementation hiện mới ở Epic 1 foundation: Rust backend scaffold, SQLite
+migrations, và placeholder `frontend/`.
+
+Không scaffold thêm application source folders, platform shells, package
+scripts, CI, hoặc tests trừ khi một selected story rõ ràng yêu cầu.
 
 ## Source Of Truth
 
@@ -20,12 +24,20 @@ ràng đưa project vào implementation.
 7. `docs/stories/` cho story packets và backlog.
 8. `docs/TEST_MATRIX.md` cho proof status.
 9. `docs/decisions/` để biết vì sao các lựa chọn quan trọng được đưa ra.
+10. `_bmad-output/` cho historical planning, implementation, và readiness
+    artifacts khi cần chi tiết nguồn.
 
-Harness này không đi kèm project-specific `SPEC.md`. Khi human cung cấp spec
-cho project mới, xem spec đó là input material cho buildout đầu tiên. Dẫn xuất
-product docs, story packets, architecture decisions, và validation expectations
-từ nó. Product docs, stories, tests, và decisions sau đó trở thành living
-contract mà agents cần cập nhật khi system phát triển.
+Harness này không đi kèm project-specific `SPEC.md`. Spec đầu tiên đã được
+chuyển hóa thành PRD, architecture, UX, epics, và implementation artifacts dưới
+`_bmad-output/`. Product docs, stories, tests, và decisions là living contract
+mà agents cần cập nhật khi system phát triển.
+
+## Documentation Language
+
+Tất cả tài liệu repo-facing trong `README.md`, `docs/`, story packets,
+decisions, backlog, validation reports, và harness notes phải viết bằng tiếng
+Việt. Chỉ giữ nguyên tiếng Anh cho code, path, command, API, schema, enum
+values, package names, logs, stack traces, và identifiers.
 
 ## Task Loop
 

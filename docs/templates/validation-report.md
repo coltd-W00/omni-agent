@@ -1,18 +1,18 @@
-# Validation Report
+# Báo Cáo Validation
 
 Date: YYYY-MM-DD
 
-## Scope
+## Phạm Vi
 
 Story hoặc change nào đã được validated?
 
-## Commands Run
+## Commands Đã Chạy
 
 ```text
 command
 ```
 
-## Results
+## Kết Quả
 
 | Check | Result | Notes |
 | --- | --- | --- |
