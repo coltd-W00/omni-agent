@@ -22,7 +22,7 @@ Implementation story packets currently live in
 | 1.1 | Monorepo Setup & Backend Scaffold | done | `_bmad-output/implementation-artifacts/1-1-monorepo-setup-and-backend-scaffold.md` |
 | 1.2 | Database Schema & Migrations | review | `_bmad-output/implementation-artifacts/1-2-database-schema-and-migrations.md` |
 | 1.3 | Frontend Scaffold & Design Tokens | ready-for-dev | `_bmad-output/implementation-artifacts/1-3-frontend-scaffold-and-design-tokens.md` |
-| 1.4 | AppShell Layout & Routing | backlog | `_bmad-output/implementation-artifacts/sprint-status.yaml` |
+| 1.4 | AppShell Layout & Routing | ready-for-dev | `_bmad-output/implementation-artifacts/1-4-appshell-layout-and-routing.md` |
 | 2.0 | Shared UI Components | backlog | `_bmad-output/implementation-artifacts/sprint-status.yaml` |
 | 2.1 | Project Management | backlog | `_bmad-output/implementation-artifacts/sprint-status.yaml` |
 | 2.2 | Task CRUD & Agent Assignment | backlog | `_bmad-output/implementation-artifacts/sprint-status.yaml` |
