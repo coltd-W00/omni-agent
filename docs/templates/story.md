@@ -10,7 +10,7 @@ tiny | normal | high-risk
 
 ## Product Contract
 
-Describe the behavior this story must make true.
+Mô tả behavior mà story này phải làm thành sự thật.
 
 ## Relevant Product Docs
 
@@ -43,8 +43,8 @@ Describe the behavior this story must make true.
 
 ## Harness Delta
 
-Document any harness updates made or proposed because of this story.
+Document mọi harness updates đã thực hiện hoặc đề xuất vì story này.
 
 ## Evidence
 
-Add commands, reports, screenshots, or links after validation exists.
+Thêm commands, reports, screenshots, hoặc links sau khi validation tồn tại.

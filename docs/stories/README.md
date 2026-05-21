@@ -1,13 +1,13 @@
 # Stories
 
-Stories are work packets. They turn product intent into bounded implementation
-and validation work.
+Stories là work packets. Chúng biến product intent thành implementation và
+validation work có giới hạn.
 
-No story packets are active yet.
+Hiện chưa có story packets active.
 
 ## Normal Story
 
-Use `docs/templates/story.md` for normal feature work.
+Dùng `docs/templates/story.md` cho normal feature work.
 
 Suggested path:
 
@@ -17,7 +17,7 @@ docs/stories/epics/E01-domain-name/US-001-short-story-title.md
 
 ## High-Risk Story
 
-Use `docs/templates/high-risk-story/` when the feature intake classifies work as
+Dùng `docs/templates/high-risk-story/` khi feature intake phân loại công việc là
 high-risk.
 
 Suggested path:

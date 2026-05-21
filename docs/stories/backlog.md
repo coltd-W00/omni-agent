@@ -1,13 +1,13 @@
 # Story Backlog
 
-This backlog will be populated after a user provides a project spec or selects a
-specific initiative.
+Backlog này sẽ được populate sau khi user cung cấp project spec hoặc chọn một
+initiative cụ thể.
 
-Do not create every possible story packet up front. Create story packets when
-the work is selected or when a product decision needs a durable place to land.
+Không tạo mọi story packet có thể có từ đầu. Tạo story packets khi công việc
+được chọn hoặc khi một product decision cần nơi lưu bền vững.
 
 ## Candidate Epics
 
 | Epic | Description | Status |
 | --- | --- | --- |
-| TBD | Add candidate epics after spec intake | unsliced |
+| TBD | Thêm candidate epics sau spec intake | unsliced |

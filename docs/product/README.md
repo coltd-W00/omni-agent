@@ -1,21 +1,21 @@
 # Product Docs
 
-This directory is intentionally generic and mostly empty in Harness v0.
+Thư mục này cố ý generic và gần như rỗng trong Harness v0.
 
-When a user provides a project spec, derive smaller product contract files here
-instead of keeping one large spec as the living plan. Name files by the product
-domains that actually exist in that spec, for example `overview.md`,
-`billing.md`, `workflows.md`, `permissions.md`, or `api-conventions.md`.
+Khi user cung cấp project spec, dẫn xuất các file product contract nhỏ hơn ở
+đây thay vì giữ một spec lớn làm living plan. Đặt tên file theo product domains
+thật sự tồn tại trong spec đó, ví dụ `overview.md`, `billing.md`,
+`workflows.md`, `permissions.md`, hoặc `api-conventions.md`.
 
-Do not create domain files before the spec just to fill the folder. Empty
-structure is healthier than fake product truth.
+Không tạo domain files trước spec chỉ để lấp đầy folder. Empty structure lành
+mạnh hơn fake product truth.
 
 ## Update Rule
 
-When behavior changes:
+Khi behavior thay đổi:
 
-1. Update the affected product doc.
-2. Update or create the story packet.
-3. Update `docs/TEST_MATRIX.md`.
-4. Record a decision if the change affects architecture, scope, risk, or a
-   previously settled product rule.
+1. Cập nhật affected product doc.
+2. Cập nhật hoặc tạo story packet.
+3. Cập nhật `docs/TEST_MATRIX.md`.
+4. Ghi decision nếu thay đổi ảnh hưởng architecture, scope, risk, hoặc một
+   product rule đã được quyết định trước đó.

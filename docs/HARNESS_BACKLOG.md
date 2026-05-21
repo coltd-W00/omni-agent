@@ -1,7 +1,7 @@
 # Harness Backlog
 
-Use this file when an agent discovers a missing harness capability but should
-not change the operating model immediately.
+Dùng file này khi agent phát hiện missing harness capability nhưng chưa nên
+thay đổi operating model ngay.
 
 ## Template
 
@@ -35,5 +35,4 @@ proposed | accepted | implemented | rejected
 
 ## Items
 
-No backlog items yet.
-
+Chưa có backlog items.

@@ -4,7 +4,7 @@ Date: YYYY-MM-DD
 
 ## Source
 
-Where did the spec come from?
+Spec đến từ đâu?
 
 - User prompt:
 - Attached file:
@@ -12,11 +12,11 @@ Where did the spec come from?
 
 ## Project Summary
 
-What product are we building, for whom, and why?
+Product chúng ta đang build là gì, cho ai, và vì sao?
 
 ## Candidate Product Docs
 
-List the product contract files that should be created under `docs/product/`.
+Liệt kê các product contract files nên được tạo dưới `docs/product/`.
 
 | File | Purpose | Source sections |
 | --- | --- | --- |
@@ -24,8 +24,7 @@ List the product contract files that should be created under `docs/product/`.
 
 ## Candidate Epics
 
-List only the epics that are clear enough to name. Do not create every story
-packet yet.
+Chỉ liệt kê epics đã đủ rõ để đặt tên. Chưa tạo mọi story packet.
 
 | Epic | Description | Status |
 | --- | --- | --- |
@@ -42,7 +41,7 @@ packet yet.
 
 ## Validation Shape
 
-What proof will this project eventually need?
+Project này cuối cùng sẽ cần proof gì?
 
 | Layer | Expected proof |
 | --- | --- |
@@ -62,4 +61,4 @@ What proof will this project eventually need?
 
 ## Harness Delta
 
-What harness changes were made or should be proposed because of this spec?
+Harness changes nào đã được thực hiện hoặc nên được đề xuất vì spec này?

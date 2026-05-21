@@ -1,15 +1,14 @@
 # Decisions
 
-Decision records explain why important product, architecture, or harness choices
-were made.
+Decision records giải thích vì sao các lựa chọn quan trọng về product,
+architecture, hoặc harness đã được đưa ra.
 
-Use `docs/templates/decision.md` when adding a new decision.
+Dùng `docs/templates/decision.md` khi thêm decision mới.
 
-Add a decision when:
+Thêm decision khi:
 
-- A locked technical choice changes.
-- A product rule changes meaningfully.
-- A validation requirement is added, removed, or weakened.
-- A high-risk feature chooses one design over another.
-- The source-of-truth hierarchy changes.
-
+- Một locked technical choice thay đổi.
+- Một product rule thay đổi đáng kể.
+- Một validation requirement được thêm, gỡ bỏ, hoặc weakening.
+- Một high-risk feature chọn một design thay vì design khác.
+- Source-of-truth hierarchy thay đổi.

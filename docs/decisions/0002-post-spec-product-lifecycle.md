@@ -8,47 +8,46 @@ Superseded by `0003-generic-spec-intake-harness.md`
 
 ## Context
 
-Harness v0 originally assumed the repository would include one seed
-specification file for the first product. This decision explained how agents
-should decompose that initial specification into product docs, story packets,
-implementation, and validation proof, then continue working after the seed was
-exhausted.
+Harness v0 ban đầu giả định repository sẽ có một seed specification file cho
+product đầu tiên. Decision này giải thích cách agents nên phân rã initial
+specification đó thành product docs, story packets, implementation, và
+validation proof, rồi tiếp tục làm việc sau khi seed đã được dùng hết.
 
-That approach fit a single project but made the harness less reusable.
+Cách tiếp cận đó phù hợp với một project đơn lẻ nhưng làm harness kém reusable.
 
 ## Decision
 
-Treat the initial specification as a seed and historical snapshot, not the
+Xem initial specification như một seed và historical snapshot, không phải
 permanent living product plan.
 
-After the initial specification has been exhausted, new work should enter
-through the same harness loop as one of these input types:
+Sau khi initial specification đã được dùng hết, công việc mới nên đi qua cùng
+harness loop như một trong các input types sau:
 
 - Change request.
 - New initiative.
 - Maintenance request.
 - Harness improvement.
 
-Product docs under `docs/product/`, story packets under `docs/stories/`,
-validation evidence in `docs/TEST_MATRIX.md`, and decision records under
-`docs/decisions/` become the living operating surface.
+Product docs dưới `docs/product/`, story packets dưới `docs/stories/`,
+validation evidence trong `docs/TEST_MATRIX.md`, và decision records dưới
+`docs/decisions/` trở thành living operating surface.
 
-Large future product areas should be captured as scoped initiative notes instead
-of appended to the seed specification or rewritten as a second monolithic spec.
+Large future product areas nên được ghi lại dưới dạng scoped initiative notes
+thay vì append vào seed specification hoặc viết lại thành monolithic spec thứ
+hai.
 
 ## Consequences
 
 Positive:
 
-- The original specification remains stable as historical context.
-- Product truth moves into smaller, current, maintainable files.
-- Future work keeps using the same intake, story, proof, and harness-growth
-  loop.
-- Large ideas can still be planned without creating another oversized spec.
+- Original specification giữ ổn định như historical context.
+- Product truth chuyển vào các file nhỏ hơn, current hơn, maintainable hơn.
+- Future work tiếp tục dùng cùng intake, story, proof, và harness-growth loop.
+- Large ideas vẫn có thể được plan mà không tạo thêm oversized spec.
 
 Tradeoffs:
 
-- The repository will eventually need an initiative template if large new
-  product areas become common.
-- Agents must be careful to update product docs and tests rather than relying on
-  the seed specification after initial buildout.
+- Repository cuối cùng sẽ cần initiative template nếu large new product areas
+  trở nên phổ biến.
+- Agents phải cẩn thận cập nhật product docs và tests thay vì dựa vào seed
+  specification sau initial buildout.

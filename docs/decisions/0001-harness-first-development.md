@@ -8,42 +8,41 @@ Accepted
 
 ## Context
 
-The repository currently contains a product README and a large product
-specification. There is no application implementation yet.
+Repository hiện chứa product README và một product specification lớn. Chưa có
+application implementation.
 
-The project will likely involve human direction plus agent implementation over
-many evolving stories. A single massive specification is not enough for safe
-agent work because it becomes hard to locate current truth, risk, proof, and
-change history.
+Project có khả năng sẽ gồm human direction cộng với agent implementation qua
+nhiều stories thay đổi dần. Một specification khổng lồ duy nhất là không đủ cho
+safe agent work vì current truth, risk, proof, và change history trở nên khó
+tìm.
 
 ## Decision
 
-Create Harness v0 before scaffolding product code.
+Tạo Harness v0 trước khi scaffold product code.
 
-Harness v0 defines:
+Harness v0 định nghĩa:
 
 - Agent entrypoint.
 - Product doc split.
-- Feature intake and risk lanes.
+- Feature intake và risk lanes.
 - Story packet templates.
 - Decision records.
 - Test matrix.
 - Harness backlog.
 
-No application code, fake scripts, CI, or tests are created in this decision.
+Decision này không tạo application code, fake scripts, CI, hoặc tests.
 
 ## Consequences
 
 Positive:
 
-- Agents have a clear operating model before implementation starts.
-- Product truth can split away from the massive spec.
-- Risky work has a slower lane before code changes.
-- Harness growth becomes part of the work.
+- Agents có operating model rõ ràng trước khi implementation bắt đầu.
+- Product truth có thể tách khỏi massive spec.
+- Risky work có lane chậm hơn trước code changes.
+- Harness growth trở thành một phần của công việc.
 
 Tradeoffs:
 
-- Some docs are placeholders until real stories exercise them.
-- Validation commands are only contracts until implementation begins.
-- The harness must stay small enough to revise from real friction.
-
+- Một số docs là placeholders cho đến khi real stories dùng đến chúng.
+- Validation commands chỉ là contracts cho đến khi implementation bắt đầu.
+- Harness phải đủ nhỏ để revise từ real friction.

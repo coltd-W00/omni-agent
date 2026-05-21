@@ -4,7 +4,7 @@ Date: YYYY-MM-DD
 
 ## Scope
 
-What story or change was validated?
+Story hoặc change nào đã được validated?
 
 ## Commands Run
 
@@ -25,8 +25,8 @@ command
 
 ## Evidence
 
-Add report paths, screenshots, logs, or other artifacts.
+Thêm report paths, screenshots, logs, hoặc artifacts khác.
 
 ## Gaps
 
-List remaining risk or missing harness capability.
+Liệt kê remaining risk hoặc missing harness capability.

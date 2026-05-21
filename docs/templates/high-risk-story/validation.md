@@ -2,7 +2,7 @@
 
 ## Proof Strategy
 
-Explain what must pass before the story is done.
+Giải thích điều gì phải pass trước khi story được xem là done.
 
 ## Test Plan
 
@@ -17,12 +17,12 @@ Explain what must pass before the story is done.
 
 ## Fixtures
 
-List deterministic users, accounts, records, provider responses, or other
-fixtures needed for repeatable proof.
+Liệt kê deterministic users, accounts, records, provider responses, hoặc
+fixtures khác cần cho repeatable proof.
 
 ## Commands
 
-Add commands after scripts exist.
+Thêm commands sau khi scripts tồn tại.
 
 ```text
 TBD
@@ -30,4 +30,4 @@ TBD
 
 ## Acceptance Evidence
 
-Add results after verification.
+Thêm results sau verification.

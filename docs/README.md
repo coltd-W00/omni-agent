@@ -1,29 +1,30 @@
 # Documentation Map
 
-This directory holds the project harness and any product contract derived from a
+Thư mục này chứa project harness và mọi product contract được dẫn xuất từ
 future user-provided spec.
 
 ## Main Files
 
-- `HARNESS.md`: how humans and agents collaborate.
-- `FEATURE_INTAKE.md`: how prompts become tiny, normal, or high-risk work.
-- `ARCHITECTURE.md`: architecture discovery and boundary rules.
-- `TEST_MATRIX.md`: living map of behavior to proof.
-- `HARNESS_BACKLOG.md`: improvements discovered while working.
+- `HARNESS.md`: cách humans và agents cộng tác.
+- `FEATURE_INTAKE.md`: cách prompts trở thành tiny, normal, hoặc high-risk
+  work.
+- `ARCHITECTURE.md`: architecture discovery và boundary rules.
+- `TEST_MATRIX.md`: living map từ behavior tới proof.
+- `HARNESS_BACKLOG.md`: các cải thiện được phát hiện trong khi làm việc.
 - `GLOSSARY.md`: shared terms.
 
 ## Folders
 
-- `product/`: current product truth, empty until a spec is derived.
-- `stories/`: feature packets and backlog.
-- `decisions/`: durable decisions and tradeoffs.
-- `demo/`: concrete walkthroughs that show how the harness transforms input
-  into agent-ready work.
-- `templates/`: reusable spec-intake, story, plan, decision, and validation
+- `product/`: current product truth, để trống cho đến khi spec được dẫn xuất.
+- `stories/`: feature packets và backlog.
+- `decisions/`: durable decisions và tradeoffs.
+- `demo/`: walkthroughs cụ thể cho thấy harness biến input thành agent-ready
+  work như thế nào.
+- `templates/`: reusable spec-intake, story, plan, decision, và validation
   formats.
 
-## Current State
+## Trạng Thái Hiện Tại
 
-Harness v0 exists before implementation. These docs define how the project will
-grow; they do not imply that app code, tests, CI, or deployment automation exist
-yet.
+Harness v0 tồn tại trước implementation. Các docs này định nghĩa project sẽ
+phát triển như thế nào; chúng không hàm ý app code, tests, CI, hoặc deployment
+automation đã tồn tại.

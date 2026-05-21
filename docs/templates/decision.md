@@ -8,11 +8,11 @@ Proposed | Accepted | Superseded | Rejected
 
 ## Context
 
-What problem, constraint, or ambiguity forced this decision?
+Problem, constraint, hoặc ambiguity nào buộc phải có decision này?
 
 ## Decision
 
-What did we decide?
+Chúng ta đã quyết định gì?
 
 ## Alternatives Considered
 
@@ -31,4 +31,3 @@ Tradeoffs:
 ## Follow-Up
 
 - Item.
-

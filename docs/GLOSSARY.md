@@ -2,35 +2,34 @@
 
 ## Agent
 
-An AI coding collaborator operating inside the repository.
+Một AI coding collaborator hoạt động bên trong repository.
 
 ## Harness
 
-The repo-level operating system that tells humans and agents how to turn intent
-into safe product changes.
+Repo-level operating system chỉ cho humans và agents cách biến intent thành
+safe product changes.
 
 ## Product Contract
 
-The current expected behavior of the product. Product docs plus executable tests
-become the living contract once implementation exists.
+Current expected behavior của product. Product docs cộng với executable tests
+trở thành living contract sau khi implementation tồn tại.
 
 ## Story Packet
 
-A story-sized work file or folder that describes the product contract, affected
-docs, design notes, and validation expectations for a feature.
+Một work file hoặc folder cỡ story mô tả product contract, affected docs,
+design notes, và validation expectations cho một feature.
 
 ## Feature Intake
 
-The classification step that turns a prompt into tiny, normal, or high-risk
-work before implementation begins.
+Bước classification biến prompt thành tiny, normal, hoặc high-risk work trước
+khi implementation bắt đầu.
 
 ## Harness Delta
 
-A documentation, template, validation, backlog, or decision update that makes
-future agent work safer or easier.
+Documentation, template, validation, backlog, hoặc decision update giúp future
+agent work an toàn hơn hoặc dễ hơn.
 
 ## Product Delta
 
-A product-facing change such as code, tests, API shape, data model, or product
+Thay đổi hướng product như code, tests, API shape, data model, hoặc product
 documentation.
-

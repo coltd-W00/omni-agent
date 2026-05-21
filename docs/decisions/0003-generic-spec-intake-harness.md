@@ -8,51 +8,50 @@ Accepted
 
 ## Context
 
-Harness v0 originally shipped with a project-specific `SPEC.md`, product docs,
-candidate epics, architecture assumptions, and validation examples. That made
-the harness useful for the first project but too specific to reuse as the outer
-shell for a new project.
+Harness v0 ban đầu đi kèm project-specific `SPEC.md`, product docs, candidate
+epics, architecture assumptions, và validation examples. Điều đó làm harness
+hữu ích cho project đầu tiên nhưng quá cụ thể để tái sử dụng như outer shell
+cho project mới.
 
-The desired direction is a default harness that can wait for any user-provided
-spec, derive product docs from that spec, and then continue with the same
-intake, story, proof, and decision loop.
+Hướng mong muốn là một default harness có thể chờ bất kỳ user-provided spec
+nào, dẫn xuất product docs từ spec đó, rồi tiếp tục với cùng intake, story,
+proof, và decision loop.
 
 ## Decision
 
-Remove the tracked project-specific spec and pre-sliced product domains from
-Harness v0.
+Gỡ tracked project-specific spec và pre-sliced product domains khỏi Harness v0.
 
-The harness now starts with:
+Harness hiện bắt đầu với:
 
-- No baked-in `SPEC.md`.
-- Empty product docs except for intake guidance.
-- Generic story and epic examples.
+- Không có baked-in `SPEC.md`.
+- Empty product docs ngoại trừ intake guidance.
+- Generic story và epic examples.
 - Stack-neutral architecture discovery rules.
 - Stack-neutral validation columns.
-- A source hierarchy that treats a future user-provided spec as input material,
-  not permanent living truth.
+- Source hierarchy xem future user-provided spec là input material, không phải
+  permanent living truth.
 
 ## Alternatives Considered
 
-1. Keep the original `SPEC.md` as an example. Rejected because examples can be
-   mistaken for current product truth.
-2. Move the original product docs into an examples folder. Rejected for now
-   because the user asked for a clean default harness.
+1. Giữ original `SPEC.md` như example. Rejected vì examples có thể bị nhầm là
+   current product truth.
+2. Chuyển original product docs vào examples folder. Hiện rejected vì user yêu
+   cầu clean default harness.
 
 ## Consequences
 
 Positive:
 
-- The repository is easier to reuse for any new project.
-- Future specs can define their own product domains and stack.
-- Agents are less likely to confuse template truth with product truth.
+- Repository dễ tái sử dụng hơn cho bất kỳ project mới nào.
+- Future specs có thể tự định nghĩa product domains và stack.
+- Agents ít có khả năng nhầm template truth với product truth.
 
 Tradeoffs:
 
-- The harness has fewer concrete examples until the next spec is supplied.
-- The first spec intake must create product docs and candidate epics before
-  implementation planning can be precise.
+- Harness có ít ví dụ cụ thể hơn cho đến khi spec tiếp theo được cung cấp.
+- Spec intake đầu tiên phải tạo product docs và candidate epics trước khi
+  implementation planning có thể precise.
 
 ## Follow-Up
 
-- Add a spec-intake template if repeated projects reveal a stable format.
+- Thêm spec-intake template nếu repeated projects cho thấy một stable format.

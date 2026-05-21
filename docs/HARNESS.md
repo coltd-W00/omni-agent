@@ -1,9 +1,9 @@
 # Harness
 
-The project goal is to provide a reusable operating harness that lets humans and
-agents turn a future product spec into safe, validated work.
+Mục tiêu của project là cung cấp một reusable operating harness cho phép humans
+và agents biến future product spec thành công việc an toàn, có validation.
 
-The app is what users touch. The harness is what agents touch.
+App là thứ users chạm vào. Harness là thứ agents chạm vào.
 
 ## Mental Model
 
@@ -48,37 +48,37 @@ The app is what users touch. The harness is what agents touch.
 +------------------+
 ```
 
-Every task has two possible outputs:
+Mỗi task có hai output khả dĩ:
 
-1. Product delta: app code, tests, API shape, data model, or product docs.
-2. Harness delta: docs, templates, validation expectations, backlog items, or
-   decision records that make the next task easier.
+1. Product delta: app code, tests, API shape, data model, hoặc product docs.
+2. Harness delta: docs, templates, validation expectations, backlog items, hoặc
+   decision records giúp task tiếp theo dễ hơn.
 
 ## Harness v0 Scope
 
-Harness v0 includes:
+Harness v0 bao gồm:
 
 - Agent entrypoint.
 - Empty product documentation structure.
-- Feature intake and risk lanes.
+- Feature intake và risk lanes.
 - Story templates.
 - Decision log template.
 - Validation report template.
 - Test matrix placeholder.
 - Harness growth backlog.
 
-Harness v0 deliberately excludes:
+Harness v0 cố ý loại trừ:
 
-- A project-specific `SPEC.md`.
+- Project-specific `SPEC.md`.
 - Pre-sliced product domains.
-- A locked application stack.
+- Locked application stack.
 - App source scaffolding.
 - Package scripts.
 - Test runner config.
 - CI workflows.
-- Database migrations or infrastructure.
+- Database migrations hoặc infrastructure.
 
-Those should arrive only when a selected story needs them.
+Những thứ đó chỉ nên xuất hiện khi một selected story cần chúng.
 
 ## Source Hierarchy
 
@@ -99,32 +99,33 @@ docs/decisions/*
   why the contract changed
 ```
 
-Before implementation, product docs describe intent. After implementation,
-product docs plus executable tests become the living contract.
+Trước implementation, product docs mô tả intent. Sau implementation, product
+docs cộng với executable tests trở thành living contract.
 
 ## Spec Lifecycle
 
-Harness v0 starts without a tracked project spec. When the human provides a
-specification, treat it as input material, not as a permanent operating manual.
-Use it to populate product docs, story packets, architecture decisions, and
-validation expectations during the first buildout.
+Harness v0 bắt đầu mà không track project spec. Khi human cung cấp
+specification, xem nó là input material, không phải operating manual vĩnh viễn.
+Dùng nó để populate product docs, story packets, architecture decisions, và
+validation expectations trong buildout đầu tiên.
 
-After the specification has been decomposed, do not keep extending it as the
-living product plan. Ongoing work should update the smaller product docs,
-stories, test matrix, and decision records.
+Sau khi specification đã được phân rã, không tiếp tục mở rộng nó như living
+product plan. Ongoing work nên cập nhật các product docs nhỏ hơn, stories, test
+matrix, và decision records.
 
-Ongoing work should enter the harness as one of these input types:
+Ongoing work nên đi vào harness dưới một trong các input types:
 
-- New spec: a project specification that needs to become product docs and
-  initial story candidates.
-- Spec slice: a selected behavior from the provided spec.
-- Change request: a bounded behavior change, bug fix, or product refinement.
-- New initiative: a larger product area that needs multiple stories.
-- Maintenance request: dependency, architecture, performance, security, or
+- New spec: project specification cần trở thành product docs và initial story
+  candidates.
+- Spec slice: một selected behavior từ spec đã được chấp nhận.
+- Change request: bounded behavior change, bug fix, hoặc product refinement.
+- New initiative: product area lớn hơn cần nhiều stories.
+- Maintenance request: dependency, architecture, performance, security, hoặc
   operational work.
-- Harness improvement: a process, template, proof, or agent-instruction change.
+- Harness improvement: thay đổi process, template, proof, hoặc
+  agent-instruction.
 
-The spec-to-work loop is:
+Spec-to-work loop là:
 
 ```text
 human intent or supplied spec
@@ -137,24 +138,23 @@ human intent or supplied spec
   -> capture harness friction
 ```
 
-Large product areas should use scoped initiative notes instead of a second
-monolithic specification. An initiative should explain the goal, affected
-product docs, candidate stories, validation shape, open decisions, and exit
-criteria. If initiative work becomes a repeated pattern, add a template or
-proposal to `docs/HARNESS_BACKLOG.md`.
+Product areas lớn nên dùng scoped initiative notes thay vì một monolithic
+specification thứ hai. Một initiative nên giải thích goal, affected product
+docs, candidate stories, validation shape, open decisions, và exit criteria.
+Nếu initiative work trở thành repeated pattern, thêm template hoặc proposal vào
+`docs/HARNESS_BACKLOG.md`.
 
 ## Growth Rule
 
-The harness grows from friction.
+Harness phát triển từ friction.
 
-When an agent is confused, repeats manual reasoning, needs a new validation
-command, discovers a missing rule, or sees a recurring failure pattern, it must
-either improve the harness directly or add a proposal to `HARNESS_BACKLOG.md`.
+Khi agent bị nhầm lẫn, lặp lại manual reasoning, cần validation command mới,
+phát hiện missing rule, hoặc thấy recurring failure pattern, agent phải cải
+thiện harness trực tiếp hoặc thêm proposal vào `HARNESS_BACKLOG.md`.
 
 ## Future Validation Ladder
 
-No validation scripts exist yet. When implementation begins, the expected ladder
-is:
+Hiện chưa có validation scripts. Khi implementation bắt đầu, ladder kỳ vọng là:
 
 ```text
 validate:quick
@@ -173,4 +173,5 @@ test:release
   full suite, log checks, and performance smoke
 ```
 
-Agents must not claim these commands pass until they exist and have been run.
+Agents không được claim các commands này pass cho đến khi chúng tồn tại và đã
+được chạy.

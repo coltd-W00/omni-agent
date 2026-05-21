@@ -1,10 +1,10 @@
 # Feature Intake
 
-Every implementation prompt enters the intake gate before code changes. A new
-project spec also enters through this gate before it becomes product docs,
-stories, or implementation work.
+Mọi implementation prompt đi qua intake gate trước khi có code changes. Một
+project spec mới cũng đi qua gate này trước khi trở thành product docs, stories,
+hoặc implementation work.
 
-The human does not need to classify risk. The harness does.
+Human không cần phân loại risk. Harness làm việc đó.
 
 ## Intake Flow
 
@@ -29,74 +29,73 @@ Choose lane: tiny, normal, or high-risk
 
 ## Input Types
 
-Use the input type to decide where the work should land before choosing the risk
-lane.
+Dùng input type để quyết định công việc nên đi đâu trước khi chọn risk lane.
 
-| Type | Use when | Typical artifact |
+| Type | Dùng khi | Typical artifact |
 | --- | --- | --- |
-| New spec | Turning a user-provided project spec into harness-ready docs | Product docs, candidate epics, decisions |
-| Spec slice | Implementing selected behavior from an accepted spec | Story packet |
-| Change request | Changing, fixing, or refining accepted behavior | Story packet or direct patch |
-| New initiative | Adding a larger product area that needs multiple stories | Initiative notes plus story packets |
-| Maintenance request | Changing technical, operational, or dependency behavior | Story packet, validation report, or decision |
-| Harness improvement | Improving how humans and agents collaborate | Direct docs update or `docs/HARNESS_BACKLOG.md` |
+| New spec | Biến project spec do user cung cấp thành docs sẵn sàng cho harness | Product docs, candidate epics, decisions |
+| Spec slice | Implement selected behavior từ accepted spec | Story packet |
+| Change request | Thay đổi, sửa, hoặc tinh chỉnh accepted behavior | Story packet hoặc direct patch |
+| New initiative | Thêm product area lớn hơn cần nhiều stories | Initiative notes cộng với story packets |
+| Maintenance request | Thay đổi technical, operational, hoặc dependency behavior | Story packet, validation report, hoặc decision |
+| Harness improvement | Cải thiện cách humans và agents cộng tác | Direct docs update hoặc `docs/HARNESS_BACKLOG.md` |
 
-Do not create or extend a monolithic spec by default after intake. Use product
-docs, stories, decisions, and initiative notes as the living surface.
+Sau intake, mặc định không tạo hoặc mở rộng monolithic spec. Dùng product docs,
+stories, decisions, và initiative notes làm living surface.
 
 ## Lanes
 
 ### Tiny
 
-Use for low-risk docs, copy, names, or narrow edits.
+Dùng cho docs, copy, names, hoặc narrow edits có risk thấp.
 
 Requirements:
 
-- Patch directly.
-- Keep affected docs current.
-- Run available quick checks.
-- Update the harness only if friction was found.
+- Patch trực tiếp.
+- Giữ affected docs current.
+- Chạy quick checks có sẵn.
+- Chỉ cập nhật harness nếu phát hiện friction.
 
 ### Normal
 
-Use for story-sized behavior with bounded blast radius.
+Dùng cho story-sized behavior với blast radius có giới hạn.
 
 Requirements:
 
-- Create or update one story file from `docs/templates/story.md`.
+- Tạo hoặc cập nhật một story file từ `docs/templates/story.md`.
 - Link relevant product docs.
-- Add or update validation expectations.
-- Implement the smallest vertical slice when implementation exists.
-- Update `docs/TEST_MATRIX.md`.
+- Thêm hoặc cập nhật validation expectations.
+- Implement smallest vertical slice khi implementation tồn tại.
+- Cập nhật `docs/TEST_MATRIX.md`.
 
 ### High-Risk
 
-Use when the work can affect security, data, scope, contracts, or multiple
-roles/platforms.
+Dùng khi công việc có thể ảnh hưởng security, data, scope, contracts, hoặc
+nhiều roles/platforms.
 
 Requirements:
 
-- Create a story folder using `docs/templates/high-risk-story/`.
-- Fill in `execplan.md`, `overview.md`, `design.md`, and `validation.md`.
-- Ask for human confirmation before implementation if direction is ambiguous.
-- Record a decision when behavior or architecture changes meaningfully.
+- Tạo story folder bằng `docs/templates/high-risk-story/`.
+- Điền `execplan.md`, `overview.md`, `design.md`, và `validation.md`.
+- Hỏi human confirmation trước implementation nếu direction ambiguous.
+- Ghi decision khi behavior hoặc architecture thay đổi đáng kể.
 
 ## Risk Checklist
 
-Mark one flag for each item that applies:
+Đánh dấu một flag cho mỗi item áp dụng:
 
-| Risk flag | Applies when the work touches |
+| Risk flag | Áp dụng khi công việc chạm vào |
 | --- | --- |
 | Auth | login, logout, sessions, JWT, password, refresh token |
-| Authorization | roles, permissions, tenant or company scope |
+| Authorization | roles, permissions, tenant hoặc company scope |
 | Data model | schema, migrations, uniqueness, deletion, retention |
 | Audit/security | audit logs, privacy, sensitive data, access logs |
 | External systems | email, payments, cloud services, provider SDKs, queues, webhooks |
 | Public contracts | API shape, response envelope, client-visible behavior |
 | Cross-platform | desktop/mobile/browser split, native shell behavior, deep links |
-| Existing behavior | already implemented or test-covered behavior changes |
-| Weak proof | unclear or missing tests around the affected area |
-| Multi-domain | more than one product domain changes at once |
+| Existing behavior | already implemented hoặc test-covered behavior changes |
+| Weak proof | tests quanh affected area không rõ hoặc còn thiếu |
+| Multi-domain | hơn một product domain thay đổi cùng lúc |
 
 ## Classification
 
@@ -118,14 +117,14 @@ Hard gates:
 
 - Auth.
 - Authorization.
-- Data loss or migration.
+- Data loss hoặc migration.
 - Audit/security.
 - External provider behavior.
-- Removing or weakening validation requirements.
+- Removing hoặc weakening validation requirements.
 
 ## Output
 
-At the end of intake, the agent should be able to say:
+Ở cuối intake, agent nên có thể nói:
 
 ```text
 Lane: normal

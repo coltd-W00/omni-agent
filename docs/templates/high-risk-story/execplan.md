@@ -2,7 +2,7 @@
 
 ## Goal
 
-What outcome are we trying to produce?
+Chúng ta đang cố tạo ra outcome gì?
 
 ## Scope
 
@@ -35,10 +35,9 @@ Hard gates:
 
 ## Stop Conditions
 
-Pause for human confirmation if:
+Pause để human confirmation nếu:
 
-- Product behavior is ambiguous.
-- Data migration or deletion risk appears.
-- Validation requirements need to be weakened.
-- Architecture direction changes.
-
+- Product behavior ambiguous.
+- Data migration hoặc deletion risk xuất hiện.
+- Validation requirements cần bị weakening.
+- Architecture direction thay đổi.

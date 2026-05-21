@@ -2,27 +2,27 @@
 
 ## Domain Model
 
-Describe entities, value objects, and business rules.
+Mô tả entities, value objects, và business rules.
 
 ## Application Flow
 
-Describe commands, queries, and handlers.
+Mô tả commands, queries, và handlers.
 
 ## Interface Contract
 
-Describe routes, messages, commands, request DTOs, response DTOs, and errors.
+Mô tả routes, messages, commands, request DTOs, response DTOs, và errors.
 
 ## Data Model
 
-Describe tables, indexes, migrations, and retention concerns.
+Mô tả tables, indexes, migrations, và retention concerns.
 
 ## UI / Platform Impact
 
-Describe browser, mobile, desktop, CLI, deployment, or platform-shell impact.
+Mô tả browser, mobile, desktop, CLI, deployment, hoặc platform-shell impact.
 
 ## Observability
 
-Describe logs, audit records, metrics, or traces.
+Mô tả logs, audit records, metrics, hoặc traces.
 
 ## Alternatives Considered
 

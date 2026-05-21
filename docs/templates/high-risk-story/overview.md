@@ -2,11 +2,11 @@
 
 ## Current Behavior
 
-Describe the current product or repo behavior.
+Mô tả product hoặc repo behavior hiện tại.
 
 ## Target Behavior
 
-Describe the behavior after the story is complete.
+Mô tả behavior sau khi story hoàn tất.
 
 ## Affected Users
 
@@ -19,4 +19,3 @@ Describe the behavior after the story is complete.
 ## Non-Goals
 
 - Item.
-

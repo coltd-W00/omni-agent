@@ -1,24 +1,23 @@
 # Architecture
 
-No application stack is selected yet.
+Chưa chọn application stack.
 
-No application code exists yet. This document defines generic architecture
-questions and boundary rules that future implementation should adapt after a
-user-provided spec and stack decision exist.
+Chưa có application code. Tài liệu này định nghĩa các câu hỏi architecture
+tổng quát và boundary rules mà future implementation nên điều chỉnh sau khi có
+user-provided spec và stack decision.
 
 ## Discovery Before Shape
 
-Before proposing implementation shape, identify:
+Trước khi đề xuất implementation shape, xác định:
 
-- Product surfaces: browser, mobile, desktop, CLI, API, worker, or service.
-- Runtime stack: language, framework, database, queues, providers, and hosting.
-- Core domains: the product concepts that deserve stable names and contracts.
-- Boundary inputs: user input, API requests, webhooks, jobs, files, credentials,
-  provider payloads, and environment configuration.
-- Validation ladder: the smallest checks that can prove the selected stack.
+- Product surfaces: browser, mobile, desktop, CLI, API, worker, hoặc service.
+- Runtime stack: language, framework, database, queues, providers, và hosting.
+- Core domains: product concepts đáng có stable names và contracts.
+- Boundary inputs: user input, API requests, webhooks, jobs, files,
+  credentials, provider payloads, và environment configuration.
+- Validation ladder: các checks nhỏ nhất có thể chứng minh selected stack.
 
-Record stack choices in `docs/decisions/` when they meaningfully constrain
-future work.
+Ghi stack choices vào `docs/decisions/` khi chúng ràng buộc future work đáng kể.
 
 ## Default Layering
 
@@ -64,34 +63,34 @@ surfaces/
   cli/
 ```
 
-This is a thinking template, not a scaffold. Create real folders only when a
-story enters implementation and the selected stack needs them.
+Đây là thinking template, không phải scaffold. Chỉ tạo folders thật khi một
+story đi vào implementation và selected stack cần chúng.
 
 ## Dependency Rule
 
-Inner layers must not depend on outer layers.
+Inner layers không được depend on outer layers.
 
-| Layer | May depend on | Must not depend on |
+| Layer | Có thể depend on | Không được depend on |
 | --- | --- | --- |
-| domain | nothing project-external except tiny pure utilities | framework, database, UI, provider, process/env |
+| domain | không có gì project-external ngoại trừ tiny pure utilities | framework, database, UI, provider, process/env |
 | application | domain | framework, UI, provider, database concrete clients |
-| infrastructure | domain, application | interface controllers or UI |
-| interface | all backend layers | UI state or platform shell assumptions |
-| app surfaces | API contracts and app-facing clients | domain internals directly |
+| infrastructure | domain, application | interface controllers hoặc UI |
+| interface | tất cả backend layers | UI state hoặc platform shell assumptions |
+| app surfaces | API contracts và app-facing clients | domain internals trực tiếp |
 
 ## Parse-First Boundary Rule
 
-Unknown data must be parsed at boundaries before it enters inner code.
+Unknown data phải được parse tại boundaries trước khi đi vào inner code.
 
-Boundaries include:
+Boundaries gồm:
 
-- HTTP request bodies, params, and query strings.
-- Session payloads and identity claims.
+- HTTP request bodies, params, và query strings.
+- Session payloads và identity claims.
 - Environment variables.
-- Database rows returned from external clients.
+- Database rows trả về từ external clients.
 - Platform shell payloads.
-- Deep links, tokens, and signed URLs.
-- Provider webhooks, events, and async payloads.
+- Deep links, tokens, và signed URLs.
+- Provider webhooks, events, và async payloads.
 
 Target flow:
 
@@ -103,22 +102,23 @@ unknown input
   -> domain object/value object
 ```
 
-Inner layers should work with meaningful product types such as `UserId`,
-`AccountId`, `WorkspaceId`, `Role`, `DateRange`, or domain-specific IDs,
-rather than repeatedly validating raw strings.
+Inner layers nên làm việc với meaningful product types như `UserId`,
+`AccountId`, `WorkspaceId`, `Role`, `DateRange`, hoặc domain-specific IDs, thay
+vì lặp lại validation trên raw strings.
 
 ## Command/Query Boundary
 
-If the product has both reads and writes, keep command/query separation clear at
-the code level even when the storage layer is simple:
+Nếu product có cả reads và writes, giữ command/query separation rõ ở code level
+ngay cả khi storage layer đơn giản:
 
-- Commands mutate state and own audit side effects.
-- Queries read state and format for consumers.
-- Shared domain rules live in domain/application, not controllers.
+- Commands mutate state và own audit side effects.
+- Queries read state và format cho consumers.
+- Shared domain rules nằm trong domain/application, không nằm trong
+  controllers.
 
 ## Observability Contract
 
-The future server should emit one canonical JSON log line per request with:
+Future server nên emit một canonical JSON log line cho mỗi request với:
 
 - timestamp
 - level
@@ -129,5 +129,5 @@ The future server should emit one canonical JSON log line per request with:
 - status_code
 - message
 
-Audit logs are product records. Application logs are operational records. Do not
-use one as a substitute for the other.
+Audit logs là product records. Application logs là operational records. Không
+dùng cái này thay thế cái kia.

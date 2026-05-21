@@ -1,16 +1,15 @@
 # Scripts
 
-This directory is reserved for harness automation.
+Thư mục này dành riêng cho harness automation.
 
 ## Installer
 
-The upstream installer applies the Harness v0 operating files and folder
-structure to a target project directory. It defaults to the current directory,
-accepts a target path, and asks interactive users whether to `1. Merge`,
-`2. Override`, or `3. Stop` when the target already contains `AGENTS.md`,
-`docs/`, or `scripts/`.
-Non-interactive installs stop on those protected paths unless `--merge` or
-`--override` is provided.
+Upstream installer áp dụng Harness v0 operating files và folder structure vào
+một target project directory. Nó mặc định dùng current directory, nhận target
+path, và hỏi interactive users chọn `1. Merge`, `2. Override`, hoặc `3. Stop`
+khi target đã chứa `AGENTS.md`, `docs/`, hoặc `scripts/`. Non-interactive
+installs dừng trên các protected paths đó trừ khi có `--merge` hoặc
+`--override`.
 
 ```bash
 curl -fsSL "https://raw.githubusercontent.com/hoangnb24/harness-experimental/main/scripts/install-harness.sh?$(date +%s)" | bash -s -- --yes
@@ -20,9 +19,9 @@ curl -fsSL "https://raw.githubusercontent.com/hoangnb24/harness-experimental/mai
 curl -fsSL "https://raw.githubusercontent.com/hoangnb24/harness-experimental/main/scripts/install-harness.sh?$(date +%s)" | bash -s -- --merge --yes
 ```
 
-The installer must stay limited to harness files. Do not use it to scaffold
-application source folders, package scripts, CI, tests, platform shells, or fake
-validation commands. The installer script is not part of the installed project
+Installer phải giới hạn trong harness files. Không dùng nó để scaffold
+application source folders, package scripts, CI, tests, platform shells, hoặc
+fake validation commands. Installer script không thuộc installed project
 payload.
 
 ## Future Command Contract

@@ -1,75 +1,75 @@
 # Agent Operating Guide
 
-This repository is in Harness v0. There is no product implementation yet.
+Repository này đang ở Harness v0. Chưa có product implementation.
 
-The current job of agents is to preserve and grow the collaboration harness
-before writing application code. Do not scaffold application source folders,
-platform shells, package scripts, CI, or tests unless a later story explicitly
-moves the project into implementation.
+Công việc hiện tại của agents là bảo tồn và phát triển collaboration harness
+trước khi viết application code. Không scaffold application source folders,
+platform shells, package scripts, CI, hoặc tests trừ khi một story sau này rõ
+ràng đưa project vào implementation.
 
 ## Source Of Truth
 
-Read in this order:
+Đọc theo thứ tự này:
 
-1. `README.md` for project status.
-2. `docs/HARNESS.md` for the human-agent operating model.
-3. `docs/FEATURE_INTAKE.md` before turning any prompt into work.
-4. The user-provided spec or prompt, when one exists.
-5. `docs/product/` for current product contracts.
-6. `docs/ARCHITECTURE.md` before proposing implementation shape.
-7. `docs/stories/` for story packets and backlog.
-8. `docs/TEST_MATRIX.md` for proof status.
-9. `docs/decisions/` for why important choices were made.
+1. `README.md` để biết project status.
+2. `docs/HARNESS.md` để hiểu human-agent operating model.
+3. `docs/FEATURE_INTAKE.md` trước khi biến bất kỳ prompt nào thành công việc.
+4. User-provided spec hoặc prompt, khi có.
+5. `docs/product/` cho current product contracts.
+6. `docs/ARCHITECTURE.md` trước khi đề xuất implementation shape.
+7. `docs/stories/` cho story packets và backlog.
+8. `docs/TEST_MATRIX.md` cho proof status.
+9. `docs/decisions/` để biết vì sao các lựa chọn quan trọng được đưa ra.
 
-This harness does not ship with a project-specific `SPEC.md`. When the human
-provides a spec for a new project, treat that spec as input material for the
-first buildout. Derive product docs, story packets, architecture decisions, and
-validation expectations from it. Product docs, stories, tests, and decisions
-then become the living contract that agents should update as the system evolves.
+Harness này không đi kèm project-specific `SPEC.md`. Khi human cung cấp spec
+cho project mới, xem spec đó là input material cho buildout đầu tiên. Dẫn xuất
+product docs, story packets, architecture decisions, và validation expectations
+từ nó. Product docs, stories, tests, và decisions sau đó trở thành living
+contract mà agents cần cập nhật khi system phát triển.
 
 ## Task Loop
 
-For every task:
+Với mọi task:
 
-1. Classify the request with `docs/FEATURE_INTAKE.md`.
-2. Identify whether the input is a new spec, spec slice, change request, new
-   initiative, maintenance request, or harness improvement.
-3. Locate the affected product docs and story files.
-4. Check `docs/TEST_MATRIX.md` for existing proof and gaps.
-5. Work only inside the selected lane: tiny, normal, or high-risk.
-6. Before finishing, ask:
-   - Did product truth change?
-   - Did validation expectations change?
-   - Did architecture rules change?
-   - Did we discover a repeated failure pattern?
-   - Did the next agent need a clearer instruction?
-7. Update routine harness files directly, or add a proposal to
-   `docs/HARNESS_BACKLOG.md` when the change is structural.
+1. Phân loại request bằng `docs/FEATURE_INTAKE.md`.
+2. Xác định input là new spec, spec slice, change request, new initiative,
+   maintenance request, hay harness improvement.
+3. Tìm product docs và story files bị ảnh hưởng.
+4. Kiểm tra `docs/TEST_MATRIX.md` để biết proof hiện có và gaps.
+5. Chỉ làm trong lane đã chọn: tiny, normal, hoặc high-risk.
+6. Trước khi kết thúc, hỏi:
+   - Product truth có thay đổi không?
+   - Validation expectations có thay đổi không?
+   - Architecture rules có thay đổi không?
+   - Có phát hiện repeated failure pattern không?
+   - Next agent có cần instruction rõ hơn không?
+7. Cập nhật routine harness files trực tiếp, hoặc thêm proposal vào
+   `docs/HARNESS_BACKLOG.md` khi thay đổi mang tính structural.
 
 ## Harness Change Policy
 
-Agents may update directly:
+Agents có thể cập nhật trực tiếp:
 
-- Story status and evidence.
-- `docs/TEST_MATRIX.md` rows.
-- Links from story packets to product docs.
-- Validation notes and reports.
-- Small clarifications tied to the current task.
+- Story status và evidence.
+- Các row trong `docs/TEST_MATRIX.md`.
+- Links từ story packets tới product docs.
+- Validation notes và reports.
+- Các clarification nhỏ gắn với task hiện tại.
 
-Agents should ask for human confirmation before:
+Agents nên hỏi human confirmation trước khi:
 
-- Changing architecture direction.
-- Removing validation requirements.
-- Changing the source-of-truth hierarchy.
-- Changing risk classification rules.
-- Replacing the feature workflow.
+- Thay đổi architecture direction.
+- Gỡ bỏ validation requirements.
+- Thay đổi source-of-truth hierarchy.
+- Thay đổi risk classification rules.
+- Thay thế feature workflow.
 
 ## Done Definition
 
-A task is done only when:
+Một task chỉ xong khi:
 
-- The requested change is completed or the blocker is documented.
-- Relevant docs, stories, and test matrix entries remain current.
-- Validation commands were run when they exist.
-- Missing harness capabilities were added to `docs/HARNESS_BACKLOG.md`.
-- The final response says what changed and what was not attempted.
+- Requested change đã hoàn tất hoặc blocker đã được document.
+- Relevant docs, stories, và test matrix entries vẫn current.
+- Validation commands đã chạy khi chúng tồn tại.
+- Missing harness capabilities đã được thêm vào `docs/HARNESS_BACKLOG.md`.
+- Final response nói rõ đã thay đổi gì và không làm gì.
