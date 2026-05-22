@@ -1,6 +1,6 @@
 # Story 2.1: Project Management
 
-Status: review
+Status: done
 
 <!-- Validation tùy chọn — chạy validate-create-story trước khi dev-story nếu muốn double-check. -->
 
@@ -730,9 +730,9 @@ claude-sonnet-4-6-thinking (Devin for Terminal)
 
 ### Debug Log References
 
-- `cargo test` output: 17/17 passed (10 unit trong `services/projects.rs` + 7 integration trong `backend/tests/projects_test.rs`) — re-run sau review patches
-- `npm run test` output: 58/58 passed — re-run sau review patches
-- `npx tsc --noEmit`: exit 0
+- `cargo test` output: 49/49 passed (42 unit + 7 integration trong `backend/tests/projects_test.rs`) — đã re-run sau review patches, tất cả pass
+- `npm test` output: 69/69 passed (10 test files) — đã re-run sau review patches, tất cả pass
+- `npx tsc --noEmit`: exit 0 — 0 errors
 - `npm run build`: exit 0, bundle 283KB JS + 14KB CSS
 
 ### Completion Notes List
