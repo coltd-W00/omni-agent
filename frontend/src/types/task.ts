@@ -3,6 +3,7 @@ export const TaskStatus = {
   Ready: "ready",
   Assigned: "assigned",
   Running: "running",
+  Paused: "paused",
   NeedsReview: "needs-review",
   ChangesRequested: "changes-requested",
   Completed: "completed",
@@ -11,8 +12,31 @@ export const TaskStatus = {
 } as const;
 export type TaskStatus = (typeof TaskStatus)[keyof typeof TaskStatus];
 
+export const TaskAgent = {
+  Codex: "codex",
+  Claude: "claude",
+} as const;
+export type TaskAgent = (typeof TaskAgent)[keyof typeof TaskAgent];
+
+export const TaskRole = {
+  Coder: "coder",
+  Reviewer: "reviewer",
+  Planner: "planner",
+  Debugger: "debugger",
+  Refactorer: "refactorer",
+} as const;
+export type TaskRole = (typeof TaskRole)[keyof typeof TaskRole];
+
 export interface Task {
-  id: string; // e.g. "ERP-CB-001"
+  id: string;
   title: string;
   status: TaskStatus;
+  projectId?: string;
+  seq?: number;
+  description?: string;
+  acceptanceCriteria?: string | null;
+  agent?: TaskAgent | null;
+  role?: TaskRole | null;
+  createdAt?: string;
+  updatedAt?: string;
 }

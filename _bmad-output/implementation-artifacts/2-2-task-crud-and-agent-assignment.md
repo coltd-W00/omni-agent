@@ -1,6 +1,6 @@
 # Story 2.2: Task CRUD & Agent Assignment
 
-Status: ready-for-dev
+Status: review
 
 <!-- Validation tùy chọn — chạy validate-create-story trước khi dev-story nếu muốn double-check. -->
 
@@ -183,18 +183,18 @@ so that tôi có thể tổ chức công việc và chuẩn bị Task sẵn sàn
 
 ### A. Preflight (verify dependencies)
 
-- [ ] **Task A.1 — Verify Story 2.0 + Story 2.1 đã `done` (hoặc `review` đã merge):** (AC: 12, 13, 15)
-  - [ ] A.1.1 `git log --oneline -10` xem 2-0 và 2-1 đã merge.
-  - [ ] A.1.2 Xác nhận `frontend/src/components/{Button,Toast,ConfirmationDialog,StatusBadge,AgentAvatar,SessionBadge,TaskCard,EmptyState}.tsx` tồn tại (Story 2.0 deliverables).
-  - [ ] A.1.3 Xác nhận `frontend/src/api/client.ts`, `frontend/src/api/projects.ts`, `frontend/src/contexts/ActiveProjectContext.tsx` (hoặc tương đương) tồn tại (Story 2.1 deliverables). Nếu route file path khác, dùng path thực tế đang có.
-  - [ ] A.1.4 Xác nhận `backend/src/{models,services,handlers}/` đã có `mod.rs` + `projects.rs` (Story 2.1 deliverables). Xác nhận `backend/src/error.rs` có variants `BadRequest`, `Conflict`, `NotFound` với payload `(code: &'static str, message: String)` (Story 2.1 Task B.3).
-  - [ ] A.1.5 Nếu BẤT KỲ deliverable nào trên thiếu → STOP, escalate với chat: "Story 2.2 depends on 2.0/2.1 deliverables not yet merged: <list>". KHÔNG re-implement deliverables của story khác.
+- [x] **Task A.1 — Verify Story 2.0 + Story 2.1 đã `done` (hoặc `review` đã merge):** (AC: 12, 13, 15)
+  - [x] A.1.1 `git log --oneline -10` xem 2-0 và 2-1 đã merge.
+  - [x] A.1.2 Xác nhận `frontend/src/components/{Button,Toast,ConfirmationDialog,StatusBadge,AgentAvatar,SessionBadge,TaskCard,EmptyState}.tsx` tồn tại (Story 2.0 deliverables).
+  - [x] A.1.3 Xác nhận `frontend/src/api/client.ts`, `frontend/src/api/projects.ts`, `frontend/src/contexts/ActiveProjectContext.tsx` (hoặc tương đương) tồn tại (Story 2.1 deliverables). Nếu route file path khác, dùng path thực tế đang có.
+  - [x] A.1.4 Xác nhận `backend/src/{models,services,handlers}/` đã có `mod.rs` + `projects.rs` (Story 2.1 deliverables). Xác nhận `backend/src/error.rs` có variants `BadRequest`, `Conflict`, `NotFound` với payload `(code: &'static str, message: String)` (Story 2.1 Task B.3).
+  - [x] A.1.5 Nếu BẤT KỲ deliverable nào trên thiếu → STOP, escalate với chat: "Story 2.2 depends on 2.0/2.1 deliverables not yet merged: <list>". KHÔNG re-implement deliverables của story khác.
 
 ### B. Backend — Models + Services + Handlers cho Task
 
-- [ ] **Task B.1 — Tạo `backend/src/models/task.rs`** (AC: 1, 2, 3, 5, 6, 7, 9, 10, 15)
-  - [ ] B.1.1 Tạo file `backend/src/models/task.rs` (cùng folder với `project.rs` Story 2.1 đã tạo).
-  - [ ] B.1.2 Define 4 structs + 2 enums:
+- [x] **Task B.1 — Tạo `backend/src/models/task.rs`** (AC: 1, 2, 3, 5, 6, 7, 9, 10, 15)
+  - [x] B.1.1 Tạo file `backend/src/models/task.rs` (cùng folder với `project.rs` Story 2.1 đã tạo).
+  - [x] B.1.2 Define 4 structs + 2 enums:
     ```rust
     use serde::{Deserialize, Serialize};
     use sqlx::FromRow;
@@ -244,17 +244,17 @@ so that tôi có thể tổ chức công việc và chuẩn bị Task sẵn sàn
         pub role: String,
     }
     ```
-  - [ ] B.1.3 Implement helper `serialize_status_lowercase(value: &str, serializer: S)` — `value.to_lowercase()` rồi `serializer.serialize_str(&lower)`. Lý do: DB lưu `'Draft'` PascalCase (schema default 1_init.sql), wire dùng `"draft"` để khớp `TaskStatus` const-object Story 2.0.
-  - [ ] B.1.4 Implement helper `deserialize_double_option<'de, D>(deserializer: D) -> Result<Option<Option<String>>, D::Error>` cho `UpdateTaskRequest`. Tham khảo pattern serde double-option [community snippet](https://github.com/serde-rs/serde/issues/984). Lý do: cần phân biệt `{}` (field vắng) vs `{"acceptanceCriteria": null}` (xóa AC) vs `{"acceptanceCriteria": "..."}` (set AC).
-  - [ ] B.1.5 Update `backend/src/models/mod.rs` thêm `pub mod task;`.
+  - [x] B.1.3 Implement helper `serialize_status_lowercase(value: &str, serializer: S)` — `value.to_lowercase()` rồi `serializer.serialize_str(&lower)`. Lý do: DB lưu `'Draft'` PascalCase (schema default 1_init.sql), wire dùng `"draft"` để khớp `TaskStatus` const-object Story 2.0.
+  - [x] B.1.4 Implement helper `deserialize_double_option<'de, D>(deserializer: D) -> Result<Option<Option<String>>, D::Error>` cho `UpdateTaskRequest`. Tham khảo pattern serde double-option [community snippet](https://github.com/serde-rs/serde/issues/984). Lý do: cần phân biệt `{}` (field vắng) vs `{"acceptanceCriteria": null}` (xóa AC) vs `{"acceptanceCriteria": "..."}` (set AC).
+  - [x] B.1.5 Update `backend/src/models/mod.rs` thêm `pub mod task;`.
 
-- [ ] **Task B.2 — Mở rộng `AppError` (KHÔNG breaking change)** (AC: 3, 4, 6, 8, 9, 10, 11)
-  - [ ] B.2.1 `backend/src/error.rs` đã có `BadRequest { code, message }`, `Conflict { code, message }`, `NotFound { code, message }` từ Story 2.1 Task B.3. **KHÔNG thêm variant mới** — error codes mới (`invalid_task_title`, `task_not_found`, `task_locked`, `task_not_assignable`, `task_not_deletable`, `invalid_agent`, `invalid_role`, `invalid_task_description`, `invalid_task_acceptance_criteria`) được tạo qua existing variants với `code` string khác nhau.
-  - [ ] B.2.2 Nếu Story 2.1 dùng approach `AppError::BadRequest(String)` thay vì `{ code, message }`, áp dụng pattern Story 2.1 — KHÔNG đi đường khác.
+- [x] **Task B.2 — Mở rộng `AppError` (KHÔNG breaking change)** (AC: 3, 4, 6, 8, 9, 10, 11)
+  - [x] B.2.1 `backend/src/error.rs` đã có `BadRequest { code, message }`, `Conflict { code, message }`, `NotFound { code, message }` từ Story 2.1 Task B.3. **KHÔNG thêm variant mới** — error codes mới (`invalid_task_title`, `task_not_found`, `task_locked`, `task_not_assignable`, `task_not_deletable`, `invalid_agent`, `invalid_role`, `invalid_task_description`, `invalid_task_acceptance_criteria`) được tạo qua existing variants với `code` string khác nhau.
+  - [x] B.2.2 Nếu Story 2.1 dùng approach `AppError::BadRequest(String)` thay vì `{ code, message }`, áp dụng pattern Story 2.1 — KHÔNG đi đường khác.
 
-- [ ] **Task B.3 — Implement `backend/src/services/tasks.rs`** (AC: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11)
-  - [ ] B.3.1 Tạo file `backend/src/services/tasks.rs` + update `services/mod.rs` thêm `pub mod tasks;`.
-  - [ ] B.3.2 Implement 6 service functions — KHÔNG truy cập `axum::http` trong service layer (architecture §"Architectural Boundaries"):
+- [x] **Task B.3 — Implement `backend/src/services/tasks.rs`** (AC: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11)
+  - [x] B.3.1 Tạo file `backend/src/services/tasks.rs` + update `services/mod.rs` thêm `pub mod tasks;`.
+  - [x] B.3.2 Implement 6 service functions — KHÔNG truy cập `axum::http` trong service layer (architecture §"Architectural Boundaries"):
 
     ```rust
     pub async fn list_tasks(pool: &SqlitePool, project_id: &str) -> Result<Vec<Task>, AppError>;
@@ -265,7 +265,7 @@ so that tôi có thể tổ chức công việc và chuẩn bị Task sẵn sàn
     pub async fn delete_task(pool: &SqlitePool, project_id: &str, task_id: &str) -> Result<(), AppError>;
     ```
 
-  - [ ] B.3.3 **`create_task`** algorithm chi tiết:
+  - [x] B.3.3 **`create_task`** algorithm chi tiết:
     1. Validate `title` trim → length 1–200, fail → `BadRequest { code: "invalid_task_title", message: "Task title must be 1–200 characters" }`.
     2. Validate `description` trim → length 1–5000, fail → `BadRequest { code: "invalid_task_description", message: "Task description must be 1–5000 characters" }`.
     3. Validate `acceptance_criteria` (Option) — nếu Some, trim. Nếu trim → empty string, normalize thành `None`. Nếu length > 5000 → `BadRequest { code: "invalid_task_acceptance_criteria", message: "Acceptance criteria must be at most 5000 characters" }`.
@@ -287,15 +287,15 @@ so that tôi có thể tổ chức công việc và chuẩn bị Task sẵn sàn
     6. `now = chrono::Utc::now().to_rfc3339()`.
     7. Return `Task` object (echo lại fields + id/seq/created_at/updated_at, status = `"Draft"`).
 
-  - [ ] B.3.4 **`list_tasks`**:
+  - [x] B.3.4 **`list_tasks`**:
     1. Verify project tồn tại (giống step 4 của `create_task`). Empty → `NotFound { code: "project_not_found", ... }`.
     2. `SELECT id, project_id, seq, title, description, acceptance_criteria, agent, role, status, created_at, updated_at FROM tasks WHERE project_id = ? ORDER BY seq ASC`.
     3. Return `Vec<Task>` (empty vec OK).
 
-  - [ ] B.3.5 **`get_task`**:
+  - [x] B.3.5 **`get_task`**:
     1. Single query: `SELECT * FROM tasks WHERE id = ? AND project_id = ?`. Empty → `NotFound { code: "task_not_found", message: format!("Task {} does not exist", task_id) }`. **KHÔNG** check project tồn tại trước rồi check task — gộp 1 query để tránh race + giảm IO.
 
-  - [ ] B.3.6 **`update_task`**:
+  - [x] B.3.6 **`update_task`**:
     1. Fetch existing task (qua `get_task` reuse). Propagate `NotFound` nếu task không thuộc project.
     2. Check status — nếu `existing.status` ∈ {`"Done"`, `"Cancelled"`} (so sánh case-insensitive với `to_lowercase()` để robust với mixed-case future migration) → `Conflict { code: "task_locked", message: format!("Cannot edit task in {} status", existing.status.to_lowercase()) }`.
     3. Merge UpdateTaskRequest theo logic AC-7:
@@ -310,7 +310,7 @@ so that tôi có thể tổ chức công việc và chuẩn bị Task sẵn sàn
        ```
     5. Return updated `Task` (re-fetch hoặc rebuild từ merged values + new updated_at).
 
-  - [ ] B.3.7 **`assign_agent`**:
+  - [x] B.3.7 **`assign_agent`**:
     1. Validate `agent` ∈ `["codex", "claude"]` (exact lowercase) → fail = `BadRequest { code: "invalid_agent", message: "Agent must be one of: codex, claude" }`.
     2. Validate `role` ∈ `["coder", "reviewer", "planner", "debugger", "refactorer"]` → fail = `BadRequest { code: "invalid_role", message: "Role must be one of: coder, reviewer, planner, debugger, refactorer" }`.
     3. Fetch existing task (qua `get_task`). Propagate `NotFound`.
@@ -318,12 +318,12 @@ so that tôi có thể tổ chức công việc và chuẩn bị Task sẵn sàn
     5. `UPDATE tasks SET agent = ?, role = ?, status = 'Assigned', updated_at = ? WHERE id = ? AND project_id = ?;`.
     6. Return updated `Task`.
 
-  - [ ] B.3.8 **`delete_task`**:
+  - [x] B.3.8 **`delete_task`**:
     1. Fetch existing task (qua `get_task`). Propagate `NotFound { code: "task_not_found", ... }`.
     2. Check status — nếu `existing.status.to_lowercase() != "draft"` → `Conflict { code: "task_not_deletable", message: format!("Can only delete task in draft status; current status is {}", existing.status.to_lowercase()) }`.
     3. `DELETE FROM tasks WHERE id = ? AND project_id = ?;`. Return `Ok(())`.
 
-  - [ ] B.3.9 **Unit tests** trong `#[cfg(test)] mod tests` cùng file — pattern giống `backend/src/services/projects.rs` Story 2.1:
+  - [x] B.3.9 **Unit tests** trong `#[cfg(test)] mod tests` cùng file — pattern giống `backend/src/services/projects.rs` Story 2.1:
     - Setup helper `migrated_pool()` + `insert_test_project(pool, key, name) -> id` (reuse từ Story 2.1 nếu đã extract, else inline).
     - **`create_task_inserts_row`**: project tồn tại, body valid → row insert với status `"Draft"`, id `"OMNI-001"`, seq=1.
     - **`create_task_auto_increments_seq_per_project`**: project OMNI + ERP, tạo 2 task OMNI rồi 1 task ERP → seq OMNI = 1, 2; ERP = 1. Task ids `OMNI-001`, `OMNI-002`, `ERP-001`.
@@ -358,11 +358,11 @@ so that tôi có thể tổ chức công việc và chuẩn bị Task sẵn sàn
     - **`delete_task_rejects_non_draft`**: status `"Ready"` (hoặc `"Assigned"`, …, `"Done"`) → `Conflict { code: "task_not_deletable", .. }`, row VẪN tồn tại. Test 2-3 status mẫu khác nhau.
     - **`delete_task_not_found`** → 404.
 
-  - [ ] B.3.10 Verify `cd backend && cargo test` pass tất cả tests mới + tests cũ Story 1.2 và Story 2.1 vẫn pass.
+  - [x] B.3.10 Verify `cd backend && cargo test` pass tất cả tests mới + tests cũ Story 1.2 và Story 2.1 vẫn pass.
 
-- [ ] **Task B.4 — Implement `backend/src/handlers/tasks.rs`** (AC: 1, 5, 6, 7, 10, 11, 14)
-  - [ ] B.4.1 Tạo file `backend/src/handlers/tasks.rs` + update `handlers/mod.rs` thêm `pub mod tasks;`.
-  - [ ] B.4.2 Thin handlers — delegate sang service, áp dụng `?` operator (architecture §"Process Patterns"). Pattern handlers Story 2.1 đã thiết lập:
+- [x] **Task B.4 — Implement `backend/src/handlers/tasks.rs`** (AC: 1, 5, 6, 7, 10, 11, 14)
+  - [x] B.4.1 Tạo file `backend/src/handlers/tasks.rs` + update `handlers/mod.rs` thêm `pub mod tasks;`.
+  - [x] B.4.2 Thin handlers — delegate sang service, áp dụng `?` operator (architecture §"Process Patterns"). Pattern handlers Story 2.1 đã thiết lập:
 
     ```rust
     use std::sync::Arc;
@@ -425,10 +425,10 @@ so that tôi có thể tổ chức công việc và chuẩn bị Task sẵn sàn
     }
     ```
 
-  - [ ] B.4.3 KHÔNG `unwrap()`/`expect()` trong handlers (architecture §"Enforcement Guidelines" hard rule).
+  - [x] B.4.3 KHÔNG `unwrap()`/`expect()` trong handlers (architecture §"Enforcement Guidelines" hard rule).
 
-- [ ] **Task B.5 — Mount routes trong `main.rs`** (AC: 14)
-  - [ ] B.5.1 Update `api_router` trong `main.rs` thêm 5 routes (Axum 0.8 path syntax `{name}` — đã verify Story 1.1 và Story 2.1):
+- [x] **Task B.5 — Mount routes trong `main.rs`** (AC: 14)
+  - [x] B.5.1 Update `api_router` trong `main.rs` thêm 5 routes (Axum 0.8 path syntax `{name}` — đã verify Story 1.1 và Story 2.1):
     ```rust
     let api_router = Router::new()
         // ... existing project routes ...
@@ -447,13 +447,13 @@ so that tôi có thể tổ chức công việc và chuẩn bị Task sẵn sàn
             post(handlers::tasks::assign_agent),
         );
     ```
-  - [ ] B.5.2 Verify `cd backend && cargo build` pass.
-  - [ ] B.5.3 Verify `cd backend && cargo run` start server không panic, log `Server running on http://127.0.0.1:8080`.
+  - [x] B.5.2 Verify `cd backend && cargo build` pass.
+  - [x] B.5.3 Verify `cd backend && cargo run` start server không panic, log `Server running on http://127.0.0.1:8080`.
 
-- [ ] **Task B.6 — Backend integration test** (AC: 1, 4, 5, 6, 7, 8, 10, 11, 14)
-  - [ ] B.6.1 Tạo `backend/tests/tasks_test.rs` (cùng folder với `projects_test.rs` Story 2.1). Pattern: build axum `Router` thật với in-memory SQLite pool + `tower::ServiceExt::oneshot` để gửi request không bind socket.
-  - [ ] B.6.2 Helper `setup_router_with_project(key: &str, name: &str) -> (Router, project_id)` để DRY các tests.
-  - [ ] B.6.3 Test cases (mỗi case một `#[tokio::test]`):
+- [x] **Task B.6 — Backend integration test** (AC: 1, 4, 5, 6, 7, 8, 10, 11, 14)
+  - [x] B.6.1 Tạo `backend/tests/tasks_test.rs` (cùng folder với `projects_test.rs` Story 2.1). Pattern: build axum `Router` thật với in-memory SQLite pool + `tower::ServiceExt::oneshot` để gửi request không bind socket.
+  - [x] B.6.2 Helper `setup_router_with_project(key: &str, name: &str) -> (Router, project_id)` để DRY các tests.
+  - [x] B.6.3 Test cases (mỗi case một `#[tokio::test]`):
     - `post_task_happy_path`: 201, body có `id = "OMNI-001"`, `status = "draft"` (wire lowercase), `seq = 1`, `agent` / `role` / `acceptanceCriteria` = `null`.
     - `post_task_validates_title`: body `{"title":"","description":"d"}` → 400, body `{"error":"invalid_task_title",...}`.
     - `post_task_validates_description`: → 400 `invalid_task_description`.
@@ -474,13 +474,13 @@ so that tôi có thể tổ chức công việc và chuẩn bị Task sẵn sàn
     - **Regression guards (AC-14):**
       - `health_still_200_after_task_routes_mounted`: `GET /health` → 200.
       - `projects_list_still_works`: `GET /api/projects` → 200 (smoke check Story 2.1 không bị break).
-  - [ ] B.6.4 Verify `cd backend && cargo test --tests` pass tất cả.
+  - [x] B.6.4 Verify `cd backend && cargo test --tests` pass tất cả.
 
 ### C. Frontend — Types + API client + Create Modal + Hooks
 
-- [ ] **Task C.1 — Mở rộng `frontend/src/types/task.ts`** (AC: 15)
-  - [ ] C.1.1 Đọc file hiện tại — Story 2.0 đã tạo `Task` + `TaskStatus`. **KHÔNG xóa** existing exports.
-  - [ ] C.1.2 Extend `Task` interface (giữ shape minimum nếu Story 2.0 đã có cấu trúc khác — append fields, không destruct):
+- [x] **Task C.1 — Mở rộng `frontend/src/types/task.ts`** (AC: 15)
+  - [x] C.1.1 Đọc file hiện tại — Story 2.0 đã tạo `Task` + `TaskStatus`. **KHÔNG xóa** existing exports.
+  - [x] C.1.2 Extend `Task` interface (giữ shape minimum nếu Story 2.0 đã có cấu trúc khác — append fields, không destruct):
     ```ts
     export interface Task {
       id: string;
@@ -496,7 +496,7 @@ so that tôi có thể tổ chức công việc và chuẩn bị Task sẵn sàn
       updatedAt: string;
     }
     ```
-  - [ ] C.1.3 Thêm `TaskAgent` + `TaskRole` const-objects (pattern `erasableSyntaxOnly` từ Story 2.0 AC-12):
+  - [x] C.1.3 Thêm `TaskAgent` + `TaskRole` const-objects (pattern `erasableSyntaxOnly` từ Story 2.0 AC-12):
     ```ts
     export const TaskAgent = {
       Codex: "codex",
@@ -513,12 +513,12 @@ so that tôi có thể tổ chức công việc và chuẩn bị Task sẵn sàn
     } as const;
     export type TaskRole = (typeof TaskRole)[keyof typeof TaskRole];
     ```
-  - [ ] C.1.4 Thêm `Paused: "paused"` vào `TaskStatus` const-object (insert giữa `Running` và `NeedsReview`). KHÔNG xóa values cũ.
-  - [ ] C.1.5 Run `cd frontend && npx tsc --noEmit` — verify 0 errors. Run `npm test -- --run` (hoặc `vitest run`) verify `StatusBadge.test.tsx` + `TaskCard.test.tsx` Story 2.0 vẫn pass (extending union backward compatible).
+  - [x] C.1.4 Thêm `Paused: "paused"` vào `TaskStatus` const-object (insert giữa `Running` và `NeedsReview`). KHÔNG xóa values cũ.
+  - [x] C.1.5 Run `cd frontend && npx tsc --noEmit` — verify 0 errors. Run `npm test -- --run` (hoặc `vitest run`) verify `StatusBadge.test.tsx` + `TaskCard.test.tsx` Story 2.0 vẫn pass (extending union backward compatible).
 
-- [ ] **Task C.2 — Tạo `frontend/src/api/tasks.ts`** (AC: 13, 14)
-  - [ ] C.2.1 Tạo file `tasks.ts` cạnh `projects.ts` Story 2.1.
-  - [ ] C.2.2 Implement 6 fetch wrappers dùng `apiFetch` từ `frontend/src/api/client.ts` (Story 2.1):
+- [x] **Task C.2 — Tạo `frontend/src/api/tasks.ts`** (AC: 13, 14)
+  - [x] C.2.1 Tạo file `tasks.ts` cạnh `projects.ts` Story 2.1.
+  - [x] C.2.2 Implement 6 fetch wrappers dùng `apiFetch` từ `frontend/src/api/client.ts` (Story 2.1):
     ```ts
     import { apiFetch } from "./client";
     import type { Task, TaskAgent, TaskRole } from "../types/task";
@@ -569,10 +569,10 @@ so that tôi có thể tổ chức công việc và chuẩn bị Task sẵn sàn
         method: "DELETE",
       });
     ```
-  - [ ] C.2.3 KHÔNG hardcode `http://localhost:8080` — `apiFetch` từ Story 2.1 đã handle prefix `/api`.
+  - [x] C.2.3 KHÔNG hardcode `http://localhost:8080` — `apiFetch` từ Story 2.1 đã handle prefix `/api`.
 
-- [ ] **Task C.3 — TanStack Query hooks: `useTasks` + `useCreateTask`** (AC: 13)
-  - [ ] C.3.1 Tạo `frontend/src/hooks/useTasks.ts`:
+- [x] **Task C.3 — TanStack Query hooks: `useTasks` + `useCreateTask`** (AC: 13)
+  - [x] C.3.1 Tạo `frontend/src/hooks/useTasks.ts`:
     ```ts
     import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
     import { listTasks, createTask, type CreateTaskInput } from "../api/tasks";
@@ -603,11 +603,11 @@ so that tôi có thể tổ chức công việc và chuẩn bị Task sẵn sàn
       });
     }
     ```
-  - [ ] C.3.2 **KHÔNG implement** `useUpdateTask`, `useAssignAgent`, `useDeleteTask` ở story này — sẽ là responsibility của Story 2.4 (Task Detail Panel). API client functions ở C.2 đã sẵn để Story 2.4 dùng. Lý do: keep story scope focused; Story 2.2 chỉ cần Create để TopBar button hoạt động + populate Task Board (Story 2.3).
+  - [x] C.3.2 **KHÔNG implement** `useUpdateTask`, `useAssignAgent`, `useDeleteTask` ở story này — sẽ là responsibility của Story 2.4 (Task Detail Panel). API client functions ở C.2 đã sẵn để Story 2.4 dùng. Lý do: keep story scope focused; Story 2.2 chỉ cần Create để TopBar button hoạt động + populate Task Board (Story 2.3).
 
-- [ ] **Task C.4 — TopBar: thay "+ New Task" placeholder bằng button + modal state** (AC: 12)
-  - [ ] C.4.1 Edit `frontend/src/components/TopBar.tsx`. Xóa TODO comment `TODO(Story 2.x): ... New Task button ...`.
-  - [ ] C.4.2 Add state cho modal open/close + Active Project lookup (qua `useActiveProject()` từ Story 2.1):
+- [x] **Task C.4 — TopBar: thay "+ New Task" placeholder bằng button + modal state** (AC: 12)
+  - [x] C.4.1 Edit `frontend/src/components/TopBar.tsx`. Xóa TODO comment `TODO(Story 2.x): ... New Task button ...`.
+  - [x] C.4.2 Add state cho modal open/close + Active Project lookup (qua `useActiveProject()` từ Story 2.1):
     ```tsx
     import { useState } from "react";
     import Button from "./Button";
@@ -641,16 +641,16 @@ so that tôi có thể tổ chức công việc và chuẩn bị Task sẵn sàn
       );
     }
     ```
-  - [ ] C.4.3 Update `frontend/src/components/AppShell.css` thêm class `.app-top-bar__actions` nếu chưa có (flex right-align):
+  - [x] C.4.3 Update `frontend/src/components/AppShell.css` thêm class `.app-top-bar__actions` nếu chưa có (flex right-align):
     ```css
     .app-top-bar { display: flex; align-items: center; justify-content: space-between; }
     .app-top-bar__actions { display: flex; gap: var(--space-2); }
     ```
     KHÔNG dùng hardcode hex (project-context hard rule).
 
-- [ ] **Task C.5 — Implement `frontend/src/components/CreateTaskModal.tsx`** (AC: 12, 13)
-  - [ ] C.5.1 Tạo `frontend/src/components/CreateTaskModal.tsx` + `.css`. Pattern follow `ConfirmationDialog.tsx` Story 2.0 (native `<dialog>` + `showModal()`).
-  - [ ] C.5.2 Props:
+- [x] **Task C.5 — Implement `frontend/src/components/CreateTaskModal.tsx`** (AC: 12, 13)
+  - [x] C.5.1 Tạo `frontend/src/components/CreateTaskModal.tsx` + `.css`. Pattern follow `ConfirmationDialog.tsx` Story 2.0 (native `<dialog>` + `showModal()`).
+  - [x] C.5.2 Props:
     ```ts
     interface CreateTaskModalProps {
       open: boolean;
@@ -658,7 +658,7 @@ so that tôi có thể tổ chức công việc và chuẩn bị Task sẵn sàn
       onClose: () => void;
     }
     ```
-  - [ ] C.5.3 Internal state — title, description, ac, field errors:
+  - [x] C.5.3 Internal state — title, description, ac, field errors:
     ```ts
     const [title, setTitle] = useState("");
     const [description, setDescription] = useState("");
@@ -666,7 +666,7 @@ so that tôi có thể tổ chức công việc và chuẩn bị Task sẵn sàn
     const [errors, setErrors] = useState<{ title?: string; description?: string; acceptanceCriteria?: string }>({});
     ```
     Reset state khi `open` đổi `false → true` (qua `useEffect`).
-  - [ ] C.5.4 Submit handler — gọi `useCreateTask` mutation:
+  - [x] C.5.4 Submit handler — gọi `useCreateTask` mutation:
     ```ts
     const createMutation = useCreateTask(projectId);
     const { showToast } = useToast();
@@ -703,14 +703,14 @@ so that tôi có thể tổ chức công việc và chuẩn bị Task sẵn sàn
       }
     }
     ```
-  - [ ] C.5.5 Render — title/description/AC fields với inline error message dưới mỗi field. Footer: Cancel ghost + Create Task primary (loading state khi `createMutation.isPending`).
-  - [ ] C.5.6 A11y — `<dialog>` element + `useRef` + `useEffect` đồng bộ `open` ↔ `showModal()` / `close()` (pattern y hệt `ConfirmationDialog`). `<form aria-labelledby="create-task-heading">` với heading `<h2 id="create-task-heading">Create Task</h2>`. Autofocus title field khi mở.
-  - [ ] C.5.7 Listen `close` event của `<dialog>` (handles Esc + backdrop click) → gọi `onClose()`.
-  - [ ] C.5.8 CSS dùng CSS variables only (`var(--bg-card)`, `var(--space-3)`, …) — KHÔNG hardcode hex. Modal width 480px (mobile: 90vw), border-radius `var(--radius-lg)`, shadow `var(--shadow-lg)`. Pattern copy từ `ConfirmationDialog.css`.
+  - [x] C.5.5 Render — title/description/AC fields với inline error message dưới mỗi field. Footer: Cancel ghost + Create Task primary (loading state khi `createMutation.isPending`).
+  - [x] C.5.6 A11y — `<dialog>` element + `useRef` + `useEffect` đồng bộ `open` ↔ `showModal()` / `close()` (pattern y hệt `ConfirmationDialog`). `<form aria-labelledby="create-task-heading">` với heading `<h2 id="create-task-heading">Create Task</h2>`. Autofocus title field khi mở.
+  - [x] C.5.7 Listen `close` event của `<dialog>` (handles Esc + backdrop click) → gọi `onClose()`.
+  - [x] C.5.8 CSS dùng CSS variables only (`var(--bg-card)`, `var(--space-3)`, …) — KHÔNG hardcode hex. Modal width 480px (mobile: 90vw), border-radius `var(--radius-lg)`, shadow `var(--shadow-lg)`. Pattern copy từ `ConfirmationDialog.css`.
 
-- [ ] **Task C.6 — Component tests** (AC: 12, 13)
-  - [ ] C.6.1 Tạo `frontend/src/components/CreateTaskModal.test.tsx`. Pattern: dùng `@testing-library/react` + `userEvent.setup()` + mock `apiFetch` qua `vi.mock("../api/client", () => ({ apiFetch: vi.fn(), ApiError: ... }))`. Wrap render với `QueryClientProvider` + `ToastProvider` + (mock) `ActiveProjectContext.Provider`.
-  - [ ] C.6.2 Test cases:
+- [x] **Task C.6 — Component tests** (AC: 12, 13)
+  - [x] C.6.1 Tạo `frontend/src/components/CreateTaskModal.test.tsx`. Pattern: dùng `@testing-library/react` + `userEvent.setup()` + mock `apiFetch` qua `vi.mock("../api/client", () => ({ apiFetch: vi.fn(), ApiError: ... }))`. Wrap render với `QueryClientProvider` + `ToastProvider` + (mock) `ActiveProjectContext.Provider`.
+  - [x] C.6.2 Test cases:
     - `renders fields when open=true and projectId set`.
     - `Submit button is disabled when title or description empty`.
     - `Submit calls createTask API with trimmed values + closes modal on success`.
@@ -718,19 +718,19 @@ so that tôi có thể tổ chức công việc và chuẩn bị Task sẵn sàn
     - `Shows toast error and keeps modal open on 500 error`.
     - `Pressing Esc closes the modal` — verify `onClose` được gọi (jsdom có `<dialog>` element support qua polyfill nếu cần — nếu jsdom không hỗ trợ `<dialog>.showModal()`, dùng `vi.spyOn(HTMLDialogElement.prototype, "showModal")` mock + simulate close event).
 
-- [ ] **Task C.7 — TopBar test (regression + new button)** (AC: 12)
-  - [ ] C.7.1 Update `frontend/src/components/TopBar.test.tsx` (nếu Story 1.4/2.0 chưa tạo, tạo mới):
+- [x] **Task C.7 — TopBar test (regression + new button)** (AC: 12)
+  - [x] C.7.1 Update `frontend/src/components/TopBar.test.tsx` (nếu Story 1.4/2.0 chưa tạo, tạo mới):
     - `renders "+ New Task" button`.
     - `button is disabled when no active project`.
     - `clicking button opens CreateTaskModal` (verify modal heading visible).
-  - [ ] C.7.2 Run `cd frontend && npm test -- --run` verify tất cả tests pass (Story 1.4 + 2.0 + 2.1 regression).
+  - [x] C.7.2 Run `cd frontend && npm test -- --run` verify tất cả tests pass (Story 1.4 + 2.0 + 2.1 regression).
 
 ### D. Frontend — Wiring & build
 
-- [ ] **Task D.1 — Verify build + type check** (AC: 14, 15)
-  - [ ] D.1.1 `cd frontend && npx tsc --noEmit` → 0 errors.
-  - [ ] D.1.2 `cd frontend && npm run build` → exit 0, tạo `frontend/dist/`.
-  - [ ] D.1.3 `cd frontend && npm test -- --run` → tất cả tests pass.
+- [x] **Task D.1 — Verify build + type check** (AC: 14, 15)
+  - [x] D.1.1 `cd frontend && npx tsc --noEmit` → 0 errors.
+  - [x] D.1.2 `cd frontend && npm run build` → exit 0, tạo `frontend/dist/`.
+  - [x] D.1.3 `cd frontend && npm test -- --run` → tất cả tests pass.
 
 ### E. End-to-end smoke (manual — dev tự verify)
 
@@ -1067,10 +1067,47 @@ Sau khi implement Story 2.2, thêm row vào `docs/TEST_MATRIX.md`:
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+claude-sonnet-4-6-thinking
 
 ### Debug Log References
 
 ### Completion Notes List
 
+- Rust pattern-matching compile error: `Some(None) | Some(Some(ref s)) if s.trim()...` không hợp lệ vì biến `s` không bound ở nhánh `Some(None)`. Fix: tách thành hai match arm riêng biệt.
+- `Task` interface giữ `id`, `title`, `status` là required; các fields mới (`projectId`, `seq`, `description`, v.v.) để optional để backward-compatible với các component/test từ Story 2.0 (TaskCard chỉ dùng 3 fields cơ bản).
+- `StatusBadge.tsx` cần thêm entry `paused` sau khi `TaskStatus` được extend — `satisfies Record<TaskStatus, ...>` là exhaustive check, build fails nếu thiếu variant.
+- Frontend tests mock `../api/tasks` module trực tiếp (không mock `apiFetch`), đơn giản hơn và không cần polyfill `ApiError` class constructor trong mock.
+- `ReactDOM.createPortal` trong `CreateTaskModal` render vào `document.body` — `screen.getByRole("dialog")` vẫn tìm được vì `@testing-library/dom` query toàn document.
+- Task E.1 (manual browser checklist) chưa thực hiện — không bắt buộc cho review status vì automated tests đã cover đủ AC.
+
 ### File List
+
+**Backend (mới):**
+- `backend/src/models/task.rs`
+- `backend/src/services/tasks.rs`
+- `backend/src/handlers/tasks.rs`
+- `backend/tests/tasks_test.rs`
+
+**Backend (cập nhật):**
+- `backend/src/models/mod.rs`
+- `backend/src/services/mod.rs`
+- `backend/src/handlers/mod.rs`
+- `backend/src/main.rs`
+
+**Frontend (mới):**
+- `frontend/src/api/tasks.ts`
+- `frontend/src/hooks/useTasks.ts`
+- `frontend/src/components/CreateTaskModal.tsx`
+- `frontend/src/components/CreateTaskModal.css`
+- `frontend/src/components/CreateTaskModal.test.tsx`
+- `frontend/src/components/TopBar.test.tsx`
+
+**Frontend (cập nhật):**
+- `frontend/src/types/task.ts`
+- `frontend/src/components/TopBar.tsx`
+- `frontend/src/components/AppShell.css`
+- `frontend/src/components/StatusBadge.tsx`
+
+**Harness (cập nhật):**
+- `docs/TEST_MATRIX.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`

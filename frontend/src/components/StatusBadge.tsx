@@ -11,6 +11,7 @@ const STATUS_DISPLAY = {
   ready: { label: "Ready", icon: "●" },
   assigned: { label: "Assigned", icon: "●" },
   running: { label: "Running", icon: "●" },
+  paused: { label: "Paused", icon: "⏸" },
   "needs-review": { label: "Needs Review", icon: "⚑" },
   "changes-requested": { label: "Changes Requested", icon: "!" },
   completed: { label: "Completed", icon: "✓" },

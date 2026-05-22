@@ -60,6 +60,20 @@ async fn main() -> anyhow::Result<()> {
         .route(
             "/projects/{id}",
             axum::routing::delete(handlers::projects::delete_project),
+        )
+        .route(
+            "/projects/{project_id}/tasks",
+            get(handlers::tasks::list_tasks).post(handlers::tasks::create_task),
+        )
+        .route(
+            "/projects/{project_id}/tasks/{task_id}",
+            get(handlers::tasks::get_task)
+                .put(handlers::tasks::update_task)
+                .delete(handlers::tasks::delete_task),
+        )
+        .route(
+            "/projects/{project_id}/tasks/{task_id}/assign",
+            axum::routing::post(handlers::tasks::assign_agent),
         );
 
     let app = Router::new()

@@ -1,0 +1,96 @@
+/* CreateTaskModal — app-create-task-modal-* prefix */
+
+.app-create-task-modal::backdrop {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.app-create-task-modal {
+  border: none;
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  box-shadow: var(--shadow-lg);
+  max-width: 480px;
+  width: 90vw;
+  font-family: var(--font-family-sans);
+  background: var(--bg-card);
+  color: var(--text-primary);
+}
+
+.app-create-task-modal__title {
+  font-size: var(--font-size-heading-m);
+  line-height: var(--line-height-heading-m);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 var(--space-5);
+}
+
+.app-create-task-modal__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.app-create-task-modal__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.app-create-task-modal__label {
+  font-size: var(--font-size-label);
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.app-create-task-modal__label--required::after {
+  content: " *";
+  color: var(--status-failed-text);
+}
+
+.app-create-task-modal__input,
+.app-create-task-modal__textarea {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-app);
+  color: var(--text-primary);
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+  box-sizing: border-box;
+  transition: border-color 0.15s ease;
+}
+
+.app-create-task-modal__input:focus,
+.app-create-task-modal__textarea:focus {
+  outline: none;
+  border-color: var(--brand-primary);
+}
+
+.app-create-task-modal__input--error,
+.app-create-task-modal__textarea--error {
+  border-color: var(--status-failed-text);
+}
+
+.app-create-task-modal__textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.app-create-task-modal__hint {
+  font-size: var(--font-size-caption);
+  color: var(--text-tertiary);
+}
+
+.app-create-task-modal__error {
+  font-size: var(--font-size-caption);
+  color: var(--status-failed-text);
+}
+
+.app-create-task-modal__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+}
