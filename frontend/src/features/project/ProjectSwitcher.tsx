@@ -68,7 +68,7 @@ export default function ProjectSwitcher() {
   };
 
   const handleConfirmDelete = () => {
-    if (!projectPendingDelete) return;
+    if (!projectPendingDelete || deleteMutation.isPending) return;
     deleteMutation.mutate(projectPendingDelete.id, {
       onSettled: () => setProjectPendingDelete(null),
     });
@@ -125,7 +125,7 @@ export default function ProjectSwitcher() {
               ) : (
                 <ul className="project-switcher__list" role="none">
                   {query.data.map((project) => (
-                    <li key={project.id} style={{ position: "relative" }}>
+                    <li key={project.id} className="project-switcher__list-item">
                       <button
                         type="button"
                         role="menuitem"
@@ -140,14 +140,16 @@ export default function ProjectSwitcher() {
                         <ProjectIcon project={project} />
                         <span className="project-switcher__item-name">{project.name}</span>
                         <span className="project-switcher__item-key">{project.key}</span>
-                        <button
-                          type="button"
-                          className="project-switcher__overflow-btn"
-                          aria-label={`More options for ${project.name}`}
-                          onClick={(e) => handleOverflowClick(e, project.id)}
-                        >
-                          ⋯
-                        </button>
+                      </button>
+                      <button
+                        type="button"
+                        className="project-switcher__overflow-btn"
+                        aria-label={`More options for ${project.name}`}
+                        aria-haspopup="menu"
+                        aria-expanded={overflowOpenId === project.id}
+                        onClick={(e) => handleOverflowClick(e, project.id)}
+                      >
+                        ⋯
                       </button>
 
                       {overflowOpenId === project.id && (
@@ -205,6 +207,7 @@ export default function ProjectSwitcher() {
         variant="destructive"
         onConfirm={handleConfirmDelete}
         onCancel={() => setProjectPendingDelete(null)}
+        confirmLoading={deleteMutation.isPending}
       />
     </div>
   );

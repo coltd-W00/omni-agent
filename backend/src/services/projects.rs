@@ -19,7 +19,7 @@ pub async fn create_project(
 ) -> Result<Project, AppError> {
     // Validate name
     let name = req.name.trim().to_string();
-    if name.is_empty() || name.len() > 80 {
+    if name.is_empty() || name.chars().count() > 80 {
         return Err(AppError::BadRequest {
             code: "invalid_project_name",
             message: "Project name must be 1–80 characters".to_string(),
@@ -34,13 +34,14 @@ pub async fn create_project(
         len >= 2
             && len <= 8
             && chars[0].is_ascii_uppercase()
-            && chars[1..].iter().all(|c| c.is_ascii_uppercase() || c.is_ascii_digit())
+            && chars[1..]
+                .iter()
+                .all(|c| c.is_ascii_uppercase() || c.is_ascii_digit())
     };
     if !key_valid {
         return Err(AppError::BadRequest {
             code: "invalid_project_key",
-            message: "Project key must be uppercase letters and digits, 2–8 characters"
-                .to_string(),
+            message: "Project key must be uppercase letters and digits, 2–8 characters".to_string(),
         });
     }
 
@@ -66,11 +67,7 @@ pub async fn create_project(
             created_at: now.clone(),
             updated_at: now,
         }),
-        Err(sqlx::Error::Database(db_err))
-            if db_err
-                .message()
-                .contains("UNIQUE constraint failed: projects.key") =>
-        {
+        Err(sqlx::Error::Database(db_err)) if is_unique_project_key_error(db_err.as_ref()) => {
             Err(AppError::Conflict {
                 code: "project_key_taken",
                 message: "Project key already in use".to_string(),
@@ -81,10 +78,12 @@ pub async fn create_project(
 }
 
 pub async fn delete_project(pool: &SqlitePool, id: &str) -> Result<(), AppError> {
+    let mut tx = pool.begin().await?;
+
     // Check project exists
     let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM projects WHERE id = ?")
         .bind(id)
-        .fetch_one(pool)
+        .fetch_one(&mut *tx)
         .await?;
     if count == 0 {
         return Err(AppError::NotFound {
@@ -96,7 +95,7 @@ pub async fn delete_project(pool: &SqlitePool, id: &str) -> Result<(), AppError>
     // Check for tasks
     let task_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM tasks WHERE project_id = ?")
         .bind(id)
-        .fetch_one(pool)
+        .fetch_one(&mut *tx)
         .await?;
     if task_count > 0 {
         return Err(AppError::Conflict {
@@ -107,10 +106,18 @@ pub async fn delete_project(pool: &SqlitePool, id: &str) -> Result<(), AppError>
 
     sqlx::query("DELETE FROM projects WHERE id = ?")
         .bind(id)
-        .execute(pool)
+        .execute(&mut *tx)
         .await?;
 
+    tx.commit().await?;
     Ok(())
+}
+
+fn is_unique_project_key_error(db_err: &dyn sqlx::error::DatabaseError) -> bool {
+    db_err.code().as_deref() == Some("2067")
+        || db_err
+            .constraint()
+            .is_some_and(|constraint| constraint == "projects.key" || constraint == "key")
 }
 
 #[cfg(test)]
@@ -189,6 +196,19 @@ mod tests {
             AppError::BadRequest { code, .. } => assert_eq!(code, "invalid_project_name"),
             _ => panic!("Expected BadRequest for long name"),
         }
+
+        // 80 Unicode scalar values must be accepted even when UTF-8 byte length is >80.
+        let unicode_name = "ầ".repeat(80);
+        let project = create_project(
+            &pool,
+            CreateProjectRequest {
+                name: unicode_name.clone(),
+                key: "UNICODE".to_string(),
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(project.name, unicode_name);
     }
 
     #[tokio::test]
@@ -226,12 +246,11 @@ mod tests {
 
         delete_project(&pool, &project.id).await.unwrap();
 
-        let count: i64 =
-            sqlx::query_scalar("SELECT COUNT(*) FROM projects WHERE id = ?")
-                .bind(&project.id)
-                .fetch_one(&pool)
-                .await
-                .unwrap();
+        let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM projects WHERE id = ?")
+            .bind(&project.id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
         assert_eq!(count, 0);
     }
 
@@ -271,12 +290,11 @@ mod tests {
         }
 
         // Project still exists
-        let count: i64 =
-            sqlx::query_scalar("SELECT COUNT(*) FROM projects WHERE id = ?")
-                .bind(&project.id)
-                .fetch_one(&pool)
-                .await
-                .unwrap();
+        let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM projects WHERE id = ?")
+            .bind(&project.id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
         assert_eq!(count, 1);
     }
 

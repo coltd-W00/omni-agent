@@ -62,12 +62,16 @@
   padding: var(--space-1) 0;
 }
 
+.project-switcher__list-item {
+  position: relative;
+}
+
 .project-switcher__item {
   display: flex;
   align-items: center;
   gap: var(--space-2);
   width: 100%;
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-2) calc(var(--space-6) + var(--space-2)) var(--space-2) var(--space-3);
   background: none;
   border: none;
   cursor: pointer;
@@ -110,6 +114,10 @@
 }
 
 .project-switcher__overflow-btn {
+  position: absolute;
+  top: 50%;
+  right: var(--space-2);
+  transform: translateY(-50%);
   background: none;
   border: none;
   cursor: pointer;
@@ -122,8 +130,10 @@
   display: none;
 }
 
-.project-switcher__item:hover .project-switcher__overflow-btn,
-.project-switcher__item--active .project-switcher__overflow-btn {
+.project-switcher__list-item:hover .project-switcher__overflow-btn,
+.project-switcher__item--active + .project-switcher__overflow-btn,
+.project-switcher__overflow-btn:focus,
+.project-switcher__overflow-btn[aria-expanded="true"] {
   display: inline-flex;
   align-items: center;
   justify-content: center;

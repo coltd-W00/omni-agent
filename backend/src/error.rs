@@ -24,10 +24,10 @@ impl IntoResponse for AppError {
             AppError::NotFound { code, message } => (StatusCode::NOT_FOUND, code, message),
             AppError::BadRequest { code, message } => (StatusCode::BAD_REQUEST, code, message),
             AppError::Conflict { code, message } => (StatusCode::CONFLICT, code, message),
-            AppError::Internal(err) => (
+            AppError::Internal(_err) => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "internal_error",
-                err.to_string(),
+                "Internal server error".to_string(),
             ),
         };
         (status, Json(json!({"error": code, "message": message}))).into_response()

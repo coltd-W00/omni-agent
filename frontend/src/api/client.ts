@@ -27,7 +27,8 @@ export async function apiFetch<TResponse>(
     return undefined as unknown as TResponse;
   }
 
-  const json = await response.json().catch(() => null);
+  const text = await response.text();
+  const json = text ? JSON.parse(text) : undefined;
 
   if (!response.ok) {
     const code = json?.error ?? "unknown_error";

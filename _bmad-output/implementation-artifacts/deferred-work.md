@@ -12,3 +12,11 @@
 - Cấu hình scroll container chưa tối ưu cho Sidebar [frontend/src/components/AppShell.css] — deferred, pre-existing
 - Thiếu Code Splitting / Lazy Loading cho các Route component [frontend/src/App.tsx] — deferred, pre-existing
 
+## Deferred from: code review of 2-1-project-management.md (2026-05-22)
+
+- Đồng bộ localStorage active project ID giữa các tabs [frontend/src/features/project/ActiveProjectContext.tsx] — deferred, pre-existing
+- Trải nghiệm điều hướng dropdown Project Switcher và phục hồi tiêu điểm (Lost focus) [frontend/src/features/project/ProjectSwitcher.tsx] — deferred, pre-existing
+- Toast auto-dismissal không pause khi hover [frontend/src/components/Toast.tsx] — deferred, pre-existing
+- Sự không thống nhất về môi trường kiểm thử (Testing mock health handler) [backend/tests/projects_test.rs] — deferred, pre-existing
+
+

@@ -11,6 +11,8 @@ interface ConfirmationDialogProps {
   confirmLabel: string;
   cancelLabel?: string;
   variant?: "destructive" | "primary";
+  confirmLoading?: boolean;
+  confirmDisabled?: boolean;
   /**
    * Called when the user clicks Confirm.
    * If this callback throws/rejects, the dialog will NOT auto-close.
@@ -27,6 +29,8 @@ export default function ConfirmationDialog({
   confirmLabel,
   cancelLabel,
   variant = "primary",
+  confirmLoading = false,
+  confirmDisabled = false,
   onConfirm,
   onCancel,
 }: ConfirmationDialogProps) {
@@ -123,6 +127,8 @@ export default function ConfirmationDialog({
         <Button
           variant={variant === "destructive" ? "destructive" : "primary"}
           size="md"
+          loading={confirmLoading}
+          disabled={confirmDisabled}
           onClick={(event) => {
             void onConfirm(event);
           }}
@@ -132,6 +138,10 @@ export default function ConfirmationDialog({
       </div>
     </dialog>
   );
+
+  if (typeof document === "undefined") {
+    return null;
+  }
 
   return ReactDOM.createPortal(dialog, document.body);
 }

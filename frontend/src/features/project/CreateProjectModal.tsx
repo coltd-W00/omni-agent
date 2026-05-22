@@ -67,7 +67,7 @@ export default function CreateProjectModal({ open, onClose }: CreateProjectModal
   const handleKeyBlur = () => setKeyError(validateKey(key));
 
   const handleKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const upper = e.target.value.toUpperCase().replace(/\s/g, "");
+    const upper = e.target.value.toUpperCase();
     setKey(upper);
     // Clear error while typing (re-validate on blur)
     if (keyError) setKeyError(null);
@@ -115,6 +115,11 @@ export default function CreateProjectModal({ open, onClose }: CreateProjectModal
       role="dialog"
       aria-modal="true"
       aria-labelledby="create-project-title"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) {
+          dialogRef.current?.close();
+        }
+      }}
     >
       <h2 id="create-project-title" className="create-project-modal__title">
         Create new project

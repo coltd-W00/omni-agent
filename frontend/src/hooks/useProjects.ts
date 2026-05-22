@@ -1,3 +1,4 @@
+import { useEffect, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { projectsApi } from "../api/projects";
 import type { Project } from "../types/project";
@@ -25,7 +26,10 @@ export function useCreateProjectMutation() {
       showToast({ tone: "success", message: "Project created" });
     },
     onError: (error: unknown) => {
-      if (error instanceof ApiError) {
+      if (
+        error instanceof ApiError &&
+        ["project_key_taken", "invalid_project_key", "invalid_project_name"].includes(error.code)
+      ) {
         // Let caller handle field-level errors (project_key_taken, invalid_project_key)
         return;
       }
@@ -65,20 +69,25 @@ export function useResolvedActiveProject(): Project | null {
   const activeProjectId = useActiveProjectId();
   const setActiveProject = useSetActiveProject();
 
-  if (!query.isSuccess || !query.data) return null;
+  const resolvedProject = useMemo(() => {
+    if (!query.isSuccess || !query.data) return null;
 
-  const projects = query.data;
+    const projects = query.data;
+    if (projects.length === 0) return null;
 
-  if (!activeProjectId || !projects.find((p) => p.id === activeProjectId)) {
-    const fallback = projects[0] ?? null;
-    // Update localStorage if the stored ID is stale (idempotent guard)
-    if (fallback && fallback.id !== activeProjectId) {
-      setActiveProject(fallback.id);
-    } else if (!fallback && activeProjectId !== null) {
-      setActiveProject(null);
+    if (!activeProjectId) return projects[0];
+
+    return projects.find((p) => p.id === activeProjectId) ?? projects[0];
+  }, [activeProjectId, query.data, query.isSuccess]);
+
+  useEffect(() => {
+    if (!query.isSuccess || !query.data) return;
+
+    const nextId = resolvedProject?.id ?? null;
+    if (activeProjectId !== nextId) {
+      setActiveProject(nextId);
     }
-    return fallback;
-  }
+  }, [activeProjectId, query.data, query.isSuccess, resolvedProject?.id, setActiveProject]);
 
-  return projects.find((p) => p.id === activeProjectId) ?? null;
+  return resolvedProject;
 }

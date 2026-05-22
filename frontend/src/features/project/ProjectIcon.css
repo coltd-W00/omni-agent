@@ -1,0 +1,13 @@
+.project-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  background: var(--brand-light);
+  color: var(--brand-primary);
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}

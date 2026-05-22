@@ -1,5 +1,5 @@
 import "./Toast.css";
-import React, { createContext, useContext, useReducer, useEffect, useCallback } from "react";
+import React, { createContext, useContext, useReducer, useEffect, useCallback, useRef } from "react";
 import ReactDOM from "react-dom";
 
 export type ToastTone = "success" | "warning" | "error" | "info";
@@ -41,11 +41,6 @@ function toastReducer(state: ToastItem[], action: ToastAction): ToastItem[] {
     default:
       return state;
   }
-}
-
-let _idCounter = 0;
-function newId(): string {
-  return String(++_idCounter);
 }
 
 const ToastContext = createContext<ToastContextValue | null>(null);
@@ -105,9 +100,11 @@ function ToastItem({
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, dispatch] = useReducer(toastReducer, []);
+  const idCounterRef = useRef(0);
 
   const showToast = useCallback((input: ToastInput): string => {
-    const id = newId();
+    idCounterRef.current += 1;
+    const id = String(idCounterRef.current);
     dispatch({ type: "SHOW", payload: { id, ...input, exiting: false } });
     return id;
   }, []);
@@ -116,19 +113,21 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: "BEGIN_DISMISS", id });
   }, []);
 
-  const container = ReactDOM.createPortal(
-    <div className="app-toast-container">
-      {toasts.map((item) => (
-        <ToastItem
-          key={item.id}
-          item={item}
-          onDismiss={() => dismissToast(item.id)}
-          onRemove={() => dispatch({ type: "REMOVE", id: item.id })}
-        />
-      ))}
-    </div>,
-    document.body,
-  );
+  const container = typeof document === "undefined"
+    ? null
+    : ReactDOM.createPortal(
+        <div className="app-toast-container">
+          {toasts.map((item) => (
+            <ToastItem
+              key={item.id}
+              item={item}
+              onDismiss={() => dismissToast(item.id)}
+              onRemove={() => dispatch({ type: "REMOVE", id: item.id })}
+            />
+          ))}
+        </div>,
+        document.body,
+      );
 
   return (
     <ToastContext.Provider value={{ showToast, dismissToast }}>
