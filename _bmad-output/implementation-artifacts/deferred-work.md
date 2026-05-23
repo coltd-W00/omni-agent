@@ -19,4 +19,9 @@
 - Toast auto-dismissal không pause khi hover [frontend/src/components/Toast.tsx] — deferred, pre-existing
 - Sự không thống nhất về môi trường kiểm thử (Testing mock health handler) [backend/tests/projects_test.rs] — deferred, pre-existing
 
+## Deferred from: code review of 2-2-task-crud-and-agent-assignment.md (2026-05-22)
+
+- D1: SQLite foreign key enforcement không được verify — Schema có `REFERENCES projects(id)` nhưng SQLite cần `PRAGMA foreign_keys = ON` để enforce. Service layer tự handle nhưng DB không có safety net. [backend/src/db/] — pre-existing infrastructure issue
+- D2: `onClose` callback trong TopBar tạo function mới mỗi render — `<CreateTaskModal onClose={() => setOpen(false)} />` trigger cleanup/re-setup listener không cần thiết. Fix: `useCallback`. [frontend/src/components/TopBar.tsx] — minor performance issue
+
 

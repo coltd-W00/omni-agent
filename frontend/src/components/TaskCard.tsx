@@ -45,7 +45,7 @@ export default function TaskCard({
   return (
     <div
       className={`app-task-card${isClickable ? " app-task-card--clickable" : ""}`}
-      role={isClickable ? "button" : undefined}
+      role={isClickable ? "button" : "article"}
       tabIndex={isClickable ? 0 : undefined}
       onClick={isClickable ? onClick : undefined}
       onKeyDown={isClickable ? handleKeyDown : undefined}

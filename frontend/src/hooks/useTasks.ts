@@ -1,11 +1,12 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-query";
 import { createTask, listTasks } from "../api/tasks";
 import type { CreateTaskInput } from "../api/tasks";
+import type { Task } from "../types/task";
 
 export const tasksQueryKey = (projectId: string | null) =>
   ["tasks", projectId] as const;
 
-export function useTasks(projectId: string | null) {
+export function useTasks(projectId: string | null): UseQueryResult<Task[], Error> {
   return useQuery({
     queryKey: tasksQueryKey(projectId),
     queryFn: () => {
@@ -13,6 +14,11 @@ export function useTasks(projectId: string | null) {
       return listTasks(projectId);
     },
     enabled: projectId !== null,
+    refetchInterval: (query) => {
+      const tasks = query.state.data ?? [];
+      const hasRunning = tasks.some((t) => t.status === "running");
+      return hasRunning ? 5000 : false;
+    },
   });
 }
 

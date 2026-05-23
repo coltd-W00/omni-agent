@@ -1,6 +1,6 @@
 # Story 2.2: Task CRUD & Agent Assignment
 
-Status: review
+Status: in-progress
 
 <!-- Validation tùy chọn — chạy validate-create-story trước khi dev-story nếu muốn double-check. -->
 
@@ -1110,4 +1110,25 @@ claude-sonnet-4-6-thinking
 
 **Harness (cập nhật):**
 - `docs/TEST_MATRIX.md`
-- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+
+---
+
+### Review Findings
+
+> Code review thực hiện ngày 2026-05-22. Layers: Blind Hunter, Edge Case Hunter, Acceptance Auditor (tất cả do reviewer trực tiếp thực hiện do rate limit subagent).
+
+#### Patches (cần fix)
+
+- [ ] [Review][Patch] **F1: Transaction `BEGIN DEFERRED` thay vì `BEGIN IMMEDIATE` — race condition trong seq generation** — `create_task` verify project ngoài transaction rồi mới `pool.begin()` (DEFERRED). Hai concurrent request có thể đọc cùng `MAX(seq)=0` và insert `seq=1`/`OMNI-001` trùng nhau, dẫn đến lỗi UNIQUE constraint → 500 thay vì graceful error. Spec yêu cầu `BEGIN IMMEDIATE`. [backend/src/services/tasks.rs]
+- [ ] [Review][Patch] **F2: Thiếu `UNIQUE(project_id, seq)` constraint trong DB schema** — Schema không có constraint này nên duplicate seq không bị ngăn ở tầng DB. Nếu xảy ra race (F1), DB error bị map thành 500 Internal Server Error thay vì 409. [backend/src/db/migrations/1_init.sql]
+- [ ] [Review][Patch] **F3: TOCTOU trong `assign_agent` và `delete_task` — GET+UPDATE không có row-lock** — Cả hai hàm dùng pattern: `get_task()` (READ) → kiểm tra status → UPDATE/DELETE. Giữa 2 bước, một request khác có thể thay đổi status. Ví dụ: 2 concurrent assign đều đọc `status=draft`, cả 2 đều update thành công, lần 2 ghi đè lần 1 mà không có error. Fix: dùng `UPDATE ... WHERE id=? AND status IN (...)` rồi kiểm tra `rows_affected`. [backend/src/services/tasks.rs]
+- [ ] [Review][Patch] **F4: `assign_agent` và `update_task` trả về Task struct được construct trong memory, không re-read từ DB** — Nếu một concurrent delete xóa task giữa GET và UPDATE, `rows_affected=0` nhưng hàm vẫn trả `Ok(Task {...})` với dữ liệu cũ. Client nhận 200 OK với dữ liệu ghost. Fix: kiểm tra `rows_affected > 0` hoặc re-fetch sau UPDATE. [backend/src/services/tasks.rs]
+- [ ] [Review][Patch] **F5: `delete_task` không kiểm tra `rows_affected` sau DELETE** — Nếu task bị xóa concurrent trước khi DELETE thực thi, function trả `Ok(())` → 204 No Content dù không xóa được gì. Không có báo lỗi. [backend/src/services/tasks.rs]
+- [ ] [Review][Patch] **F6: `project_not_found` trong CreateTaskModal không clear localStorage và không refetch project list — vi phạm AC-13** — AC-13 yêu cầu: toast + đóng modal + `clear localStorage["omniAgent.activeProjectId"]` + refetch project list. Implementation chỉ làm toast + `onClose()`. Thiếu 2 bước cuối. [frontend/src/components/CreateTaskModal.tsx]
+- [ ] [Review][Patch] **F7: Task interface có required fields khai báo optional (?) — vi phạm AC-15** — AC-15 yêu cầu `projectId: string`, `seq: number`, `description: string`, `createdAt: string`, `updatedAt: string` (required). Implementation khai báo tất cả là optional (`?`), gây mất type safety cho Story 2.3 và các consumer sau. [frontend/src/types/task.ts]
+- [ ] [Review][Patch] **F8: Integration test `put_task_locks_when_done` test sai hành vi — tên lừa dối** — Test name nói "PUT locks when Done" nhưng thực ra test DELETE blocked khi Assigned. Scenario PUT/409 khi task ở `Done` không có integration test (chỉ có unit test). [backend/tests/tasks_test.rs]
+
+#### Deferred
+
+- [x] [Review][Defer] **D1: SQLite foreign key enforcement không được verify** — Schema có `REFERENCES projects(id)` nhưng SQLite cần `PRAGMA foreign_keys = ON` để enforce. Nếu không set, tầng service tự handle (đã có verify), nhưng DB không có safety net. [backend/src/db/] — deferred, pre-existing infrastructure issue
+- [x] [Review][Defer] **D2: `onClose` callback trong TopBar tạo function mới mỗi render — gây useEffect churn không cần thiết** — `<CreateTaskModal onClose={() => setOpen(false)} />` tạo arrow function mới mỗi lần TopBar re-render → trigger cleanup/re-setup listener cho "close" event. Fix: `useCallback`. [frontend/src/components/TopBar.tsx] — deferred, minor performance issue

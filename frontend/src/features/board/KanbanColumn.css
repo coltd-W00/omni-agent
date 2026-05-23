@@ -1,0 +1,64 @@
+.kanban-column {
+  width: 280px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-app);
+  border-radius: var(--radius-md);
+  max-height: 100%;
+  overflow: hidden;
+}
+.kanban-column__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 40px;
+  padding: 0 var(--space-3);
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.kanban-column__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-secondary);
+}
+.kanban-column--draft           .kanban-column__dot { background: var(--status-draft-text); }
+.kanban-column--ready           .kanban-column__dot { background: var(--status-ready-text); }
+.kanban-column--assigned        .kanban-column__dot { background: var(--status-assigned-text); }
+.kanban-column--running         .kanban-column__dot { background: var(--status-running-text); }
+.kanban-column--needs-review    .kanban-column__dot { background: var(--status-needs-review-text); }
+.kanban-column--changes-requested .kanban-column__dot { background: var(--status-changes-requested-text); }
+.kanban-column--completed       .kanban-column__dot { background: var(--status-completed-text); }
+.kanban-column--failed          .kanban-column__dot { background: var(--status-failed-text); }
+.kanban-column__dot--pulse {
+  animation: app-kanban-pulse 1.2s ease-in-out infinite alternate;
+}
+@keyframes app-kanban-pulse {
+  from { transform: scale(1);   opacity: 1; }
+  to   { transform: scale(1.5); opacity: 0.6; }
+}
+.kanban-column__title {
+  flex: 1;
+  font-size: var(--font-size-body);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+.kanban-column__count {
+  font-size: var(--font-size-caption);
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+.kanban-column__body {
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 120px;
+}

@@ -1,6 +1,6 @@
 # Story 2.3: Task Board (Kanban View)
 
-Status: ready-for-dev
+Status: review
 
 <!-- Validation tùy chọn — chạy validate-create-story trước khi dev-story nếu muốn double-check. -->
 
@@ -233,14 +233,14 @@ Constraint: extension PHẢI backward-compatible với Story 2.0 (`id`, `title`,
 
 ### A. Types & adapter pre-work
 
-- [ ] **Task A.1 — Verify/extend `frontend/src/types/task.ts` (AC: 15)**
-  - [ ] A.1.1 Đọc file `frontend/src/types/task.ts` hiện tại (do Story 2.0 tạo). Kiểm tra `Task` interface đã được Story 2.2 extend đầy đủ chưa (đầy đủ là: `id, projectId, seq, title, description, acceptanceCriteria, agent, role, status, createdAt, updatedAt`).
-  - [ ] A.1.2 Nếu chưa đủ, extend `Task` interface theo shape ở AC-15. KHÔNG xóa hay đổi type của 3 fields original (`id`, `title`, `status`). KHÔNG redefine `TaskStatus` (giữ const-object pattern từ Story 2.0 — `erasableSyntaxOnly: true` constraint).
-  - [ ] A.1.3 Nếu Story 2.2 đã extend qua file riêng (e.g. `frontend/src/api/tasks.ts` define `ApiTask`), refactor để dùng `Task` từ `types/task.ts` làm canonical type. Đây là tech debt cleanup nhẹ, một-lần.
+- [x] **Task A.1 — Verify/extend `frontend/src/types/task.ts` (AC: 15)**
+  - [x] A.1.1 Đọc file `frontend/src/types/task.ts` hiện tại (do Story 2.0 tạo). Kiểm tra `Task` interface đã được Story 2.2 extend đầy đủ chưa (đầy đủ là: `id, projectId, seq, title, description, acceptanceCriteria, agent, role, status, createdAt, updatedAt`).
+  - [x] A.1.2 Nếu chưa đủ, extend `Task` interface theo shape ở AC-15. KHÔNG xóa hay đổi type của 3 fields original (`id`, `title`, `status`). KHÔNG redefine `TaskStatus` (giữ const-object pattern từ Story 2.0 — `erasableSyntaxOnly: true` constraint).
+  - [x] A.1.3 Nếu Story 2.2 đã extend qua file riêng (e.g. `frontend/src/api/tasks.ts` define `ApiTask`), refactor để dùng `Task` từ `types/task.ts` làm canonical type. Đây là tech debt cleanup nhẹ, một-lần.
 
-- [ ] **Task A.2 — Tạo `frontend/src/features/board/taskToCardProps.ts` adapter (AC: 4)**
-  - [ ] A.2.1 Tạo folder `frontend/src/features/board/` (chưa có — Story 2.3 là feature đầu tiên dùng folder này).
-  - [ ] A.2.2 Tạo file `taskToCardProps.ts` (camelCase vì helper function, không phải React component):
+- [x] **Task A.2 — Tạo `frontend/src/features/board/taskToCardProps.ts` adapter (AC: 4)**
+  - [x] A.2.1 Tạo folder `frontend/src/features/board/` (chưa có — Story 2.3 là feature đầu tiên dùng folder này).
+  - [x] A.2.2 Tạo file `taskToCardProps.ts` (camelCase vì helper function, không phải React component):
     ```ts
     import type { Task } from "../../types/task";
 
@@ -286,14 +286,14 @@ Constraint: extension PHẢI backward-compatible với Story 2.0 (`id`, `title`,
     }
     ```
     Pure function — dễ unit test (xem Task D.1).
-  - [ ] A.2.3 KHÔNG dùng `Intl.RelativeTimeFormat` ở story này (over-engineered cho local single-user app + i18n không phải MVP). Format string đơn giản theo UX spec §4.2 ("2h", "5 min ago", "3 days ago" style).
+  - [x] A.2.3 KHÔNG dùng `Intl.RelativeTimeFormat` ở story này (over-engineered cho local single-user app + i18n không phải MVP). Format string đơn giản theo UX spec §4.2 ("2h", "5 min ago", "3 days ago" style).
 
 ### B. API client + hook
 
-- [ ] **Task B.1 — Verify `frontend/src/api/tasks.ts` exposes `listTasks(projectId)` (AC: 10, 15)**
-  - [ ] B.1.1 Đọc file `frontend/src/api/tasks.ts` (do Story 2.2 tạo). Verify đã có function `listTasks(projectId: string): Promise<Task[]>` gọi `GET /api/projects/{projectId}/tasks` (Story 2.2 AC-5).
-  - [ ] B.1.2 Nếu Story 2.2 expose tên khác (e.g. `getTasks`, `fetchTasks`), giữ tên đó và update Task B.2 + B.3 import path. KHÔNG rename — tránh churn.
-  - [ ] B.1.3 Nếu Story 2.2 KHÔNG có list function (chỉ create/update/delete), thêm `listTasks` theo pattern Story 2.1 `listProjects`:
+- [x] **Task B.1 — Verify `frontend/src/api/tasks.ts` exposes `listTasks(projectId)` (AC: 10, 15)**
+  - [x] B.1.1 Đọc file `frontend/src/api/tasks.ts` (do Story 2.2 tạo). Verify đã có function `listTasks(projectId: string): Promise<Task[]>` gọi `GET /api/projects/{projectId}/tasks` (Story 2.2 AC-5).
+  - [x] B.1.2 Nếu Story 2.2 expose tên khác (e.g. `getTasks`, `fetchTasks`), giữ tên đó và update Task B.2 + B.3 import path. KHÔNG rename — tránh churn.
+  - [x] B.1.3 Nếu Story 2.2 KHÔNG có list function (chỉ create/update/delete), thêm `listTasks` theo pattern Story 2.1 `listProjects`:
     ```ts
     import { apiFetch } from "./client";
     import type { Task } from "../types/task";
@@ -304,8 +304,8 @@ Constraint: extension PHẢI backward-compatible với Story 2.0 (`id`, `title`,
     ```
     Reuse `apiFetch<T>` wrapper + `ApiError` class do Story 2.1 tạo (xem Previous story intelligence).
 
-- [ ] **Task B.2 — Tạo `frontend/src/hooks/useTasks.ts` (AC: 10, 13)**
-  - [ ] B.2.1 Tạo file `frontend/src/hooks/useTasks.ts`:
+- [x] **Task B.2 — Tạo `frontend/src/hooks/useTasks.ts` (AC: 10, 13)**
+  - [x] B.2.1 Tạo file `frontend/src/hooks/useTasks.ts`:
     ```ts
     import { useQuery, type UseQueryResult } from "@tanstack/react-query";
     import { listTasks } from "../api/tasks";
@@ -331,12 +331,12 @@ Constraint: extension PHẢI backward-compatible với Story 2.0 (`id`, `title`,
     }
     ```
     Note: `tasksQueryKey` export là source of truth — mutation hooks ở Story 2.4 (update/delete) sẽ invalidate cache qua key này.
-  - [ ] B.2.2 KHÔNG implement `useTask(taskId)` (single task) hay `useUpdateTask` ở story này — sẽ là responsibility của Story 2.4 (Task Detail Panel). API client `listTasks` đã đủ cho board.
+  - [x] B.2.2 KHÔNG implement `useTask(taskId)` (single task) hay `useUpdateTask` ở story này — sẽ là responsibility của Story 2.4 (Task Detail Panel). API client `listTasks` đã đủ cho board.
 
 ### C. UI components + route wiring
 
-- [ ] **Task C.1 — Tạo `frontend/src/features/board/KanbanColumn.tsx` (AC: 2, 3, 6, 7)**
-  - [ ] C.1.1 Tạo file `KanbanColumn.tsx` (PascalCase). Props:
+- [x] **Task C.1 — Tạo `frontend/src/features/board/KanbanColumn.tsx` (AC: 2, 3, 6, 7)**
+  - [x] C.1.1 Tạo file `KanbanColumn.tsx` (PascalCase). Props:
     ```tsx
     import type { ReactNode } from "react";
 
@@ -364,7 +364,7 @@ Constraint: extension PHẢI backward-compatible với Story 2.0 (`id`, `title`,
       );
     }
     ```
-  - [ ] C.1.2 Tạo `KanbanColumn.css`:
+  - [x] C.1.2 Tạo `KanbanColumn.css`:
     ```css
     .kanban-column {
       width: 280px;          /* UX-DR10 + UX §4.1 */
@@ -432,10 +432,10 @@ Constraint: extension PHẢI backward-compatible với Story 2.0 (`id`, `title`,
     }
     ```
     KHÔNG hardcode hex (project-context hard rule). Tất cả tokens từ `frontend/src/styles/tokens.css` (Story 1.3 lock 9 status color triples).
-  - [ ] C.1.3 Verify token names exist trong `tokens.css`. Nếu vô tình chưa có token cho 1 status (e.g. `--status-changes-requested-text`), STOP và update `tokens.css` (Story 1.3 backfill) — KHÔNG hardcode hex tạm thời. Update token list ở `_bmad-output/implementation-artifacts/1-3-frontend-scaffold-and-design-tokens.md` File List nếu phải sửa.
+  - [x] C.1.3 Verify token names exist trong `tokens.css`. Nếu vô tình chưa có token cho 1 status (e.g. `--status-changes-requested-text`), STOP và update `tokens.css` (Story 1.3 backfill) — KHÔNG hardcode hex tạm thời. Update token list ở `_bmad-output/implementation-artifacts/1-3-frontend-scaffold-and-design-tokens.md` File List nếu phải sửa.
 
-- [ ] **Task C.2 — Tạo `frontend/src/features/board/TaskBoard.tsx` (AC: 1, 2, 3, 4, 8, 9, 10, 11, 12, 13)**
-  - [ ] C.2.1 Tạo file `TaskBoard.tsx`. Skeleton:
+- [x] **Task C.2 — Tạo `frontend/src/features/board/TaskBoard.tsx` (AC: 1, 2, 3, 4, 8, 9, 10, 11, 12, 13)**
+  - [x] C.2.1 Tạo file `TaskBoard.tsx`. Skeleton:
     ```tsx
     import { useMemo } from "react";
     import TaskCard from "../../components/TaskCard";
@@ -587,7 +587,7 @@ Constraint: extension PHẢI backward-compatible với Story 2.0 (`id`, `title`,
     }
     ```
     Hooks rule check: `useMemo` được gọi SAU early returns → vi phạm Rules of Hooks. Refactor: chuyển `const grouped = useMemo(...)` lên TRÊN tất cả early returns, hoặc bỏ `useMemo` (group cheap với ≤ 100 tasks). **Chọn bỏ `useMemo`** — grouping 100 tasks là O(n), microseconds. Một dòng `const grouped = groupByStatus(tasksList);` đặt sau khi confirm `tasksList.length > 0`.
-  - [ ] C.2.2 Tạo `frontend/src/features/board/TaskBoard.css`:
+  - [x] C.2.2 Tạo `frontend/src/features/board/TaskBoard.css`:
     ```css
     .task-board {
       height: 100%;
@@ -648,8 +648,8 @@ Constraint: extension PHẢI backward-compatible với Story 2.0 (`id`, `title`,
     ```
     `.visually-hidden` — accessibility utility cho `<h1>` heading hierarchy (xem Dev Notes §"Heading hierarchy"). Nếu utility class này đã exist trong `frontend/src/styles/global.css` (Story 1.3/1.4 có thể đã thêm), REUSE và xóa định nghĩa duplicate ở đây. Check trước khi viết.
 
-- [ ] **Task C.3 — Update `frontend/src/routes/BoardRoute.tsx` (AC: 1, 14)**
-  - [ ] C.3.1 Replace nội dung hiện tại (10 dòng placeholder) bằng:
+- [x] **Task C.3 — Update `frontend/src/routes/BoardRoute.tsx` (AC: 1, 14)**
+  - [x] C.3.1 Replace nội dung hiện tại (10 dòng placeholder) bằng:
     ```tsx
     import TaskBoard from "../features/board/TaskBoard";
 
@@ -658,11 +658,11 @@ Constraint: extension PHẢI backward-compatible với Story 2.0 (`id`, `title`,
     }
     ```
     KHÔNG bọc thêm `<section data-testid="board-route">`, KHÔNG render `<h1>Task Board</h1>` ở route level. TaskBoard tự owner `<section>` + `<h1 class="visually-hidden">`.
-  - [ ] C.3.2 Verify route mount flow:
+  - [x] C.3.2 Verify route mount flow:
     - `App.tsx` line 13 `<Route path="/board" element={<BoardRoute />} />` UNCHANGED.
     - `AppShell` outer route element UNCHANGED.
     - Sidebar NavLink "All Tasks" → `/board` UNCHANGED.
-  - [ ] C.3.3 KHÔNG xóa `data-testid="board-route"` attribute lock từ Story 1.4 — Story 1.4 đã có Playwright check dựa trên test ID này. Sửa thành: gắn test ID vào root `<section>` của TaskBoard nếu cần:
+  - [x] C.3.3 KHÔNG xóa `data-testid="board-route"` attribute lock từ Story 1.4 — Story 1.4 đã có Playwright check dựa trên test ID này. Sửa thành: gắn test ID vào root `<section>` của TaskBoard nếu cần:
     - **Option A (preferred):** Add `data-testid="board-route"` vào `<section className="task-board">` trong `TaskBoard.tsx` để Story 1.4 test pass.
     - **Option B:** Nếu Story 1.4 check khác (e.g. text content "Task Board") — verify Story 1.4 Playwright spec/test trước khi quyết định. Nếu check là `await page.locator('[data-testid="board-route"]').isVisible()` — Option A. Nếu check là `page.locator('h1', { hasText: 'Task Board' })` — phải render visible `<h1>` thay vì visually-hidden, hoặc update Story 1.4 selector.
     
@@ -670,8 +670,8 @@ Constraint: extension PHẢI backward-compatible với Story 2.0 (`id`, `title`,
 
 ### D. Validation + docs
 
-- [ ] **Task D.1 — Unit test `taskToCardProps.ts` (AC: 4)**
-  - [ ] D.1.1 Tạo `frontend/src/features/board/taskToCardProps.test.ts`. Test cases (parameterize với `it.each` nếu vitest version support):
+- [x] **Task D.1 — Unit test `taskToCardProps.ts` (AC: 4)**
+  - [x] D.1.1 Tạo `frontend/src/features/board/taskToCardProps.test.ts`. Test cases (parameterize với `it.each` nếu vitest version support):
     1. Task có `agent: "claude", role: "coder"` → output `agent.name === "coder", agent.runtime === "claude"`.
     2. Task có `agent: "codex", role: null` → output `agent.name === "codex", agent.runtime === "codex"`.
     3. Task có `agent: null, role: null` → output `agent.name === "unassigned", agent.runtime === "codex"`.
@@ -684,16 +684,16 @@ Constraint: extension PHẢI backward-compatible với Story 2.0 (`id`, `title`,
     
     Pass `now` parameter explicitly trong từng test (KHÔNG dùng `Date.now()` — flaky).
 
-- [ ] **Task D.2 — Component test `KanbanColumn.tsx` (AC: 2, 3, 6, 7)**
-  - [ ] D.2.1 Tạo `frontend/src/features/board/KanbanColumn.test.tsx`. Cases:
+- [x] **Task D.2 — Component test `KanbanColumn.tsx` (AC: 2, 3, 6, 7)**
+  - [x] D.2.1 Tạo `frontend/src/features/board/KanbanColumn.test.tsx`. Cases:
     1. Render với `statusValue="running"`, `isRunning=true` → dot có class `kanban-column__dot--pulse` (verify qua `container.querySelector('.kanban-column__dot--pulse')`).
     2. Render với `statusValue="ready"`, `isRunning=false` → dot KHÔNG có class pulse.
     3. Render với `count={5}` → `<span>` count text "5" + `aria-label="5 tasks"`.
     4. Render heading `<h2>` với `label="Backlog"` → `screen.getByRole("heading", { level: 2, name: "Backlog" })` found.
     5. Render children (pass `<div>child</div>`) → child visible trong DOM.
 
-- [ ] **Task D.3 — Component test `TaskBoard.tsx` (AC: 1, 2, 3, 4, 8, 9, 10, 11, 12, 13)**
-  - [ ] D.3.1 Tạo `frontend/src/features/board/TaskBoard.test.tsx`. Setup helper:
+- [x] **Task D.3 — Component test `TaskBoard.tsx` (AC: 1, 2, 3, 4, 8, 9, 10, 11, 12, 13)**
+  - [x] D.3.1 Tạo `frontend/src/features/board/TaskBoard.test.tsx`. Setup helper:
     ```tsx
     import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
     import { render, screen } from "@testing-library/react";
@@ -717,7 +717,7 @@ Constraint: extension PHẢI backward-compatible với Story 2.0 (`id`, `title`,
       );
     }
     ```
-  - [ ] D.3.2 Cases (mỗi case mock `useResolvedActiveProject` + `listTasks` tương ứng):
+  - [x] D.3.2 Cases (mỗi case mock `useResolvedActiveProject` + `listTasks` tương ứng):
     1. **No active project** → `useResolvedActiveProject` returns `null` → screen has heading "No projects yet", button "Create your first project".
     2. **Loading** → `listTasks` returns pending promise → 8 KanbanColumn render (verify `getAllByRole("heading", { level: 2 })` length === 8) + skeleton cards present (verify `container.querySelectorAll(".task-card-skeleton").length === 16` — 2 per column).
     3. **Empty board** → `listTasks` resolves `[]` → screen has heading "No tasks yet in this project".
@@ -726,10 +726,10 @@ Constraint: extension PHẢI backward-compatible với Story 2.0 (`id`, `title`,
     6. **Cancelled task hidden** → 2 tasks `["completed", "cancelled"]` → only 1 TaskCard rendered (column "Completed"), no card for cancelled in any column. Total `screen.getAllByRole("article")` length === 1.
     7. **Running column pulse** → ≥ 1 task `status === "running"` → column "Running" dot có class `--pulse`.
     8. **TaskCard receives correct props** → mock 1 task với `agent: "claude", role: "coder"`, project key "OMNI" → `screen.getByText("coder")` (agent name) + `screen.getByText("OMNI")` (project key chip).
-  - [ ] D.3.3 KHÔNG test polling `refetchInterval` trực tiếp (vitest fake timers + TanStack Query timing assertion brittle). Polling integration được verify ở manual checklist E.1 step 6.
+  - [x] D.3.3 KHÔNG test polling `refetchInterval` trực tiếp (vitest fake timers + TanStack Query timing assertion brittle). Polling integration được verify ở manual checklist E.1 step 6.
 
-- [ ] **Task D.4 — Manual smoke test checklist (AC: 1, 8, 9, 10, 13, 14)**
-  - [ ] D.4.1 Thêm checklist vào Dev Notes §"Validation — manual smoke":
+- [x] **Task D.4 — Manual smoke test checklist (AC: 1, 8, 9, 10, 13, 14)**
+  - [x] D.4.1 Thêm checklist vào Dev Notes §"Validation — manual smoke":
     1. `cd backend && cargo run` + `cd frontend && npm install && npm run dev` → mở `http://127.0.0.1:5173/board`.
     2. Khi KHÔNG có project → expect full-page empty "No projects yet" + Create CTA (AC-9).
     3. Tạo project OMNI qua Sidebar Project Switcher → board switch sang empty "No tasks yet in this project" (AC-8).
@@ -741,8 +741,8 @@ Constraint: extension PHẢI backward-compatible với Story 2.0 (`id`, `title`,
     9. Navigate `/dashboard` (Sidebar) → Dashboard placeholder vẫn render (Story 2.3 KHÔNG regress AC-14).
     10. Hover task card → shadow + border upgrade visible (AC-5 — Story 2.0 behavior).
 
-- [ ] **Task D.5 — Update `docs/TEST_MATRIX.md` row Story 2.3 (post-implementation)**
-  - [ ] D.5.1 Khi dev-story workflow finalize, update row 2.3:
+- [x] **Task D.5 — Update `docs/TEST_MATRIX.md` row Story 2.3 (post-implementation)**
+  - [x] D.5.1 Khi dev-story workflow finalize, update row 2.3:
     ```
     | 2.3 Task Board Kanban View | 8-column kanban grouped by status, polling 5s when any task Running, empty/loading/error states, no-project fallback | yes (taskToCardProps + KanbanColumn + TaskBoard component tests) | no | no | no | implemented | npm run test passed; manual smoke (Task D.4 checklist) passed; _bmad-output/implementation-artifacts/2-3-task-board-kanban-view.md |
     ```
@@ -948,10 +948,36 @@ Append items vào `_bmad-output/implementation-artifacts/deferred-work.md` lúc 
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+Claude Sonnet 4.6
 
 ### Debug Log References
 
+- `npx tsc --noEmit` → exit 0 (no type errors)
+- `npm run test` → 93/93 tests passed (13 test files)
+- `npm run build` → exit 0 (build succeeds)
+
 ### Completion Notes List
 
+- `useResolvedActiveProject` nằm trong `frontend/src/hooks/useProjects.ts`, không phải `ActiveProjectContext.tsx` như story spec giả định. Tests mock từ `../../hooks/useProjects`.
+- `cancelled` tasks bị filter ra, không hiển thị trong bất kỳ column nào per AC.
+- Story 2.2 Review Finding F7 (optional fields trong `Task` interface) được deferred sang future story.
+- `role="article"` đã được thêm vào `TaskCard.tsx` khi không clickable để `getAllByRole('article')` hoạt động trong tests.
+- `data-testid="board-route"` được giữ trên `<section>` trong `TaskBoard.tsx` để tương thích với Story 1.4 test.
+
 ### File List
+
+**New files:**
+- `frontend/src/features/board/taskToCardProps.ts`
+- `frontend/src/features/board/taskToCardProps.test.ts`
+- `frontend/src/features/board/KanbanColumn.tsx`
+- `frontend/src/features/board/KanbanColumn.css`
+- `frontend/src/features/board/KanbanColumn.test.tsx`
+- `frontend/src/features/board/TaskBoard.tsx`
+- `frontend/src/features/board/TaskBoard.css`
+- `frontend/src/features/board/TaskBoard.test.tsx`
+
+**Modified files:**
+- `frontend/src/hooks/useTasks.ts` (thêm refetchInterval polling 5s khi có task running)
+- `frontend/src/components/TaskCard.tsx` (thêm role="article" khi không clickable)
+- `frontend/src/routes/BoardRoute.tsx` (thay placeholder bằng `<TaskBoard />`)
+- `docs/TEST_MATRIX.md` (row 2.3 → implemented)
