@@ -24,4 +24,13 @@
 - D1: SQLite foreign key enforcement không được verify — Schema có `REFERENCES projects(id)` nhưng SQLite cần `PRAGMA foreign_keys = ON` để enforce. Service layer tự handle nhưng DB không có safety net. [backend/src/db/] — pre-existing infrastructure issue
 - D2: `onClose` callback trong TopBar tạo function mới mỗi render — `<CreateTaskModal onClose={() => setOpen(false)} />` trigger cleanup/re-setup listener không cần thiết. Fix: `useCallback`. [frontend/src/components/TopBar.tsx] — minor performance issue
 
+## Deferred from: code review of 2-3-task-board-kanban-view.md (2026-05-25)
+
+- F1: `groupByStatus` unsafe cast `t.status as BoardStatus` — nếu backend thêm status mới ngoài cancelled/paused, task silently vào wrong column. Nên dùng whitelist check. [frontend/src/features/board/TaskBoard.tsx:29]
+- F2: `useCreateTask` trong `useTasks.ts` out-of-scope Story 2.3, không có test cover. Nên move sang hooks riêng hoặc test cover. [frontend/src/hooks/useTasks.ts:24-35]
+- F3: `.visually-hidden` utility class định nghĩa inline trong `TaskBoard.css` — nên extract sang global stylesheet (`tokens.css` hay `globals.css`) để tái sử dụng. [frontend/src/features/board/TaskBoard.css:48-56]
+- F4: `position:sticky` trên `.kanban-column__header` bị vô hiệu do parent có `overflow:hidden` — không có visual impact nhờ flex layout, nhưng là dead CSS. Nên bỏ `position:sticky` hoặc điều chỉnh overflow. [frontend/src/features/board/KanbanColumn.css:17-21]
+- F5: Loading skeleton hiển thị `count={0}` (count badge) khi AC-11 nói không render count badge khi chưa biết số lượng. Cosmetic deviation. [frontend/src/features/board/TaskBoard.tsx:98]
+- D1: `TaskRole` const narrows `Task.role` to 5 values nhưng DB là `role TEXT` free-form. Provisional, fix sau khi Story 3.x xác định agent role API contract. [frontend/src/types/task.ts:21-26]
+
 

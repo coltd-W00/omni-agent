@@ -1,7 +1,9 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import TaskBoard from "./TaskBoard";
+import { TaskDetailProvider } from "../../contexts/TaskDetailContext";
+import TaskDetailPanel from "../detail/TaskDetailPanel";
 import type { Task } from "../../types/task";
 import type { Project } from "../../types/project";
 
@@ -43,7 +45,10 @@ function renderBoard() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
-      <TaskBoard />
+      <TaskDetailProvider>
+        <TaskBoard />
+        <TaskDetailPanel />
+      </TaskDetailProvider>
     </QueryClientProvider>,
   );
 }
@@ -97,15 +102,16 @@ describe("TaskBoard", () => {
       makeTask({ id: "OMNI-004", status: "completed" }),
     ];
     mockUseTasks.mockReturnValue({ data: tasks, isPending: false, isError: false, error: null, refetch: vi.fn() } as never);
-    renderBoard();
+    const { container } = renderBoard();
 
     // Verify 8 columns are rendered
     const headings = screen.getAllByRole("heading", { level: 2 });
     expect(headings).toHaveLength(8);
 
     // Verify 4 task cards rendered (each task in exactly one column)
-    const articles = screen.getAllByRole("article");
-    expect(articles).toHaveLength(4);
+    // TaskCards now have role="button" (clickable) — query by class name
+    const cards = container.querySelectorAll(".app-task-card");
+    expect(cards).toHaveLength(4);
 
     // Verify empty state for columns without tasks
     const emptyMessages = screen.getAllByText("No tasks here");
@@ -119,9 +125,10 @@ describe("TaskBoard", () => {
       makeTask({ id: "OMNI-002", status: "cancelled" }),
     ];
     mockUseTasks.mockReturnValue({ data: tasks, isPending: false, isError: false, error: null, refetch: vi.fn() } as never);
-    renderBoard();
-    const articles = screen.getAllByRole("article");
-    expect(articles).toHaveLength(1);
+    const { container } = renderBoard();
+    // TaskCards now have role="button" (clickable) — query by class name
+    const cards = container.querySelectorAll(".app-task-card");
+    expect(cards).toHaveLength(1);
   });
 
   it("running column dot has pulse class when task is running", () => {
@@ -143,5 +150,22 @@ describe("TaskBoard", () => {
 
     // agent name "coder" accessible via AgentAvatar aria-label
     expect(screen.getByLabelText(/coder/)).toBeInTheDocument();
+  });
+
+  // D.2.2 — click TaskCard → Task Detail Panel opens with task title
+  it("clicking a TaskCard opens the Task Detail Panel", () => {
+    mockUseResolvedActiveProject.mockReturnValue(MOCK_PROJECT);
+    const tasks: Task[] = [makeTask({ id: "OMNI-777", title: "Fix login redirect", status: "draft" })];
+    mockUseTasks.mockReturnValue({ data: tasks, isPending: false, isError: false, error: null, refetch: vi.fn() } as never);
+    const { container } = renderBoard();
+
+    // Click the task card (role="button" when clickable)
+    const card = container.querySelector(".app-task-card") as HTMLElement;
+    expect(card).not.toBeNull();
+    fireEvent.click(card);
+
+    // Panel should appear with task title in heading
+    expect(screen.getByTestId("task-detail-panel")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 2, name: "Fix login redirect" })).toBeInTheDocument();
   });
 });

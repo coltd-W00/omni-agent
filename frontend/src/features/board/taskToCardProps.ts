@@ -28,6 +28,7 @@ export function taskToCardProps(
 
 export function formatRelativeTime(iso: string, now: Date = new Date()): string {
   const then = new Date(iso);
+  if (isNaN(then.getTime())) return "unknown";
   const diffMs = now.getTime() - then.getTime();
   const minutes = Math.floor(diffMs / 60000);
   if (minutes < 1) return "just now";

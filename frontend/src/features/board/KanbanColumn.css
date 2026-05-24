@@ -39,7 +39,7 @@
 }
 @keyframes app-kanban-pulse {
   from { transform: scale(1);   opacity: 1; }
-  to   { transform: scale(1.5); opacity: 0.6; }
+  to   { transform: scale(1.2); opacity: 0.6; }
 }
 .kanban-column__title {
   flex: 1;

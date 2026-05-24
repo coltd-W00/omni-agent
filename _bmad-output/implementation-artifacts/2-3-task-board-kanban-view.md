@@ -980,4 +980,28 @@ Claude Sonnet 4.6
 - `frontend/src/hooks/useTasks.ts` (thêm refetchInterval polling 5s khi có task running)
 - `frontend/src/components/TaskCard.tsx` (thêm role="article" khi không clickable)
 - `frontend/src/routes/BoardRoute.tsx` (thay placeholder bằng `<TaskBoard />`)
-- `docs/TEST_MATRIX.md` (row 2.3 → implemented)
+
+---
+
+### Review Findings
+
+_(Code review — 2026-05-25. Failed layers: Blind Hunter timed out, Acceptance Auditor rate-limited — both performed manually.)_
+
+**Decision-needed:**
+
+- [x] [Review][Defer] D1: `TaskRole` const-object narrows `Task.role` to 5 fixed values — DB schema là `role TEXT` (free-form). Giữ provisional, fix sau khi Story 3.x xác định API contract role rõ ràng. [frontend/src/types/task.ts:21-26] — deferred by decision
+
+**Patches:**
+
+- [x] [Review][Patch] P1: `@keyframes app-kanban-pulse` scale đến `1.5` — AC-6 quy định `scale(1.2)`. **Fixed**: scale(1.5) → scale(1.2) [KanbanColumn.css:42]
+- [x] [Review][Patch] P2: Loading skeleton: running column có `isRunning={col.value === "running"}` — pulse unconditionally khi loading, chưa biết có task running không. **Fixed**: `isRunning={false}` trong loading branch [TaskBoard.tsx:65]
+- [x] [Review][Patch] P3: `useTaskDetail` import từ `contexts/TaskDetailContext` là file untracked (chưa commit). Committed `TaskBoard.test.tsx` cũng chưa có `TaskDetailProvider` wrapper. Fresh-clone sẽ fail compile. **Fix**: Commit `frontend/src/contexts/`, `frontend/src/features/detail/`, `AppShell.tsx`, `TaskBoard.test.tsx` cùng với Story 2-3 patches. [TaskBoard.tsx:8, TaskBoard.test.tsx]
+- [x] [Review][Patch] P4: `formatRelativeTime` không guard Invalid Date — nếu `iso` là chuỗi không hợp lệ, `new Date(iso)` → Invalid Date → NaN. **Fixed**: thêm `if (isNaN(then.getTime())) return "unknown"` [taskToCardProps.ts:31]
+
+**Deferred:**
+
+- [x] [Review][Defer] F1: `groupByStatus` dùng unsafe cast `t.status as BoardStatus` — nếu backend thêm status mới trong tương lai (ngoài cancelled/paused), task sẽ silently vào wrong column [TaskBoard.tsx:29] — deferred, rủi ro thấp ở story này
+- [x] [Review][Defer] F2: `useCreateTask` trong `useTasks.ts` — out-of-scope Story 2.3, không có test cover [useTasks.ts:24-35] — deferred, pre-existing scope issue
+- [x] [Review][Defer] F3: `.visually-hidden` utility class định nghĩa trong `TaskBoard.css` — nên nằm trong global stylesheet để tái sử dụng [TaskBoard.css:48-56] — deferred, cosmetic
+- [x] [Review][Defer] F4: `position:sticky` trên `.kanban-column__header` với parent có `overflow:hidden` — sticky bị vô hiệu, nhưng không có visual impact do flex layout đảm bảo header luôn visible [KanbanColumn.css:17-21] — deferred, dead CSS no impact
+- [x] [Review][Defer] F5: Loading skeleton: `count={0}` hiển thị count badge trong khi AC-11 nói "KHÔNG count badge khi chưa biết" — minor cosmetic deviation [TaskBoard.tsx:98] — deferred, cosmetic
