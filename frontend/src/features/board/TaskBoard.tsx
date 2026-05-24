@@ -5,6 +5,7 @@ import KanbanColumn from "./KanbanColumn";
 import { taskToCardProps } from "./taskToCardProps";
 import { useTasks } from "../../hooks/useTasks";
 import { useResolvedActiveProject } from "../../hooks/useProjects";
+import { useTaskDetail } from "../../contexts/TaskDetailContext";
 import type { Task } from "../../types/task";
 import "./TaskBoard.css";
 
@@ -24,7 +25,7 @@ const COLUMNS: ReadonlyArray<{ value: BoardStatus; label: string }> = [
 function groupByStatus(tasks: Task[]): Partial<Record<BoardStatus, Task[]>> {
   const out: Partial<Record<BoardStatus, Task[]>> = {};
   for (const t of tasks) {
-    if (t.status === "cancelled") continue;
+    if (t.status === "cancelled" || t.status === "paused") continue;
     const key = t.status as BoardStatus;
     (out[key] ??= []).push(t);
   }
@@ -35,6 +36,7 @@ export default function TaskBoard() {
   const activeProject = useResolvedActiveProject();
   const projectId = activeProject?.id ?? null;
   const { data: tasks, isPending, isError, error, refetch } = useTasks(projectId);
+  const { openTask } = useTaskDetail();
 
   if (activeProject === null) {
     return (
@@ -113,7 +115,7 @@ export default function TaskBoard() {
               statusValue={col.value}
               label={col.label}
               count={colTasks.length}
-              isRunning={col.value === "running"}
+              isRunning={col.value === "running" && (grouped["running"]?.length ?? 0) > 0}
             >
               {colTasks.length === 0 ? (
                 <EmptyState variant="inline" icon="" heading="No tasks here" description="Tasks will appear when they reach this stage." />
@@ -129,6 +131,7 @@ export default function TaskBoard() {
                       sessionState={props.sessionState}
                       commentsCount={props.commentsCount}
                       lastActivity={props.lastActivity}
+                      onClick={() => openTask(t, activeProject)}
                     />
                   );
                 })

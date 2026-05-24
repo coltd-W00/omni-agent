@@ -1,6 +1,6 @@
 # Story 2.2: Task CRUD & Agent Assignment
 
-Status: review
+Status: done
 
 <!-- Validation tùy chọn — chạy validate-create-story trước khi dev-story nếu muốn double-check. -->
 
@@ -1140,3 +1140,14 @@ claude-sonnet-4-6-thinking
 
 - [x] [Review][Defer] **D1: SQLite foreign key enforcement không được verify** — Schema có `REFERENCES projects(id)` nhưng SQLite cần `PRAGMA foreign_keys = ON` để enforce. Nếu không set, tầng service tự handle (đã có verify), nhưng DB không có safety net. [backend/src/db/] — deferred, pre-existing infrastructure issue
 - [x] [Review][Defer] **D2: `onClose` callback trong TopBar tạo function mới mỗi render — gây useEffect churn không cần thiết** — `<CreateTaskModal onClose={() => setOpen(false)} />` tạo arrow function mới mỗi lần TopBar re-render → trigger cleanup/re-setup listener cho "close" event. Fix: `useCallback`. [frontend/src/components/TopBar.tsx] — deferred, minor performance issue
+
+---
+
+### Review Findings — Round 2
+
+> Code review thực hiện ngày 2026-05-24. Layers: Blind Hunter, Edge Case Hunter, Acceptance Auditor (thực hiện trực tiếp trong session do rate limit subagent). Diff range: `73c271c..HEAD`. Story bundled 2-2 patches + Story 2-3 board code.
+
+#### Patches (cần fix)
+
+- [x] [Review][Patch] **R1: Running column luôn pulse kể cả khi không có task running** — `isRunning={col.value === "running"}` trong `TaskBoard.tsx` ở cả loaded state và loading state luôn trả `true` cho cột Running, bất kể có task `running` hay không. AC story 2.3 yêu cầu pulse chỉ khi ≥1 task có `status === "running"`. Fix: `isRunning={col.value === "running" && (grouped["running"]?.length ?? 0) > 0}` [frontend/src/features/board/TaskBoard.tsx]
+- [x] [Review][Patch] **R2: `paused` tasks bị silently drop khỏi kanban board** — `groupByStatus` chỉ filter `"cancelled"` tường minh. Task với `status === "paused"` bị cast `as BoardStatus` (unsafe), được đẩy vào key `"paused"` trong `out` nhưng không có column tương ứng trong `COLUMNS` → không bao giờ được render. `TaskStatus` đã có `"paused"` (AC-15). Fix: thêm `|| t.status === "paused"` vào điều kiện filter (xử lý giống `cancelled`) cho đến khi Story 3.x thêm cột Paused. [frontend/src/features/board/TaskBoard.tsx]
