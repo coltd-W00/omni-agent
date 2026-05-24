@@ -6,6 +6,7 @@ import { ToastProvider } from "./Toast";
 import CreateTaskModal from "./CreateTaskModal";
 import { createTask } from "../api/tasks";
 import { ApiError } from "../api/client";
+import { ActiveProjectProvider } from "../features/project/ActiveProjectContext";
 
 vi.mock("../api/tasks", () => ({ createTask: vi.fn(), listTasks: vi.fn() }));
 
@@ -35,13 +36,15 @@ function renderModal(
   });
   render(
     <QueryClientProvider client={qc}>
-      <ToastProvider>
-        <CreateTaskModal
-          open={opts.open ?? true}
-          projectId={opts.projectId ?? "proj-1"}
-          onClose={onClose}
-        />
-      </ToastProvider>
+      <ActiveProjectProvider>
+        <ToastProvider>
+          <CreateTaskModal
+            open={opts.open ?? true}
+            projectId={opts.projectId ?? "proj-1"}
+            onClose={onClose}
+          />
+        </ToastProvider>
+      </ActiveProjectProvider>
     </QueryClientProvider>,
   );
 }
@@ -86,8 +89,16 @@ describe("CreateTaskModal", () => {
     const onClose = vi.fn();
     vi.mocked(createTask).mockResolvedValue({
       id: "PROJ-001",
+      projectId: "proj-1",
+      seq: 1,
       title: "Test task",
+      description: "Some description",
+      acceptanceCriteria: null,
+      agent: null,
+      role: null,
       status: "draft",
+      createdAt: "2026-01-01T00:00:00Z",
+      updatedAt: "2026-01-01T00:00:00Z",
     });
     renderModal(onClose);
 

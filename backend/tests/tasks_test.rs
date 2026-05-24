@@ -27,7 +27,7 @@ async fn fallback_handler() -> impl IntoResponse {
     }
 }
 
-async fn build_test_app() -> Router {
+async fn build_test_app_with_pool() -> (Router, SqlitePool) {
     let pool = SqlitePool::connect_with(
         sqlx::sqlite::SqliteConnectOptions::from_str("sqlite::memory:")
             .unwrap()
@@ -39,7 +39,7 @@ async fn build_test_app() -> Router {
     db::run_migrations(&pool).await.unwrap();
 
     let state = AppState {
-        db: pool,
+        db: pool.clone(),
         subprocess_map: Arc::new(Mutex::new(HashMap::new())),
     };
 
@@ -67,11 +67,18 @@ async fn build_test_app() -> Router {
             axum::routing::post(handlers::tasks::assign_agent),
         );
 
-    Router::new()
+    let app = Router::new()
         .route("/health", get(health_handler))
         .nest("/api", api_router)
         .fallback(fallback_handler)
-        .with_state(Arc::new(state))
+        .with_state(Arc::new(state));
+
+    (app, pool)
+}
+
+async fn build_test_app() -> Router {
+    let (app, _) = build_test_app_with_pool().await;
+    app
 }
 
 async fn body_json(body: Body) -> Value {
@@ -101,6 +108,27 @@ async fn setup_app_with_project(key: &str, name: &str) -> (Router, String) {
     let project_id = body["id"].as_str().unwrap().to_string();
 
     (app, project_id)
+}
+
+/// Creates a project and returns (app, pool, project_id) — pool for direct SQL inserts in tests.
+async fn setup_app_with_project_and_pool(key: &str, name: &str) -> (Router, SqlitePool, String) {
+    let (app, pool) = build_test_app_with_pool().await;
+
+    let req = Request::builder()
+        .method("POST")
+        .uri("/api/projects")
+        .header("content-type", "application/json")
+        .body(Body::from(
+            serde_json::json!({"name": name, "key": key}).to_string(),
+        ))
+        .unwrap();
+
+    let res = app.clone().oneshot(req).await.unwrap();
+    assert_eq!(res.status(), StatusCode::CREATED);
+    let body = body_json(res.into_body()).await;
+    let project_id = body["id"].as_str().unwrap().to_string();
+
+    (app, pool, project_id)
 }
 
 // ─── POST /api/projects/{id}/tasks ───────────────────────────────────────────
@@ -343,49 +371,37 @@ async fn put_task_partial_update() {
 
 #[tokio::test]
 async fn put_task_locks_when_done() {
-    let (app, project_id) = setup_app_with_project("OMNI", "OmniAgent").await;
+    // F8 fix: This test now correctly verifies PUT 409 when task status = Done,
+    // using direct SQL insert to set up the test state (bypassing the service layer).
+    let (app, pool, project_id) = setup_app_with_project_and_pool("OMNI", "OmniAgent").await;
 
-    // Create task (Draft), then need to get it into Done state
-    // We'll do this through direct SQL via the test setup by creating a raw Done task
-    // Since we can't access the pool, we'll create + change status via a raw insert
-    // In the test_app, we can't access pool directly, so we use the service layer as proxy
-    // For integration test: we create a project via API and insert task directly
-    // ... But we can't do raw SQL here easily. 
-    // Instead, let's use the approach of creating a Draft task and then checking 409 with different method:
-    // Actually, for a "Done" task test, we'll use the service layer unit test.
-    // For integration, let's just verify the endpoint is correctly wired by testing with assigned status.
-    // The unit test already covers the Done/Cancelled lock behavior comprehensively.
-    
-    // Test with a task that we manually set to Done (we need raw access, 
-    // so let's just do a basic smoke test here and rely on unit tests for lock behavior)
-    let create_req = Request::builder()
-        .method("POST")
-        .uri(format!("/api/projects/{}/tasks", project_id))
-        .header("content-type", "application/json")
-        .body(Body::from(r#"{"title":"T","description":"D"}"#))
-        .unwrap();
-    app.clone().oneshot(create_req).await.unwrap();
+    // Insert a Done task directly into DB to set up the test state
+    sqlx::query(
+        "INSERT INTO tasks (id, project_id, seq, title, description, status, created_at, updated_at) \
+         VALUES ('OMNI-001', ?, 1, 'T', 'D', 'Done', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')",
+    )
+    .bind(&project_id)
+    .execute(&pool)
+    .await
+    .unwrap();
 
-    // Assign first (changes status to Assigned), then try to delete (which blocks non-Draft)
-    let assign_req = Request::builder()
-        .method("POST")
-        .uri(format!("/api/projects/{}/tasks/OMNI-001/assign", project_id))
-        .header("content-type", "application/json")
-        .body(Body::from(r#"{"agent":"claude","role":"coder"}"#))
-        .unwrap();
-    app.clone().oneshot(assign_req).await.unwrap();
-
-    // DELETE should be blocked (Assigned, not Draft)
-    let delete_req = Request::builder()
-        .method("DELETE")
+    // PUT should be blocked with 409 task_locked (Done status)
+    let req = Request::builder()
+        .method("PUT")
         .uri(format!("/api/projects/{}/tasks/OMNI-001", project_id))
-        .body(Body::empty())
+        .header("content-type", "application/json")
+        .body(Body::from(r#"{"title":"New Title"}"#))
         .unwrap();
-    let delete_res = app.clone().oneshot(delete_req).await.unwrap();
-    assert_eq!(delete_res.status(), StatusCode::CONFLICT);
-    let body = body_json(delete_res.into_body()).await;
-    assert_eq!(body["error"], "task_not_deletable");
-    assert!(body["message"].as_str().unwrap().contains("assigned"));
+
+    let res = app.oneshot(req).await.unwrap();
+    assert_eq!(res.status(), StatusCode::CONFLICT);
+    let body = body_json(res.into_body()).await;
+    assert_eq!(body["error"], "task_locked");
+    assert!(
+        body["message"].as_str().unwrap().contains("done"),
+        "message should mention 'done', got: {}",
+        body["message"]
+    );
 }
 
 // ─── POST /api/projects/{id}/tasks/{taskId}/assign ────────────────────────────

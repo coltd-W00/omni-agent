@@ -25,8 +25,16 @@ const MOCK_PROJECT: Project = { id: "proj-1", name: "OmniAgent", key: "OMNI", cr
 function makeTask(overrides: Partial<Task> = {}): Task {
   return {
     id: "OMNI-001",
+    projectId: "proj-1",
+    seq: 1,
     title: "Fix login",
+    description: "",
+    acceptanceCriteria: null,
+    agent: null,
+    role: null,
     status: "draft",
+    createdAt: "2026-01-01T00:00:00Z",
+    updatedAt: "2026-01-01T00:00:00Z",
     ...overrides,
   };
 }

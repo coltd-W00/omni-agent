@@ -29,14 +29,14 @@ export type TaskRole = (typeof TaskRole)[keyof typeof TaskRole];
 
 export interface Task {
   id: string;
+  projectId: string;
+  seq: number;
   title: string;
+  description: string;
+  acceptanceCriteria: string | null;
+  agent: TaskAgent | null;
+  role: TaskRole | null;
   status: TaskStatus;
-  projectId?: string;
-  seq?: number;
-  description?: string;
-  acceptanceCriteria?: string | null;
-  agent?: TaskAgent | null;
-  role?: TaskRole | null;
-  createdAt?: string;
-  updatedAt?: string;
+  createdAt: string;
+  updatedAt: string;
 }

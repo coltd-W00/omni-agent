@@ -2,12 +2,11 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi } from "vitest";
 import TaskCard from "./TaskCard";
-import type { Task } from "../types/task";
 
-const DEFAULT_TASK: Task = {
+const DEFAULT_TASK = {
   id: "ERP-CB-001",
   title: "Implement login flow",
-  status: "running",
+  status: "running" as const,
 };
 
 function renderCard(onClick?: () => void) {

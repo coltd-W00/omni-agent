@@ -8,6 +8,7 @@ import { useActiveProjectId } from "../features/project/ActiveProjectContext";
 
 vi.mock("../features/project/ActiveProjectContext", () => ({
   useActiveProjectId: vi.fn(),
+  useSetActiveProject: vi.fn(() => vi.fn()),
 }));
 vi.mock("../api/tasks", () => ({ createTask: vi.fn(), listTasks: vi.fn() }));
 

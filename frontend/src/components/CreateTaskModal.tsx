@@ -1,10 +1,12 @@
 import "./CreateTaskModal.css";
 import { useEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import Button from "./Button";
 import { useToast } from "./Toast";
 import { useCreateTask } from "../hooks/useTasks";
 import { ApiError } from "../api/client";
+import { useSetActiveProject } from "../features/project/ActiveProjectContext";
 
 interface CreateTaskModalProps {
   open: boolean;
@@ -29,6 +31,8 @@ export default function CreateTaskModal({
 
   const createMutation = useCreateTask(projectId);
   const { showToast } = useToast();
+  const setActiveProject = useSetActiveProject();
+  const queryClient = useQueryClient();
 
   // Sync open prop → showModal / close
   useEffect(() => {
@@ -111,6 +115,9 @@ export default function CreateTaskModal({
               "Project no longer exists. Please select another project.",
           });
           onClose();
+          // AC-13: clear active project and refetch project list
+          setActiveProject(null);
+          void queryClient.invalidateQueries({ queryKey: ["projects"] });
         } else {
           showToast({ tone: "error", message: err.message });
         }

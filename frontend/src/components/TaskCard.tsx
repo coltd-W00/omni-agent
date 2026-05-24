@@ -1,12 +1,12 @@
 import "./TaskCard.css";
 import type { KeyboardEvent } from "react";
-import type { Task } from "../types/task";
+import type { TaskStatus } from "../types/task";
 import type { SessionState } from "../types/session";
 import AgentAvatar from "./AgentAvatar";
 import SessionBadge from "./SessionBadge";
 
 interface TaskCardProps {
-  task: Task;
+  task: { id: string; title: string; status: TaskStatus };
   project: { key: string; color?: string };
   agent: { name: string; runtime: "codex" | "claude" };
   sessionState: SessionState;

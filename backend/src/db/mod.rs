@@ -79,5 +79,14 @@ mod tests {
         .unwrap();
         assert_eq!(sent_column.get::<String, _>("type"), "INTEGER");
         assert_eq!(sent_column.get::<String, _>("dflt_value"), "0");
+
+        // Verify UNIQUE(project_id, seq) index from migration 2
+        let task_seq_unique: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM pragma_index_list('tasks') WHERE \"unique\" = 1 AND name = 'idx_tasks_project_id_seq'",
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert_eq!(task_seq_unique, 1, "UNIQUE index on tasks(project_id, seq) should exist");
     }
 }

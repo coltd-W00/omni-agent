@@ -1,4 +1,4 @@
-use sqlx::SqlitePool;
+use sqlx::{Connection, SqlitePool};
 use crate::error::AppError;
 use crate::models::task::{AssignAgentRequest, CreateTaskRequest, Task, UpdateTaskRequest};
 
@@ -81,19 +81,23 @@ pub async fn create_task(
         }
     }
 
-    // Verify project exists + get key
+    // Race-safe seq + id generation in a single IMMEDIATE transaction
+    // BEGIN IMMEDIATE acquires write lock upfront, preventing concurrent seq duplication.
+    let now = chrono::Utc::now().to_rfc3339();
+    let mut conn = pool.acquire().await?;
+    let mut tx = conn
+        .begin_with("BEGIN IMMEDIATE")
+        .await?;
+
+    // Verify project exists + get key (inside transaction for consistency)
     let project_key = sqlx::query_scalar::<_, String>("SELECT key FROM projects WHERE id = ?")
         .bind(project_id)
-        .fetch_optional(pool)
+        .fetch_optional(&mut *tx)
         .await?
         .ok_or_else(|| AppError::NotFound {
             code: "project_not_found",
             message: format!("Project {} does not exist", project_id),
         })?;
-
-    // Race-safe seq + id generation in a single transaction
-    let now = chrono::Utc::now().to_rfc3339();
-    let mut tx = pool.begin().await?;
 
     let seq: i64 = sqlx::query_scalar(
         "SELECT COALESCE(MAX(seq), 0) + 1 FROM tasks WHERE project_id = ?",
@@ -218,9 +222,10 @@ pub async fn update_task(
 
     let now = chrono::Utc::now().to_rfc3339();
 
-    sqlx::query(
+    // F4: Check rows_affected to guard against concurrent delete between GET and UPDATE.
+    let result = sqlx::query(
         "UPDATE tasks SET title = ?, description = ?, acceptance_criteria = ?, updated_at = ? \
-         WHERE id = ? AND project_id = ?",
+         WHERE id = ? AND project_id = ? AND status NOT IN ('Done', 'Cancelled')",
     )
     .bind(&new_title)
     .bind(&new_description)
@@ -231,19 +236,19 @@ pub async fn update_task(
     .execute(pool)
     .await?;
 
-    Ok(Task {
-        id: existing.id,
-        project_id: existing.project_id,
-        seq: existing.seq,
-        title: new_title,
-        description: new_description,
-        acceptance_criteria: new_ac,
-        agent: existing.agent,
-        role: existing.role,
-        status: existing.status,
-        created_at: existing.created_at,
-        updated_at: now,
-    })
+    if result.rows_affected() == 0 {
+        // Task was concurrently deleted or status changed — re-fetch to get accurate error.
+        return Err(get_task(pool, project_id, task_id).await.map_or_else(
+            |e| e,
+            |t| AppError::Conflict {
+                code: "task_locked",
+                message: format!("Cannot edit task in {} status", t.status.to_lowercase()),
+            },
+        ));
+    }
+
+    // Re-fetch from DB to return the authoritative post-update state.
+    get_task(pool, project_id, task_id).await
 }
 
 pub async fn assign_agent(
@@ -269,6 +274,8 @@ pub async fn assign_agent(
         });
     }
 
+    // F3 (TOCTOU): verify status is assignable before updating; use WHERE to guard against
+    // concurrent status change. F4: check rows_affected and re-fetch from DB.
     let existing = get_task(pool, project_id, task_id).await?;
 
     let status_lower = existing.status.to_lowercase();
@@ -284,9 +291,10 @@ pub async fn assign_agent(
 
     let now = chrono::Utc::now().to_rfc3339();
 
-    sqlx::query(
+    // Atomic update: only succeeds if status is still Draft or Ready
+    let result = sqlx::query(
         "UPDATE tasks SET agent = ?, role = ?, status = 'Assigned', updated_at = ? \
-         WHERE id = ? AND project_id = ?",
+         WHERE id = ? AND project_id = ? AND status IN ('Draft', 'Ready')",
     )
     .bind(&req.agent)
     .bind(&req.role)
@@ -296,19 +304,19 @@ pub async fn assign_agent(
     .execute(pool)
     .await?;
 
-    Ok(Task {
-        id: existing.id,
-        project_id: existing.project_id,
-        seq: existing.seq,
-        title: existing.title,
-        description: existing.description,
-        acceptance_criteria: existing.acceptance_criteria,
-        agent: Some(req.agent),
-        role: Some(req.role),
-        status: "Assigned".to_string(),
-        created_at: existing.created_at,
-        updated_at: now,
-    })
+    if result.rows_affected() == 0 {
+        // Task was concurrently deleted or status changed between GET and UPDATE.
+        return Err(get_task(pool, project_id, task_id).await.map_or_else(
+            |e| e,
+            |t| AppError::Conflict {
+                code: "task_not_assignable",
+                message: format!("Cannot assign agent to task in {} status", t.status.to_lowercase()),
+            },
+        ));
+    }
+
+    // Re-fetch from DB to return the authoritative post-update state.
+    get_task(pool, project_id, task_id).await
 }
 
 pub async fn delete_task(
@@ -329,11 +337,29 @@ pub async fn delete_task(
         });
     }
 
-    sqlx::query("DELETE FROM tasks WHERE id = ? AND project_id = ?")
-        .bind(task_id)
-        .bind(project_id)
-        .execute(pool)
-        .await?;
+    // F3/F5: Atomic delete — only succeeds if task is still in Draft status.
+    // Check rows_affected to guard against concurrent status change or deletion.
+    let result = sqlx::query(
+        "DELETE FROM tasks WHERE id = ? AND project_id = ? AND status = 'Draft'",
+    )
+    .bind(task_id)
+    .bind(project_id)
+    .execute(pool)
+    .await?;
+
+    if result.rows_affected() == 0 {
+        // Task was concurrently deleted or status changed between GET and DELETE.
+        return Err(get_task(pool, project_id, task_id).await.map_or_else(
+            |e| e,
+            |t| AppError::Conflict {
+                code: "task_not_deletable",
+                message: format!(
+                    "Can only delete task in draft status; current status is {}",
+                    t.status.to_lowercase()
+                ),
+            },
+        ));
+    }
 
     Ok(())
 }
@@ -939,15 +965,17 @@ mod tests {
         let pool = setup_pool().await;
         let project_id = insert_test_project(&pool, "OMNI", "Test").await;
 
-        for status in &["Ready", "Assigned", "Done"] {
-            // Insert task with given status
+        for (i, status) in ["Ready", "Assigned", "Done"].iter().enumerate() {
+            // Use distinct seq per task to satisfy UNIQUE(project_id, seq) constraint
+            let seq = (i + 1) as i64;
             let task_id = format!("OMNI-{}", status);
             sqlx::query(
                 "INSERT INTO tasks (id, project_id, seq, title, description, status, created_at, updated_at) \
-                 VALUES (?, ?, 1, 'T', 'D', ?, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')"
+                 VALUES (?, ?, ?, 'T', 'D', ?, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')"
             )
             .bind(&task_id)
             .bind(&project_id)
+            .bind(seq)
             .bind(status)
             .execute(&pool)
             .await

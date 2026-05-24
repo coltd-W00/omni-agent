@@ -5,10 +5,15 @@ import type { Task } from "../../types/task";
 function makeTask(overrides: Partial<Task> = {}): Task {
   return {
     id: "OMNI-001",
+    projectId: "proj-1",
+    seq: 1,
     title: "Fix login",
-    status: "draft",
+    description: "",
+    acceptanceCriteria: null,
     agent: null,
     role: null,
+    status: "draft",
+    createdAt: new Date(0).toISOString(),
     updatedAt: new Date(0).toISOString(),
     ...overrides,
   };

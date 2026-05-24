@@ -1,6 +1,6 @@
 # Story 2.2: Task CRUD & Agent Assignment
 
-Status: in-progress
+Status: review
 
 <!-- Validation tùy chọn — chạy validate-create-story trước khi dev-story nếu muốn double-check. -->
 
@@ -1074,7 +1074,7 @@ claude-sonnet-4-6-thinking
 ### Completion Notes List
 
 - Rust pattern-matching compile error: `Some(None) | Some(Some(ref s)) if s.trim()...` không hợp lệ vì biến `s` không bound ở nhánh `Some(None)`. Fix: tách thành hai match arm riêng biệt.
-- `Task` interface giữ `id`, `title`, `status` là required; các fields mới (`projectId`, `seq`, `description`, v.v.) để optional để backward-compatible với các component/test từ Story 2.0 (TaskCard chỉ dùng 3 fields cơ bản).
+- `Task` interface mở rộng đầy đủ required fields (F7): `projectId`, `seq`, `description`, `acceptanceCriteria`, `agent`, `role`, `createdAt`, `updatedAt` đều là required. `TaskCard.tsx` prop type được narrowed thành `{ id, title, status }` vì component chỉ dùng `task.title`. Test helpers (`makeTask`) trong `TaskBoard.test.tsx` và `taskToCardProps.test.ts` được cập nhật để provide đủ required fields.
 - `StatusBadge.tsx` cần thêm entry `paused` sau khi `TaskStatus` được extend — `satisfies Record<TaskStatus, ...>` là exhaustive check, build fails nếu thiếu variant.
 - Frontend tests mock `../api/tasks` module trực tiếp (không mock `apiFetch`), đơn giản hơn và không cần polyfill `ApiError` class constructor trong mock.
 - `ReactDOM.createPortal` trong `CreateTaskModal` render vào `document.body` — `screen.getByRole("dialog")` vẫn tìm được vì `@testing-library/dom` query toàn document.
@@ -1091,8 +1091,11 @@ claude-sonnet-4-6-thinking
 **Backend (cập nhật):**
 - `backend/src/models/mod.rs`
 - `backend/src/services/mod.rs`
+- `backend/src/services/tasks.rs` (F1 BEGIN IMMEDIATE, F3 atomic UPDATE, F4 re-fetch, F5 rows_affected)
 - `backend/src/handlers/mod.rs`
 - `backend/src/main.rs`
+- `backend/src/db/mod.rs`
+- `backend/src/db/migrations/1_init.sql` (F2 UNIQUE constraint)
 
 **Frontend (mới):**
 - `frontend/src/api/tasks.ts`
@@ -1105,8 +1108,13 @@ claude-sonnet-4-6-thinking
 **Frontend (cập nhật):**
 - `frontend/src/types/task.ts`
 - `frontend/src/components/TopBar.tsx`
+- `frontend/src/components/TopBar.test.tsx`
 - `frontend/src/components/AppShell.css`
 - `frontend/src/components/StatusBadge.tsx`
+- `frontend/src/components/TaskCard.tsx` (narrowed task prop type)
+- `frontend/src/components/TaskCard.test.tsx` (removed Task annotation)
+- `frontend/src/features/board/TaskBoard.test.tsx` (makeTask full required fields)
+- `frontend/src/features/board/taskToCardProps.test.ts` (makeTask full required fields)
 
 **Harness (cập nhật):**
 - `docs/TEST_MATRIX.md`
@@ -1119,14 +1127,14 @@ claude-sonnet-4-6-thinking
 
 #### Patches (cần fix)
 
-- [ ] [Review][Patch] **F1: Transaction `BEGIN DEFERRED` thay vì `BEGIN IMMEDIATE` — race condition trong seq generation** — `create_task` verify project ngoài transaction rồi mới `pool.begin()` (DEFERRED). Hai concurrent request có thể đọc cùng `MAX(seq)=0` và insert `seq=1`/`OMNI-001` trùng nhau, dẫn đến lỗi UNIQUE constraint → 500 thay vì graceful error. Spec yêu cầu `BEGIN IMMEDIATE`. [backend/src/services/tasks.rs]
-- [ ] [Review][Patch] **F2: Thiếu `UNIQUE(project_id, seq)` constraint trong DB schema** — Schema không có constraint này nên duplicate seq không bị ngăn ở tầng DB. Nếu xảy ra race (F1), DB error bị map thành 500 Internal Server Error thay vì 409. [backend/src/db/migrations/1_init.sql]
-- [ ] [Review][Patch] **F3: TOCTOU trong `assign_agent` và `delete_task` — GET+UPDATE không có row-lock** — Cả hai hàm dùng pattern: `get_task()` (READ) → kiểm tra status → UPDATE/DELETE. Giữa 2 bước, một request khác có thể thay đổi status. Ví dụ: 2 concurrent assign đều đọc `status=draft`, cả 2 đều update thành công, lần 2 ghi đè lần 1 mà không có error. Fix: dùng `UPDATE ... WHERE id=? AND status IN (...)` rồi kiểm tra `rows_affected`. [backend/src/services/tasks.rs]
-- [ ] [Review][Patch] **F4: `assign_agent` và `update_task` trả về Task struct được construct trong memory, không re-read từ DB** — Nếu một concurrent delete xóa task giữa GET và UPDATE, `rows_affected=0` nhưng hàm vẫn trả `Ok(Task {...})` với dữ liệu cũ. Client nhận 200 OK với dữ liệu ghost. Fix: kiểm tra `rows_affected > 0` hoặc re-fetch sau UPDATE. [backend/src/services/tasks.rs]
-- [ ] [Review][Patch] **F5: `delete_task` không kiểm tra `rows_affected` sau DELETE** — Nếu task bị xóa concurrent trước khi DELETE thực thi, function trả `Ok(())` → 204 No Content dù không xóa được gì. Không có báo lỗi. [backend/src/services/tasks.rs]
-- [ ] [Review][Patch] **F6: `project_not_found` trong CreateTaskModal không clear localStorage và không refetch project list — vi phạm AC-13** — AC-13 yêu cầu: toast + đóng modal + `clear localStorage["omniAgent.activeProjectId"]` + refetch project list. Implementation chỉ làm toast + `onClose()`. Thiếu 2 bước cuối. [frontend/src/components/CreateTaskModal.tsx]
-- [ ] [Review][Patch] **F7: Task interface có required fields khai báo optional (?) — vi phạm AC-15** — AC-15 yêu cầu `projectId: string`, `seq: number`, `description: string`, `createdAt: string`, `updatedAt: string` (required). Implementation khai báo tất cả là optional (`?`), gây mất type safety cho Story 2.3 và các consumer sau. [frontend/src/types/task.ts]
-- [ ] [Review][Patch] **F8: Integration test `put_task_locks_when_done` test sai hành vi — tên lừa dối** — Test name nói "PUT locks when Done" nhưng thực ra test DELETE blocked khi Assigned. Scenario PUT/409 khi task ở `Done` không có integration test (chỉ có unit test). [backend/tests/tasks_test.rs]
+- [x] [Review][Patch] **F1: Transaction `BEGIN DEFERRED` thay vì `BEGIN IMMEDIATE` — race condition trong seq generation** — `create_task` verify project ngoài transaction rồi mới `pool.begin()` (DEFERRED). Hai concurrent request có thể đọc cùng `MAX(seq)=0` và insert `seq=1`/`OMNI-001` trùng nhau, dẫn đến lỗi UNIQUE constraint → 500 thay vì graceful error. Spec yêu cầu `BEGIN IMMEDIATE`. [backend/src/services/tasks.rs]
+- [x] [Review][Patch] **F2: Thiếu `UNIQUE(project_id, seq)` constraint trong DB schema** — Schema không có constraint này nên duplicate seq không bị ngăn ở tầng DB. Nếu xảy ra race (F1), DB error bị map thành 500 Internal Server Error thay vì 409. [backend/src/db/migrations/1_init.sql]
+- [x] [Review][Patch] **F3: TOCTOU trong `assign_agent` và `delete_task` — GET+UPDATE không có row-lock** — Cả hai hàm dùng pattern: `get_task()` (READ) → kiểm tra status → UPDATE/DELETE. Giữa 2 bước, một request khác có thể thay đổi status. Ví dụ: 2 concurrent assign đều đọc `status=draft`, cả 2 đều update thành công, lần 2 ghi đè lần 1 mà không có error. Fix: dùng `UPDATE ... WHERE id=? AND status IN (...)` rồi kiểm tra `rows_affected`. [backend/src/services/tasks.rs]
+- [x] [Review][Patch] **F4: `assign_agent` và `update_task` trả về Task struct được construct trong memory, không re-read từ DB** — Nếu một concurrent delete xóa task giữa GET và UPDATE, `rows_affected=0` nhưng hàm vẫn trả `Ok(Task {...})` với dữ liệu cũ. Client nhận 200 OK với dữ liệu ghost. Fix: kiểm tra `rows_affected > 0` hoặc re-fetch sau UPDATE. [backend/src/services/tasks.rs]
+- [x] [Review][Patch] **F5: `delete_task` không kiểm tra `rows_affected` sau DELETE** — Nếu task bị xóa concurrent trước khi DELETE thực thi, function trả `Ok(())` → 204 No Content dù không xóa được gì. Không có báo lỗi. [backend/src/services/tasks.rs]
+- [x] [Review][Patch] **F6: `project_not_found` trong CreateTaskModal không clear localStorage và không refetch project list — vi phạm AC-13** — AC-13 yêu cầu: toast + đóng modal + `clear localStorage["omniAgent.activeProjectId"]` + refetch project list. Implementation chỉ làm toast + `onClose()`. Thiếu 2 bước cuối. [frontend/src/components/CreateTaskModal.tsx]
+- [x] [Review][Patch] **F7: Task interface có required fields khai báo optional (?) — vi phạm AC-15** — AC-15 yêu cầu `projectId: string`, `seq: number`, `description: string`, `createdAt: string`, `updatedAt: string` (required). Implementation khai báo tất cả là optional (`?`), gây mất type safety cho Story 2.3 và các consumer sau. [frontend/src/types/task.ts]
+- [x] [Review][Patch] **F8: Integration test `put_task_locks_when_done` test sai hành vi — tên lừa dối** — Test name nói "PUT locks when Done" nhưng thực ra test DELETE blocked khi Assigned. Scenario PUT/409 khi task ở `Done` không có integration test (chỉ có unit test). [backend/tests/tasks_test.rs]
 
 #### Deferred
 
