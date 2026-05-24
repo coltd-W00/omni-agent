@@ -33,4 +33,9 @@
 - F5: Loading skeleton hiển thị `count={0}` (count badge) khi AC-11 nói không render count badge khi chưa biết số lượng. Cosmetic deviation. [frontend/src/features/board/TaskBoard.tsx:98]
 - D1: `TaskRole` const narrows `Task.role` to 5 values nhưng DB là `role TEXT` free-form. Provisional, fix sau khi Story 3.x xác định agent role API contract. [frontend/src/types/task.ts:21-26]
 
+## Deferred from: code review of 2-4-task-detail-panel.md (2026-05-25)
+
+- W1: Tab arrow-key navigation chưa implement trong tablist của TaskDetailPanel — ARIA tabs pattern chuẩn yêu cầu arrow keys di chuyển giữa tabs. Cân nhắc implement trong Epic 3 khi tab content đầy đủ. [frontend/src/features/detail/TaskDetailPanel.tsx:tablist]
+- W2: Focus trap thiếu trong slide-in panel — panel dùng `role="complementary"` (không phải `role="dialog"`) nên không bắt buộc, nhưng nên thêm nếu nâng cấp lên dialog pattern. Keyboard users hiện có Esc + close button. [frontend/src/features/detail/TaskDetailPanel.tsx]
+
 

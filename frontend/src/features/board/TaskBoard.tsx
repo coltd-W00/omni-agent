@@ -62,7 +62,7 @@ export default function TaskBoard() {
         <h1 id="task-board-heading" className="visually-hidden">Task Board</h1>
         <div className="task-board__columns">
           {COLUMNS.map((col) => (
-            <KanbanColumn key={col.value} statusValue={col.value} label={col.label} count={0} isRunning={false}>
+            <KanbanColumn key={col.value} statusValue={col.value} label={col.label} count={0} isRunning={col.value === "running"}>
               <div className="task-card-skeleton" aria-hidden="true" />
               <div className="task-card-skeleton" aria-hidden="true" />
             </KanbanColumn>

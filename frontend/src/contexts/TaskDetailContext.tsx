@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, useCallback, useContext, useState } from "react";
 import type { ReactNode } from "react";
 import type { Task } from "../types/task";
 import type { Project } from "../types/project";
@@ -20,8 +20,8 @@ const TaskDetailContext = createContext<TaskDetailContextValue | null>(null);
 export function TaskDetailProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<TaskDetailState>({ task: null, project: null });
 
-  const openTask = (task: Task, project: Project) => setState({ task, project });
-  const closeTask = () => setState({ task: null, project: null });
+  const openTask = useCallback((task: Task, project: Project) => setState({ task, project }), []);
+  const closeTask = useCallback(() => setState({ task: null, project: null }), []);
 
   return (
     <TaskDetailContext.Provider value={{ selectedTask: state.task, selectedProject: state.project, openTask, closeTask }}>

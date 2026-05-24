@@ -136,7 +136,7 @@ export default function TaskDetailPanel() {
 
   const task = selectedTask;
   const project = selectedProject;
-  const agentRuntime: "codex" | "claude" = task.agent === "claude" ? "claude" : "codex";
+  const agentRuntime: "codex" | "claude" = task.agent ?? "codex";
   const agentName = task.role ?? task.agent ?? "unassigned";
 
   return (
@@ -196,6 +196,7 @@ export default function TaskDetailPanel() {
               type="button"
               className={`task-detail-panel__tab${activeTab === tab.value ? " task-detail-panel__tab--active" : ""}`}
               aria-selected={activeTab === tab.value}
+              aria-controls="task-detail-panel-tabcontent"
               onClick={() => setActiveTab(tab.value)}
             >
               {tab.label}
@@ -205,6 +206,7 @@ export default function TaskDetailPanel() {
 
         {/* Tab content */}
         <div
+          id="task-detail-panel-tabcontent"
           className="task-detail-panel__content"
           role="tabpanel"
           aria-label={`${TABS.find((t) => t.value === activeTab)?.label ?? ""} tab content`}

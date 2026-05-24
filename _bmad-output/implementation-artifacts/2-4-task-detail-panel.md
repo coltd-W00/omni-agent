@@ -1,6 +1,6 @@
 # Story 2.4: Task Detail Panel
 
-Status: review
+Status: done
 
 <!-- Validation tùy chọn — chạy validate-create-story trước khi dev-story nếu muốn double-check. -->
 
@@ -149,6 +149,23 @@ So that I can understand a task's state at a glance and take the right action.
 - [x] **Task D.3 — TypeScript + full test suite**
   - [x] D.3.1 `cd frontend && npx tsc --noEmit` exit 0.
   - [x] D.3.2 `cd frontend && npm test` → 115 tests pass (14 test files).
+
+### Review Findings
+
+> Code review chạy ngày 2026-05-25. Layer thất bại: `edge-case-hunter` (rate limit) — review có thể chưa đầy đủ về edge cases.
+
+**Decision-needed:**
+- [x] [Review][Decision] AC-8 Show ID hiển thị "—" thay vì UUID thực — Chấp nhận intentional stub. Dev Notes ghi rõ Epic 3 sẽ wire UUID thực. [TaskDetailPanel.tsx:SessionPanel]
+
+**Patch:**
+- [x] [Review][Patch] `isRunning={false}` hardcoded trong loading skeleton — regression từ `col.value === "running"`, cột Running mất pulse animation khi loading [TaskBoard.tsx:65]
+- [x] [Review][Patch] `openTask`/`closeTask` không dùng `useCallback` — recreated mỗi render, gây re-register keydown listener không cần thiết [TaskDetailContext.tsx:24-25]
+- [x] [Review][Patch] `agentRuntime` mặc định "codex" khi `task.agent` là null — AgentAvatar hiển thị icon codex cho task chưa gán agent [TaskDetailPanel.tsx:~136]
+- [x] [Review][Patch] Tab buttons thiếu `aria-controls`, tabpanel thiếu `id` — không tuân theo ARIA tabs pattern đầy đủ [TaskDetailPanel.tsx:~185-200]
+
+**Deferred:**
+- [x] [Review][Defer] Tab arrow-key navigation chưa implement — ARIA tabs pattern yêu cầu arrow keys di chuyển giữa tabs [TaskDetailPanel.tsx:tablist] — deferred, out of scope story 2.4; cân nhắc trong Epic 3
+- [x] [Review][Defer] Focus trap thiếu trong panel — `role="complementary"` không yêu cầu bắt buộc nhưng tốt cho accessibility [TaskDetailPanel.tsx] — deferred, không required bởi ACs; nếu upgrade lên `role="dialog"` cần add
 
 ---
 
