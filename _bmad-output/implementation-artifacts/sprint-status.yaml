@@ -55,7 +55,7 @@ development_status:
   2-0-shared-ui-components: done
   2-1-project-management: done
   2-2-task-crud-and-agent-assignment: done
-  2-3-task-board-kanban-view: review
+  2-3-task-board-kanban-view: done
   2-4-task-detail-panel: review
   epic-2-retrospective: optional
 
