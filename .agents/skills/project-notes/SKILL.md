@@ -1,6 +1,6 @@
 ---
 name: project-notes
-description: Bắt buộc dùng pnotes trước khi implement, trước khi khám phá source code diện rộng, và sau khi có implementation output. Dùng pnotes để recall decisions, invariants, risks, tests, missing tests, traps, dead ends, và continuity notes của project mà không phải scan toàn bộ repository.
+description: Bắt buộc dùng pnotes trước khi implement, trước khi khám phá source code diện rộng, và sau khi có implementation output, kể cả task nhỏ. Dùng pnotes để recall decisions, invariants, risks, tests, missing tests, traps, dead ends, và continuity notes của project mà không phải scan toàn bộ repository.
 ---
 
 # SKILL: project-notes

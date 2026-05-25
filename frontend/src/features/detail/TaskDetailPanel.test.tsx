@@ -1,9 +1,19 @@
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import TaskDetailPanel from "./TaskDetailPanel";
 import { TaskDetailProvider, useTaskDetail } from "../../contexts/TaskDetailContext";
+import { ToastProvider } from "../../components/Toast";
+import { ApiError } from "../../api/client";
 import type { Task } from "../../types/task";
 import type { Project } from "../../types/project";
+
+// Mock sessions API so mutation doesn't make real network calls
+vi.mock("../../api/sessions", () => ({
+  startSession: vi.fn(),
+}));
+
+import { startSession } from "../../api/sessions";
 
 const MOCK_PROJECT: Project = {
   id: "proj-1",
@@ -30,8 +40,12 @@ function makeTask(overrides: Partial<Task> = {}): Task {
   };
 }
 
-// Helper: renders TaskDetailPanel inside a provider and optionally opens a task via a trigger component.
+// Helper: renders TaskDetailPanel inside required providers and optionally opens a task via a trigger.
 function renderWithTask(task?: Task, project: Project = MOCK_PROJECT) {
+  const qc = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+
   function Opener() {
     const { openTask } = useTaskDetail();
     return task ? (
@@ -45,10 +59,14 @@ function renderWithTask(task?: Task, project: Project = MOCK_PROJECT) {
     ) : null;
   }
   render(
-    <TaskDetailProvider>
-      <Opener />
-      <TaskDetailPanel />
-    </TaskDetailProvider>,
+    <QueryClientProvider client={qc}>
+      <ToastProvider>
+        <TaskDetailProvider>
+          <Opener />
+          <TaskDetailPanel />
+        </TaskDetailProvider>
+      </ToastProvider>
+    </QueryClientProvider>,
   );
 }
 
@@ -244,5 +262,96 @@ describe("TaskDetailPanel", () => {
     expect(screen.queryByRole("button", { name: "Start Session" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Resume Session" })).not.toBeInTheDocument();
     warnSpy.mockRestore();
+  });
+
+  // ─── Story 3.1: Start Session wiring tests ───────────────────────────────
+
+  it("clicking Start Session calls startSession with correct args", async () => {
+    const mockStartSession = vi.mocked(startSession);
+    // Resolve after a tick so mutation completes
+    mockStartSession.mockResolvedValue({
+      sessionPk: "pk-123",
+      taskId: "OMNI-001",
+      sessionId: null,
+      sessionIdMissing: false,
+      status: "running" as const,
+      createdAt: "2026-01-01T00:00:00Z",
+    });
+
+    renderWithTask(makeTask({ id: "OMNI-001", projectId: "proj-1", status: "assigned" }));
+    fireEvent.click(screen.getByTestId("open-trigger"));
+
+    const btn = screen.getByRole("button", { name: "Start Session" });
+    fireEvent.click(btn);
+
+    await waitFor(() => {
+      expect(mockStartSession).toHaveBeenCalledWith("proj-1", "OMNI-001");
+    });
+  });
+
+  it("shows success toast after Start Session succeeds", async () => {
+    const mockStartSession = vi.mocked(startSession);
+    mockStartSession.mockResolvedValue({
+      sessionPk: "pk-456",
+      taskId: "OMNI-001",
+      sessionId: null,
+      sessionIdMissing: false,
+      status: "running" as const,
+      createdAt: "2026-01-01T00:00:00Z",
+    });
+
+    renderWithTask(makeTask({ id: "OMNI-001", status: "assigned" }));
+    fireEvent.click(screen.getByTestId("open-trigger"));
+    fireEvent.click(screen.getByRole("button", { name: "Start Session" }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Session started for OMNI-001/i)).toBeInTheDocument();
+    });
+  });
+
+  it("shows error toast with API message on agent_not_found error", async () => {
+    const mockStartSession = vi.mocked(startSession);
+    mockStartSession.mockRejectedValue(
+      new ApiError(400, "agent_not_found", "Agent binary not found on PATH"),
+    );
+
+    renderWithTask(makeTask({ status: "assigned" }));
+    fireEvent.click(screen.getByTestId("open-trigger"));
+    fireEvent.click(screen.getByRole("button", { name: "Start Session" }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("Agent binary not found on PATH"),
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("shows fallback error toast on non-ApiError", async () => {
+    const mockStartSession = vi.mocked(startSession);
+    mockStartSession.mockRejectedValue(new Error("Network failure"));
+
+    renderWithTask(makeTask({ status: "assigned" }));
+    fireEvent.click(screen.getByTestId("open-trigger"));
+    fireEvent.click(screen.getByRole("button", { name: "Start Session" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Failed to start session")).toBeInTheDocument();
+    });
+  });
+
+  it("button is disabled while mutation is pending", async () => {
+    const mockStartSession = vi.mocked(startSession);
+    // Never resolves during test
+    mockStartSession.mockImplementation(() => new Promise(() => {}));
+
+    renderWithTask(makeTask({ status: "assigned" }));
+    fireEvent.click(screen.getByTestId("open-trigger"));
+
+    const btn = screen.getByRole("button", { name: "Start Session" });
+    fireEvent.click(btn);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Start Session" })).toBeDisabled();
+    });
   });
 });

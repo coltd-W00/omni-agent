@@ -365,7 +365,7 @@ pub async fn delete_task(
 }
 
 // Helper: verify project exists
-async fn verify_project_exists(pool: &SqlitePool, project_id: &str) -> Result<(), AppError> {
+pub async fn verify_project_exists(pool: &SqlitePool, project_id: &str) -> Result<(), AppError> {
     let exists: bool = sqlx::query_scalar("SELECT COUNT(*) > 0 FROM projects WHERE id = ?")
         .bind(project_id)
         .fetch_one(pool)
@@ -376,6 +376,121 @@ async fn verify_project_exists(pool: &SqlitePool, project_id: &str) -> Result<()
             code: "project_not_found",
             message: format!("Project {} does not exist", project_id),
         });
+    }
+    Ok(())
+}
+
+fn status_to_start_error(status: &str, task_id: &str) -> AppError {
+    let status_lower = status.to_lowercase();
+    match status_lower.as_str() {
+        "running" => AppError::Conflict {
+            code: "session_already_active",
+            message: format!("Task {} already has an active session", task_id),
+        },
+        "paused" | "failed" => AppError::Conflict {
+            code: "task_not_assigned",
+            message: format!(
+                "Cannot start session: task {} is in {} status (must be assigned; use /sessions/resume for paused/failed)",
+                task_id, status_lower
+            ),
+        },
+        _ => AppError::Conflict {
+            code: "task_not_assigned",
+            message: format!(
+                "Cannot start session: task {} is in {} status (must be assigned)",
+                task_id, status_lower
+            ),
+        },
+    }
+}
+
+pub async fn transition_to_running(
+    pool: &SqlitePool,
+    project_id: &str,
+    task_id: &str,
+) -> Result<Task, AppError> {
+    use sqlx::Connection;
+
+    let mut conn = pool.acquire().await?;
+    let mut tx = conn.begin_with("BEGIN IMMEDIATE").await?;
+
+    // 1. SELECT task
+    let task = sqlx::query_as::<_, Task>(
+        "SELECT id, project_id, seq, title, description, acceptance_criteria, agent, role, status, created_at, updated_at \
+         FROM tasks WHERE id = ? AND project_id = ?",
+    )
+    .bind(task_id)
+    .bind(project_id)
+    .fetch_optional(&mut *tx)
+    .await?
+    .ok_or_else(|| AppError::NotFound {
+        code: "task_not_found",
+        message: format!("Task {} does not exist", task_id),
+    })?;
+
+    // 2. Fast-path: reject non-Assigned statuses before agent check
+    if task.status != "Assigned" {
+        return Err(status_to_start_error(&task.status, task_id));
+    }
+
+    // 3. Verify agent is set
+    if task.agent.is_none() {
+        return Err(AppError::Conflict {
+            code: "task_not_assigned",
+            message: format!("Cannot start session: task {} has no agent assigned", task_id),
+        });
+    }
+
+    // 4. Atomic UPDATE Assigned → Running
+    let now = chrono::Utc::now().to_rfc3339();
+    let result = sqlx::query(
+        "UPDATE tasks SET status = 'Running', updated_at = ? WHERE id = ? AND project_id = ? AND status = 'Assigned'",
+    )
+    .bind(&now)
+    .bind(task_id)
+    .bind(project_id)
+    .execute(&mut *tx)
+    .await?;
+
+    if result.rows_affected() == 0 {
+        // Re-fetch to get current status
+        let current = sqlx::query_as::<_, Task>(
+            "SELECT id, project_id, seq, title, description, acceptance_criteria, agent, role, status, created_at, updated_at \
+             FROM tasks WHERE id = ? AND project_id = ?",
+        )
+        .bind(task_id)
+        .bind(project_id)
+        .fetch_optional(&mut *tx)
+        .await?
+        .ok_or_else(|| AppError::NotFound {
+            code: "task_not_found",
+            message: format!("Task {} does not exist", task_id),
+        })?;
+        // tx auto-rollbacks on drop
+        return Err(status_to_start_error(&current.status, task_id));
+    }
+
+    tx.commit().await?;
+
+    // Re-fetch updated task
+    get_task(pool, project_id, task_id).await
+}
+
+pub async fn revert_to_assigned(pool: &SqlitePool, task_id: &str) -> Result<(), AppError> {
+    let now = chrono::Utc::now().to_rfc3339();
+    let result = sqlx::query(
+        "UPDATE tasks SET status = 'Assigned', updated_at = ? WHERE id = ? AND status = 'Running'",
+    )
+    .bind(&now)
+    .bind(task_id)
+    .execute(pool)
+    .await?;
+
+    if result.rows_affected() == 0 {
+        tracing::warn!(
+            task_id = %task_id,
+            "revert_to_assigned: task not in Running state (race or already reverted)"
+        );
     }
     Ok(())
 }
@@ -1001,5 +1116,206 @@ mod tests {
             AppError::NotFound { code, .. } => assert_eq!(code, "task_not_found"),
             _ => panic!("expected NotFound"),
         }
+    }
+
+    // --- transition_to_running tests ---
+
+    async fn setup_assigned_task(pool: &SqlitePool) -> (String, String) {
+        let project_id = insert_test_project(pool, "OMNI", "Test").await;
+        let task = create_task(pool, &project_id, valid_create_req("Fix", "Desc")).await.unwrap();
+        assign_agent(
+            pool,
+            &project_id,
+            &task.id,
+            crate::models::task::AssignAgentRequest {
+                agent: "claude".to_string(),
+                role: "coder".to_string(),
+            },
+        )
+        .await
+        .unwrap();
+        (project_id, task.id)
+    }
+
+    #[tokio::test]
+    async fn transition_to_running_assigned_to_running_success() {
+        let pool = setup_pool().await;
+        let (project_id, task_id) = setup_assigned_task(&pool).await;
+        let task = transition_to_running(&pool, &project_id, &task_id).await.unwrap();
+        assert_eq!(task.status, "Running");
+    }
+
+    #[tokio::test]
+    async fn transition_to_running_draft_returns_task_not_assigned() {
+        let pool = setup_pool().await;
+        let project_id = insert_test_project(&pool, "OMNI", "Test").await;
+        let task = create_task(&pool, &project_id, valid_create_req("Fix", "Desc")).await.unwrap();
+        // task is in Draft
+        let err = transition_to_running(&pool, &project_id, &task.id).await.unwrap_err();
+        match err {
+            AppError::Conflict { code, message } => {
+                assert_eq!(code, "task_not_assigned");
+                assert!(message.contains("draft"), "msg: {}", message);
+            }
+            _ => panic!("expected Conflict"),
+        }
+    }
+
+    #[tokio::test]
+    async fn transition_to_running_ready_returns_task_not_assigned() {
+        let pool = setup_pool().await;
+        let project_id = insert_test_project(&pool, "OMNI", "Test").await;
+        let task = create_task(&pool, &project_id, valid_create_req("Fix", "Desc")).await.unwrap();
+        sqlx::query("UPDATE tasks SET status = 'Ready' WHERE id = ?")
+            .bind(&task.id)
+            .execute(&pool)
+            .await
+            .unwrap();
+        let err = transition_to_running(&pool, &project_id, &task.id).await.unwrap_err();
+        match err {
+            AppError::Conflict { code, .. } => assert_eq!(code, "task_not_assigned"),
+            _ => panic!("expected Conflict"),
+        }
+    }
+
+    #[tokio::test]
+    async fn transition_to_running_running_returns_session_already_active() {
+        let pool = setup_pool().await;
+        let (project_id, task_id) = setup_assigned_task(&pool).await;
+        transition_to_running(&pool, &project_id, &task_id).await.unwrap();
+        let err = transition_to_running(&pool, &project_id, &task_id).await.unwrap_err();
+        match err {
+            AppError::Conflict { code, .. } => assert_eq!(code, "session_already_active"),
+            _ => panic!("expected Conflict session_already_active"),
+        }
+    }
+
+    #[tokio::test]
+    async fn transition_to_running_paused_returns_task_not_assigned() {
+        let pool = setup_pool().await;
+        let project_id = insert_test_project(&pool, "OMNI", "Test").await;
+        let task = create_task(&pool, &project_id, valid_create_req("Fix", "Desc")).await.unwrap();
+        sqlx::query("UPDATE tasks SET agent = 'claude', status = 'Paused' WHERE id = ?")
+            .bind(&task.id)
+            .execute(&pool)
+            .await
+            .unwrap();
+        let err = transition_to_running(&pool, &project_id, &task.id).await.unwrap_err();
+        match err {
+            AppError::Conflict { code, message } => {
+                assert_eq!(code, "task_not_assigned");
+                assert!(message.contains("resume"), "msg should mention resume: {}", message);
+            }
+            _ => panic!("expected Conflict"),
+        }
+    }
+
+    #[tokio::test]
+    async fn transition_to_running_failed_returns_task_not_assigned() {
+        let pool = setup_pool().await;
+        let project_id = insert_test_project(&pool, "OMNI", "Test").await;
+        let task = create_task(&pool, &project_id, valid_create_req("Fix", "Desc")).await.unwrap();
+        sqlx::query("UPDATE tasks SET agent = 'claude', status = 'Failed' WHERE id = ?")
+            .bind(&task.id)
+            .execute(&pool)
+            .await
+            .unwrap();
+        let err = transition_to_running(&pool, &project_id, &task.id).await.unwrap_err();
+        match err {
+            AppError::Conflict { code, message } => {
+                assert_eq!(code, "task_not_assigned");
+                assert!(message.contains("resume"), "msg should mention resume: {}", message);
+            }
+            _ => panic!("expected Conflict"),
+        }
+    }
+
+    #[tokio::test]
+    async fn transition_to_running_done_returns_task_not_assigned() {
+        let pool = setup_pool().await;
+        let project_id = insert_test_project(&pool, "OMNI", "Test").await;
+        let task = create_task(&pool, &project_id, valid_create_req("Fix", "Desc")).await.unwrap();
+        sqlx::query("UPDATE tasks SET agent = 'claude', status = 'Done' WHERE id = ?")
+            .bind(&task.id)
+            .execute(&pool)
+            .await
+            .unwrap();
+        let err = transition_to_running(&pool, &project_id, &task.id).await.unwrap_err();
+        match err {
+            AppError::Conflict { code, .. } => assert_eq!(code, "task_not_assigned"),
+            _ => panic!("expected Conflict"),
+        }
+    }
+
+    #[tokio::test]
+    async fn transition_to_running_cancelled_returns_task_not_assigned() {
+        let pool = setup_pool().await;
+        let project_id = insert_test_project(&pool, "OMNI", "Test").await;
+        let task = create_task(&pool, &project_id, valid_create_req("Fix", "Desc")).await.unwrap();
+        sqlx::query("UPDATE tasks SET agent = 'claude', status = 'Cancelled' WHERE id = ?")
+            .bind(&task.id)
+            .execute(&pool)
+            .await
+            .unwrap();
+        let err = transition_to_running(&pool, &project_id, &task.id).await.unwrap_err();
+        match err {
+            AppError::Conflict { code, .. } => assert_eq!(code, "task_not_assigned"),
+            _ => panic!("expected Conflict"),
+        }
+    }
+
+    #[tokio::test]
+    async fn transition_to_running_unknown_task_returns_not_found() {
+        let pool = setup_pool().await;
+        let project_id = insert_test_project(&pool, "OMNI", "Test").await;
+        let err = transition_to_running(&pool, &project_id, "OMNI-999").await.unwrap_err();
+        match err {
+            AppError::NotFound { code, .. } => assert_eq!(code, "task_not_found"),
+            _ => panic!("expected NotFound"),
+        }
+    }
+
+    #[tokio::test]
+    async fn transition_to_running_no_agent_returns_task_not_assigned() {
+        let pool = setup_pool().await;
+        let project_id = insert_test_project(&pool, "OMNI", "Test").await;
+        let task = create_task(&pool, &project_id, valid_create_req("Fix", "Desc")).await.unwrap();
+        // Force status=Assigned but agent=NULL (defensive test)
+        sqlx::query("UPDATE tasks SET status = 'Assigned', agent = NULL WHERE id = ?")
+            .bind(&task.id)
+            .execute(&pool)
+            .await
+            .unwrap();
+        let err = transition_to_running(&pool, &project_id, &task.id).await.unwrap_err();
+        match err {
+            AppError::Conflict { code, .. } => assert_eq!(code, "task_not_assigned"),
+            _ => panic!("expected Conflict for null agent"),
+        }
+    }
+
+    #[tokio::test]
+    async fn revert_to_assigned_running_to_assigned_success() {
+        let pool = setup_pool().await;
+        let (project_id, task_id) = setup_assigned_task(&pool).await;
+        transition_to_running(&pool, &project_id, &task_id).await.unwrap();
+        revert_to_assigned(&pool, &task_id).await.unwrap();
+        let task = get_task(&pool, &project_id, &task_id).await.unwrap();
+        assert_eq!(task.status, "Assigned");
+    }
+
+    #[tokio::test]
+    async fn revert_to_assigned_not_running_is_noop() {
+        let pool = setup_pool().await;
+        let project_id = insert_test_project(&pool, "OMNI", "Test").await;
+        let task = create_task(&pool, &project_id, valid_create_req("Fix", "Desc")).await.unwrap();
+        sqlx::query("UPDATE tasks SET agent = 'claude', status = 'Paused' WHERE id = ?")
+            .bind(&task.id)
+            .execute(&pool)
+            .await
+            .unwrap();
+        // Should succeed without error and not change status
+        revert_to_assigned(&pool, &task.id).await.unwrap();
+        let updated = get_task(&pool, &project_id, &task.id).await.unwrap();
+        assert_eq!(updated.status, "Paused");
     }
 }

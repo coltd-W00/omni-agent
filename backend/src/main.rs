@@ -74,6 +74,10 @@ async fn main() -> anyhow::Result<()> {
         .route(
             "/projects/{project_id}/tasks/{task_id}/assign",
             axum::routing::post(handlers::tasks::assign_agent),
+        )
+        .route(
+            "/projects/{project_id}/tasks/{task_id}/sessions/start",
+            axum::routing::post(handlers::sessions::start_session),
         );
 
     let app = Router::new()

@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import TaskBoard from "./TaskBoard";
 import { TaskDetailProvider } from "../../contexts/TaskDetailContext";
 import TaskDetailPanel from "../detail/TaskDetailPanel";
+import { ToastProvider } from "../../components/Toast";
 import type { Task } from "../../types/task";
 import type { Project } from "../../types/project";
 
@@ -45,10 +46,12 @@ function renderBoard() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
-      <TaskDetailProvider>
-        <TaskBoard />
-        <TaskDetailPanel />
-      </TaskDetailProvider>
+      <ToastProvider>
+        <TaskDetailProvider>
+          <TaskBoard />
+          <TaskDetailPanel />
+        </TaskDetailProvider>
+      </ToastProvider>
     </QueryClientProvider>,
   );
 }

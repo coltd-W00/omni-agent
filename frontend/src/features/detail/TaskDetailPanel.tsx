@@ -5,6 +5,9 @@ import AgentAvatar from "../../components/AgentAvatar";
 import Button from "../../components/Button";
 import EmptyState from "../../components/EmptyState";
 import { useTaskDetail } from "../../contexts/TaskDetailContext";
+import { useToast } from "../../components/Toast";
+import { useStartSession } from "../../hooks/useStartSession";
+import { ApiError } from "../../api/client";
 import type { Task, TaskStatus } from "../../types/task";
 
 type PanelTab = "summary" | "comments" | "runs" | "logs" | "settings";
@@ -28,18 +31,41 @@ const HAS_SESSION_STATUSES = new Set<TaskStatus>([
 ]);
 
 interface ActionBarProps {
-  status: TaskStatus;
+  projectId: string;
+  task: Task;
 }
 
-function ActionBar({ status }: ActionBarProps) {
-  if (status === "assigned") {
+function ActionBar({ projectId, task }: ActionBarProps) {
+  const { showToast } = useToast();
+  const startMut = useStartSession(projectId, task.id);
+
+  const handleStart = () => {
+    startMut.mutate(undefined, {
+      onSuccess: () => {
+        showToast({ tone: "success", message: `Session started for ${task.id}` });
+      },
+      onError: (err) => {
+        const msg = err instanceof ApiError ? err.message : "Failed to start session";
+        showToast({ tone: "error", message: msg });
+      },
+    });
+  };
+
+  if (task.status === "assigned") {
     return (
       <div className="task-detail-panel__action-bar">
-        <Button variant="primary" size="md">Start Session</Button>
+        <Button
+          variant="primary"
+          size="md"
+          onClick={handleStart}
+          disabled={startMut.isPending}
+        >
+          Start Session
+        </Button>
       </div>
     );
   }
-  if (status === "paused" || status === "failed") {
+  if (task.status === "paused" || task.status === "failed") {
     return (
       <div className="task-detail-panel__action-bar">
         <Button variant="primary" size="md">Resume Session</Button>
@@ -182,7 +208,7 @@ export default function TaskDetailPanel() {
         </div>
 
         {/* Action Bar (AC-3 to AC-6) */}
-        <ActionBar status={task.status} />
+        <ActionBar projectId={project.id} task={task} />
 
         {/* Session Panel (AC-7, AC-8) */}
         <SessionPanel task={task} />
