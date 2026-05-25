@@ -1,131 +1,68 @@
-# Agent Operating Guide
+## Communication defaults
 
-Repository này đã dùng Harness v0 để bắt đầu implementation sản phẩm
-omni-agent.
+- Always reply in Vietnamese by default.
+- Keep technical terms, code, commands, file paths, config keys, and error messages in their original form unless translation is explicitly requested.
+- If the user writes in another language and explicitly asks for that language, follow the user's language for that response.
+- Prefer concise, operational Vietnamese.
+- Do not switch to English unless the user asks, the content is a verbatim quote, or keeping the original wording is technically important.
 
-Product contract hiện được dẫn xuất từ BMAD planning artifacts trong
-`_bmad-output/planning-artifacts/` và được backfill vào `docs/product/`. App
-implementation hiện mới ở Epic 1 foundation: Rust backend scaffold, SQLite
-migrations, và placeholder `frontend/`.
+## 1. Think Before Coding
 
-Không scaffold thêm application source folders, platform shells, package
-scripts, CI, hoặc tests trừ khi một selected story rõ ràng yêu cầu.
+**Don't assume. Don't hide confusion. Surface tradeoffs.**
 
-## Source Of Truth
+Before implementing:
+- State your assumptions explicitly. If uncertain, ask.
+- If multiple interpretations exist, present them - don't pick silently.
+- If a simpler approach exists, say so. Push back when warranted.
+- If something is unclear, stop. Name what's confusing. Ask.
 
-Đọc theo thứ tự này:
+## 2. Simplicity First
 
-1. `README.md` để biết project status.
-2. `docs/HARNESS.md` để hiểu human-agent operating model.
-3. `docs/FEATURE_INTAKE.md` trước khi biến bất kỳ prompt nào thành công việc.
-4. User-provided spec hoặc prompt, khi có.
-5. `docs/product/` cho current product contracts.
-6. `docs/ARCHITECTURE.md` trước khi đề xuất implementation shape.
-7. `docs/stories/` cho story packets và backlog.
-8. `docs/TEST_MATRIX.md` cho proof status.
-9. `docs/decisions/` để biết vì sao các lựa chọn quan trọng được đưa ra.
-10. `_bmad-output/` cho historical planning, implementation, và readiness
-    artifacts khi cần chi tiết nguồn.
+**Minimum code that solves the problem. Nothing speculative.**
 
-Harness này không đi kèm project-specific `SPEC.md`. Spec đầu tiên đã được
-chuyển hóa thành PRD, architecture, UX, epics, và implementation artifacts dưới
-`_bmad-output/`. Product docs, stories, tests, và decisions là living contract
-mà agents cần cập nhật khi system phát triển.
+- No features beyond what was asked.
+- No abstractions for single-use code.
+- No "flexibility" or "configurability" that wasn't requested.
+- No error handling for impossible scenarios.
+- If you write 200 lines and it could be 50, rewrite it.
 
-## Documentation Language
+Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
 
-Tất cả tài liệu repo-facing trong `README.md`, `docs/`, story packets,
-decisions, backlog, validation reports, và harness notes phải viết bằng tiếng
-Việt. Chỉ giữ nguyên tiếng Anh cho code, path, command, API, schema, enum
-values, package names, logs, stack traces, và identifiers.
+## 3. Surgical Changes
 
-## Task Loop
+**Touch only what you must. Clean up only your own mess.**
 
-Với mọi task:
+When editing existing code:
+- Don't "improve" adjacent code, comments, or formatting.
+- Don't refactor things that aren't broken.
+- Match existing style, even if you'd do it differently.
+- If you notice unrelated dead code, mention it - don't delete it.
 
-1. Phân loại request bằng `docs/FEATURE_INTAKE.md`.
-2. Xác định input là new spec, spec slice, change request, new initiative,
-   maintenance request, hay harness improvement.
-3. Tìm product docs và story files bị ảnh hưởng.
-4. Kiểm tra `docs/TEST_MATRIX.md` để biết proof hiện có và gaps.
-5. Chỉ làm trong lane đã chọn: tiny, normal, hoặc high-risk.
-6. Trước khi kết thúc, hỏi:
-   - Product truth có thay đổi không?
-   - Validation expectations có thay đổi không?
-   - Architecture rules có thay đổi không?
-   - Có phát hiện repeated failure pattern không?
-   - Next agent có cần instruction rõ hơn không?
-7. Cập nhật routine harness files trực tiếp, hoặc thêm proposal vào
-   `docs/HARNESS_BACKLOG.md` khi thay đổi mang tính structural.
+When your changes create orphans:
+- Remove imports/variables/functions that YOUR changes made unused.
+- Don't remove pre-existing dead code unless asked.
 
-## Harness Change Policy
+The test: Every changed line should trace directly to the user's request.
 
-Agents có thể cập nhật trực tiếp:
+## 4. Goal-Driven Execution
 
-- Story status và evidence.
-- Các row trong `docs/TEST_MATRIX.md`.
-- Links từ story packets tới product docs.
-- Validation notes và reports.
-- Các clarification nhỏ gắn với task hiện tại.
+**Define success criteria. Loop until verified.**
 
-Agents nên hỏi human confirmation trước khi:
+Transform tasks into verifiable goals:
+- "Add validation" → "Write tests for invalid inputs, then make them pass"
+- "Fix the bug" → "Write a test that reproduces it, then make it pass"
+- "Refactor X" → "Ensure tests pass before and after"
 
-- Thay đổi architecture direction.
-- Gỡ bỏ validation requirements.
-- Thay đổi source-of-truth hierarchy.
-- Thay đổi risk classification rules.
-- Thay thế feature workflow.
+For multi-step tasks, state a brief plan:
+```
+1. [Step] → verify: [check]
+2. [Step] → verify: [check]
+3. [Step] → verify: [check]
+```
 
-## Done Definition
+Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
 
-Một task chỉ xong khi:
+---
 
-- Requested change đã hoàn tất hoặc blocker đã được document.
-- Relevant docs, stories, và test matrix entries vẫn current.
-- Validation commands đã chạy khi chúng tồn tại.
-- Missing harness capabilities đã được thêm vào `docs/HARNESS_BACKLOG.md`.
-- Final response nói rõ đã thay đổi gì và không làm gì.
+**These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
 
-<!-- gitnexus:start -->
-# GitNexus — Code Intelligence
-
-This project is indexed by GitNexus as **omni-agent** (1292 symbols, 1578 relationships, 29 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
-
-> If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
-
-## Always Do
-
-- **MUST run impact analysis before editing any symbol.** Before modifying a function, class, or method, run `gitnexus_impact({target: "symbolName", direction: "upstream"})` and report the blast radius (direct callers, affected processes, risk level) to the user.
-- **MUST run `gitnexus_detect_changes()` before committing** to verify your changes only affect expected symbols and execution flows.
-- **MUST warn the user** if impact analysis returns HIGH or CRITICAL risk before proceeding with edits.
-- When exploring unfamiliar code, use `gitnexus_query({query: "concept"})` to find execution flows instead of grepping. It returns process-grouped results ranked by relevance.
-- When you need full context on a specific symbol — callers, callees, which execution flows it participates in — use `gitnexus_context({name: "symbolName"})`.
-
-## Never Do
-
-- NEVER edit a function, class, or method without first running `gitnexus_impact` on it.
-- NEVER ignore HIGH or CRITICAL risk warnings from impact analysis.
-- NEVER rename symbols with find-and-replace — use `gitnexus_rename` which understands the call graph.
-- NEVER commit changes without running `gitnexus_detect_changes()` to check affected scope.
-
-## Resources
-
-| Resource | Use for |
-|----------|---------|
-| `gitnexus://repo/omni-agent/context` | Codebase overview, check index freshness |
-| `gitnexus://repo/omni-agent/clusters` | All functional areas |
-| `gitnexus://repo/omni-agent/processes` | All execution flows |
-| `gitnexus://repo/omni-agent/process/{name}` | Step-by-step execution trace |
-
-## CLI
-
-| Task | Read this skill file |
-|------|---------------------|
-| Understand architecture / "How does X work?" | `.claude/skills/gitnexus/gitnexus-exploring/SKILL.md` |
-| Blast radius / "What breaks if I change X?" | `.claude/skills/gitnexus/gitnexus-impact-analysis/SKILL.md` |
-| Trace bugs / "Why is X failing?" | `.claude/skills/gitnexus/gitnexus-debugging/SKILL.md` |
-| Rename / extract / split / refactor | `.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md` |
-| Tools, resources, schema reference | `.claude/skills/gitnexus/gitnexus-guide/SKILL.md` |
-| Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
-
-<!-- gitnexus:end -->
