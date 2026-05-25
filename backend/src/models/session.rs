@@ -24,6 +24,14 @@ pub struct StartSessionResponse {
     pub created_at: String,
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CancelSessionResponse {
+    pub task_id: String,
+    pub status: String,
+    pub message: String,
+}
+
 #[derive(Debug, Deserialize, Default)]
 #[serde(default, rename_all = "camelCase")]
 pub struct StartSessionRequest {}

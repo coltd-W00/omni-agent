@@ -476,6 +476,57 @@ pub async fn transition_to_running(
     get_task(pool, project_id, task_id).await
 }
 
+pub async fn transition_to_paused(pool: &SqlitePool, task_id: &str) -> Result<(), AppError> {
+    let now = chrono::Utc::now().to_rfc3339();
+    let rows = sqlx::query(
+        "UPDATE tasks SET status = 'Paused', updated_at = ? WHERE id = ? AND status = 'Running'",
+    )
+    .bind(&now)
+    .bind(task_id)
+    .execute(pool)
+    .await?
+    .rows_affected();
+    if rows == 0 {
+        tracing::warn!(task_id, "transition_to_paused: task not in Running state, skipping");
+    }
+    Ok(())
+}
+
+pub async fn transition_to_failed(pool: &SqlitePool, task_id: &str) -> Result<(), AppError> {
+    let now = chrono::Utc::now().to_rfc3339();
+    let rows = sqlx::query(
+        "UPDATE tasks SET status = 'Failed', updated_at = ? WHERE id = ? AND status = 'Running'",
+    )
+    .bind(&now)
+    .bind(task_id)
+    .execute(pool)
+    .await?
+    .rows_affected();
+    if rows == 0 {
+        tracing::warn!(task_id, "transition_to_failed: task not in Running state, skipping");
+    }
+    Ok(())
+}
+
+pub async fn transition_to_cancelled(pool: &SqlitePool, task_id: &str) -> Result<(), AppError> {
+    let now = chrono::Utc::now().to_rfc3339();
+    let rows = sqlx::query(
+        "UPDATE tasks SET status = 'Cancelled', updated_at = ? WHERE id = ? AND status = 'Running'",
+    )
+    .bind(&now)
+    .bind(task_id)
+    .execute(pool)
+    .await?
+    .rows_affected();
+    if rows == 0 {
+        return Err(AppError::Conflict {
+            code: "task_not_running",
+            message: "Can only cancel a running task".to_string(),
+        });
+    }
+    Ok(())
+}
+
 pub async fn revert_to_assigned(pool: &SqlitePool, task_id: &str) -> Result<(), AppError> {
     let now = chrono::Utc::now().to_rfc3339();
     let result = sqlx::query(

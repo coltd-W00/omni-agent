@@ -12,8 +12,8 @@ use uuid::Uuid;
 
 use crate::agent::{self, AgentStrategy};
 use crate::error::AppError;
-use crate::models::session::StartSessionResponse;
-use crate::services::tasks;
+use crate::models::session::{CancelSessionResponse, StartSessionResponse};
+use crate::services::{runs, tasks};
 
 fn resolve_log_path(task_id: &str, run_id: &str) -> PathBuf {
     let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
@@ -139,8 +139,10 @@ pub async fn start_session(
     let pool_clone = pool.clone();
     let strategy_clone = agent::strategy_for(agent_name).expect("strategy already validated");
     let session_pk_clone = session_pk.clone();
+    let run_id_clone = run_id.clone();
     let log_path_clone = log_path.clone();
     let task_id_clone = task_id.to_string();
+    let subprocess_map_clone = subprocess_map.clone();
     let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     let started_at_utc = Utc::now();
 
@@ -150,8 +152,10 @@ pub async fn start_session(
             pool_clone,
             strategy_clone,
             session_pk_clone,
+            run_id_clone,
             task_id_clone,
             log_path_clone,
+            subprocess_map_clone,
             cwd,
             started_at_utc,
         )
@@ -174,8 +178,10 @@ async fn stream_and_capture(
     pool: SqlitePool,
     strategy: Box<dyn AgentStrategy>,
     session_pk: String,
+    run_id: String,
     task_id: String,
     log_path: PathBuf,
+    subprocess_map: Arc<Mutex<HashMap<String, Child>>>,
     cwd: PathBuf,
     started_at_utc: chrono::DateTime<Utc>,
 ) {
@@ -277,6 +283,163 @@ async fn stream_and_capture(
             }
         }
     }
+
+    // Flush log file before reading tail
+    if let Some(ref mut f) = log_file {
+        let _ = f.flush().await;
+    }
+    drop(log_file);
+
+    // Detect exit: remove child from subprocess_map and get exit code
+    let exit_code = {
+        let removed = subprocess_map.lock().await.remove(&task_id);
+        match removed {
+            Some(mut child) => {
+                match child.wait().await {
+                    Ok(status) => status.code().unwrap_or(-1),
+                    Err(e) => {
+                        tracing::error!(task_id = %task_id, "child.wait() error: {}", e);
+                        -1
+                    }
+                }
+            }
+            None => {
+                // Already removed by cancel or shutdown handler — check task status
+                let status_result = sqlx::query_scalar::<_, String>(
+                    "SELECT status FROM tasks WHERE id = ?",
+                )
+                .bind(&task_id)
+                .fetch_optional(&pool)
+                .await;
+
+                match status_result {
+                    Ok(Some(ref s)) if s == "Cancelled" || s == "Paused" => {
+                        tracing::warn!(
+                            task_id = %task_id,
+                            "Background task: subprocess removed (cancel/shutdown race), task already in terminal state {}; skipping DB updates",
+                            s
+                        );
+                        return;
+                    }
+                    _ => {
+                        tracing::warn!(
+                            task_id = %task_id,
+                            "Background task: subprocess not in map (race), proceeding with fallback exit_code=-1"
+                        );
+                        -1
+                    }
+                }
+            }
+        }
+    };
+
+    // Read log tail and update DB
+    let log_tail = runs::read_log_tail(&log_path, 100, 10_240).await;
+
+    if let Err(e) = runs::complete_run(&pool, &run_id, exit_code, log_tail.as_deref()).await {
+        tracing::error!(task_id = %task_id, "Failed to complete run: {}", e);
+    }
+
+    if let Err(e) = mark_session_paused(&pool, &session_pk).await {
+        tracing::error!(task_id = %task_id, "Failed to mark session paused: {}", e);
+    }
+
+    if exit_code == 0 {
+        if let Err(e) = tasks::transition_to_paused(&pool, &task_id).await {
+            tracing::error!(task_id = %task_id, "Failed to transition task to Paused: {}", e);
+        }
+    } else {
+        if let Err(e) = tasks::transition_to_failed(&pool, &task_id).await {
+            tracing::error!(task_id = %task_id, "Failed to transition task to Failed: {}", e);
+        }
+    }
+}
+
+pub async fn mark_session_paused(pool: &SqlitePool, session_pk: &str) -> Result<(), AppError> {
+    let now = Utc::now().to_rfc3339();
+    sqlx::query(
+        "UPDATE sessions SET status = 'paused', last_active = ? WHERE id = ? AND status = 'running'",
+    )
+    .bind(&now)
+    .bind(session_pk)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+pub async fn mark_session_closed(pool: &SqlitePool, session_pk: &str) -> Result<(), AppError> {
+    let now = Utc::now().to_rfc3339();
+    sqlx::query(
+        "UPDATE sessions SET status = 'closed', last_active = ? WHERE id = ? AND status = 'running'",
+    )
+    .bind(&now)
+    .bind(session_pk)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+pub async fn cancel_session(
+    pool: &SqlitePool,
+    subprocess_map: Arc<Mutex<HashMap<String, Child>>>,
+    project_id: &str,
+    task_id: &str,
+) -> Result<CancelSessionResponse, AppError> {
+    // Verify task exists in project (404 if not found)
+    tasks::get_task(pool, project_id, task_id).await?;
+
+    // Atomic transition Running → Cancelled (409 if not Running)
+    tasks::transition_to_cancelled(pool, task_id).await?;
+
+    // Remove and kill subprocess
+    let child_opt = subprocess_map.lock().await.remove(task_id);
+    match child_opt {
+        Some(mut child) => {
+            let _ = child.start_kill();
+        }
+        None => {
+            tracing::warn!(
+                task_id = %task_id,
+                "cancel_session: subprocess handle not found in map (already exited?)"
+            );
+        }
+    }
+
+    // Find active session and mark closed
+    let session_pk: Option<String> = sqlx::query_scalar(
+        "SELECT id FROM sessions WHERE task_id = ? ORDER BY created_at DESC LIMIT 1",
+    )
+    .bind(task_id)
+    .fetch_optional(pool)
+    .await?;
+
+    if let Some(ref spk) = session_pk {
+        mark_session_closed(pool, spk).await?;
+
+        // Find active run and complete it with exit_code=-1
+        let run_row: Option<(String, Option<String>)> = sqlx::query_as(
+            "SELECT id, log_path FROM runs WHERE session_id = ? AND ended_at IS NULL \
+             ORDER BY started_at DESC LIMIT 1",
+        )
+        .bind(spk)
+        .fetch_optional(pool)
+        .await?;
+
+        if let Some((run_id, log_path)) = run_row {
+            let log_tail = if let Some(ref lp) = log_path {
+                runs::read_log_tail(std::path::Path::new(lp), 100, 10_240).await
+            } else {
+                None
+            };
+            runs::complete_run(pool, &run_id, -1, log_tail.as_deref()).await?;
+        }
+    }
+
+    Ok(CancelSessionResponse {
+        task_id: task_id.to_string(),
+        status: "cancelled".to_string(),
+        message: "Session cancelled and subprocess killed".to_string(),
+    })
 }
 
 #[cfg(test)]
