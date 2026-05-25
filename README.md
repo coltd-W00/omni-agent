@@ -8,8 +8,6 @@ sessions mà không mất context.
 
 Implementation đã bắt đầu.
 
-- Harness v0 đã được cài để điều phối source-of-truth, stories, decisions, và
-  validation evidence.
 - Product planning artifacts nằm trong `_bmad-output/planning-artifacts/`.
 - Living product docs nằm trong `docs/product/`.
 - Backend foundation đã có trong `backend/`.
@@ -50,10 +48,4 @@ Expected local server:
 Read in this order:
 
 1. `AGENTS.md`
-2. `docs/HARNESS.md`
-3. `docs/FEATURE_INTAKE.md`
-4. `docs/product/`
-5. `docs/ARCHITECTURE.md`
-6. `docs/stories/`
-7. `docs/TEST_MATRIX.md`
-8. `docs/decisions/`
+2. `docs/ARCHITECTURE.md`
