@@ -1,5 +1,5 @@
 # generated: 2026-05-21T00:35:18+07:00
-# last_updated: 2026-05-22T09:55:00+07:00
+# last_updated: 2026-05-26T00:10:00+07:00
 # project: omni-agent
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: "2026-05-21T00:35:18+07:00"
-last_updated: "2026-05-25T01:40:00+07:00"
+last_updated: "2026-05-26T00:10:00+07:00"
 project: omni-agent
 project_key: NOKEY
 tracking_system: file-system
@@ -60,8 +60,8 @@ development_status:
   epic-2-retrospective: optional
 
   # Epic 3: Session Lifecycle & Agent Execution
-  epic-3: backlog
-  3-1-agentstrategy-trait-and-start-session: backlog
+  epic-3: in-progress
+  3-1-agentstrategy-trait-and-start-session: ready-for-dev
   3-2-session-exit-detection-and-graceful-shutdown: backlog
   3-3-resume-session-and-comment-tracking: backlog
   3-4-run-log-dual-storage: backlog
