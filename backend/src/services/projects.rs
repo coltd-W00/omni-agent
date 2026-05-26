@@ -31,8 +31,7 @@ pub async fn create_project(
     let key_valid = {
         let chars: Vec<char> = key.chars().collect();
         let len = chars.len();
-        len >= 2
-            && len <= 8
+        (2..=8).contains(&len)
             && chars[0].is_ascii_uppercase()
             && chars[1..]
                 .iter()

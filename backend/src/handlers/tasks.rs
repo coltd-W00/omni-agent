@@ -9,7 +9,8 @@ use axum::{
 use crate::{
     error::AppError,
     models::task::{AssignAgentRequest, CreateTaskRequest, Task, UpdateTaskRequest},
-    services, state::AppState,
+    services,
+    state::AppState,
 };
 
 pub async fn list_tasks(

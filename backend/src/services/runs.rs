@@ -5,11 +5,7 @@ use sqlx::SqlitePool;
 use crate::error::AppError;
 
 /// Read last `max_lines` lines from log file, capped at `max_bytes`.
-pub async fn read_log_tail(
-    log_path: &Path,
-    max_lines: usize,
-    max_bytes: usize,
-) -> Option<String> {
+pub async fn read_log_tail(log_path: &Path, max_lines: usize, max_bytes: usize) -> Option<String> {
     let content = tokio::fs::read_to_string(log_path).await.ok()?;
     let lines: Vec<&str> = content.lines().collect();
     let tail_lines = &lines[lines.len().saturating_sub(max_lines)..];

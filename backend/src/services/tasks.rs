@@ -1,6 +1,6 @@
-use sqlx::{Connection, SqlitePool};
 use crate::error::AppError;
 use crate::models::task::{AssignAgentRequest, CreateTaskRequest, Task, UpdateTaskRequest};
+use sqlx::{Connection, SqlitePool};
 
 const VALID_AGENTS: &[&str] = &["codex", "claude"];
 const VALID_ROLES: &[&str] = &["coder", "reviewer", "planner", "debugger", "refactorer"];
@@ -66,28 +66,29 @@ pub async fn create_task(
         });
     }
 
-    // Validate acceptance_criteria (optional)
-    let acceptance_criteria = req.acceptance_criteria.map(|s| {
-        let trimmed = s.trim().to_string();
-        if trimmed.is_empty() { None } else { Some(trimmed) }
-    }).flatten();
+    let acceptance_criteria = req
+        .acceptance_criteria
+        .and_then(|s| {
+            let trimmed = s.trim().to_string();
+            if trimmed.is_empty() {
+                None
+            } else {
+                Some(trimmed)
+            }
+        });
 
-    if let Some(ref ac) = acceptance_criteria {
-        if ac.chars().count() > 5000 {
-            return Err(AppError::BadRequest {
-                code: "invalid_task_acceptance_criteria",
-                message: "Acceptance criteria must be at most 5000 characters".to_string(),
-            });
-        }
+    if acceptance_criteria.as_ref().map(|ac| ac.chars().count() > 5000).unwrap_or(false) {
+        return Err(AppError::BadRequest {
+            code: "invalid_task_acceptance_criteria",
+            message: "Acceptance criteria must be at most 5000 characters".to_string(),
+        });
     }
 
     // Race-safe seq + id generation in a single IMMEDIATE transaction
     // BEGIN IMMEDIATE acquires write lock upfront, preventing concurrent seq duplication.
     let now = chrono::Utc::now().to_rfc3339();
     let mut conn = pool.acquire().await?;
-    let mut tx = conn
-        .begin_with("BEGIN IMMEDIATE")
-        .await?;
+    let mut tx = conn.begin_with("BEGIN IMMEDIATE").await?;
 
     // Verify project exists + get key (inside transaction for consistency)
     let project_key = sqlx::query_scalar::<_, String>("SELECT key FROM projects WHERE id = ?")
@@ -99,12 +100,11 @@ pub async fn create_task(
             message: format!("Project {} does not exist", project_id),
         })?;
 
-    let seq: i64 = sqlx::query_scalar(
-        "SELECT COALESCE(MAX(seq), 0) + 1 FROM tasks WHERE project_id = ?",
-    )
-    .bind(project_id)
-    .fetch_one(&mut *tx)
-    .await?;
+    let seq: i64 =
+        sqlx::query_scalar("SELECT COALESCE(MAX(seq), 0) + 1 FROM tasks WHERE project_id = ?")
+            .bind(project_id)
+            .fetch_one(&mut *tx)
+            .await?;
 
     let task_id = if seq < 1000 {
         format!("{}-{:03}", project_key, seq)
@@ -282,10 +282,7 @@ pub async fn assign_agent(
     if status_lower != "draft" && status_lower != "ready" {
         return Err(AppError::Conflict {
             code: "task_not_assignable",
-            message: format!(
-                "Cannot assign agent to task in {} status",
-                status_lower
-            ),
+            message: format!("Cannot assign agent to task in {} status", status_lower),
         });
     }
 
@@ -310,7 +307,10 @@ pub async fn assign_agent(
             |e| e,
             |t| AppError::Conflict {
                 code: "task_not_assignable",
-                message: format!("Cannot assign agent to task in {} status", t.status.to_lowercase()),
+                message: format!(
+                    "Cannot assign agent to task in {} status",
+                    t.status.to_lowercase()
+                ),
             },
         ));
     }
@@ -339,13 +339,12 @@ pub async fn delete_task(
 
     // F3/F5: Atomic delete — only succeeds if task is still in Draft status.
     // Check rows_affected to guard against concurrent status change or deletion.
-    let result = sqlx::query(
-        "DELETE FROM tasks WHERE id = ? AND project_id = ? AND status = 'Draft'",
-    )
-    .bind(task_id)
-    .bind(project_id)
-    .execute(pool)
-    .await?;
+    let result =
+        sqlx::query("DELETE FROM tasks WHERE id = ? AND project_id = ? AND status = 'Draft'")
+            .bind(task_id)
+            .bind(project_id)
+            .execute(pool)
+            .await?;
 
     if result.rows_affected() == 0 {
         // Task was concurrently deleted or status changed between GET and DELETE.
@@ -437,7 +436,10 @@ pub async fn transition_to_running(
     if task.agent.is_none() {
         return Err(AppError::Conflict {
             code: "task_not_assigned",
-            message: format!("Cannot start session: task {} has no agent assigned", task_id),
+            message: format!(
+                "Cannot start session: task {} has no agent assigned",
+                task_id
+            ),
         });
     }
 
@@ -487,7 +489,10 @@ pub async fn transition_to_paused(pool: &SqlitePool, task_id: &str) -> Result<()
     .await?
     .rows_affected();
     if rows == 0 {
-        tracing::warn!(task_id, "transition_to_paused: task not in Running state, skipping");
+        tracing::warn!(
+            task_id,
+            "transition_to_paused: task not in Running state, skipping"
+        );
     }
     Ok(())
 }
@@ -503,7 +508,10 @@ pub async fn transition_to_failed(pool: &SqlitePool, task_id: &str) -> Result<()
     .await?
     .rows_affected();
     if rows == 0 {
-        tracing::warn!(task_id, "transition_to_failed: task not in Running state, skipping");
+        tracing::warn!(
+            task_id,
+            "transition_to_failed: task not in Running state, skipping"
+        );
     }
     Ok(())
 }
@@ -546,12 +554,34 @@ pub async fn revert_to_assigned(pool: &SqlitePool, task_id: &str) -> Result<(), 
     Ok(())
 }
 
+pub async fn transition_to_running_in_tx<'c>(
+    tx: &mut sqlx::Transaction<'c, sqlx::Sqlite>,
+    task_id: &str,
+) -> Result<(), AppError> {
+    let now = chrono::Utc::now().to_rfc3339();
+    let result = sqlx::query(
+        "UPDATE tasks SET status = 'Running', updated_at = ? WHERE id = ? AND status IN ('Paused','Failed')",
+    )
+    .bind(&now)
+    .bind(task_id)
+    .execute(&mut **tx)
+    .await?;
+
+    if result.rows_affected() == 0 {
+        return Err(AppError::Conflict {
+            code: "task_status_changed",
+            message: format!("Task '{}' is no longer in Paused/Failed state", task_id),
+        });
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::db::run_migrations;
-    use crate::services::projects::create_project;
     use crate::models::project::CreateProjectRequest;
+    use crate::services::projects::create_project;
 
     async fn setup_pool() -> SqlitePool {
         let pool = SqlitePool::connect("sqlite::memory:").await.unwrap();
@@ -585,9 +615,13 @@ mod tests {
         let pool = setup_pool().await;
         let project_id = insert_test_project(&pool, "OMNI", "OmniAgent Core").await;
 
-        let task = create_task(&pool, &project_id, valid_create_req("Fix login", "Token broken"))
-            .await
-            .unwrap();
+        let task = create_task(
+            &pool,
+            &project_id,
+            valid_create_req("Fix login", "Token broken"),
+        )
+        .await
+        .unwrap();
 
         assert_eq!(task.id, "OMNI-001");
         assert_eq!(task.seq, 1);
@@ -667,7 +701,9 @@ mod tests {
             description: Some("desc".to_string()),
             acceptance_criteria: None,
         };
-        let err = create_task(&pool, &project_id, req_missing).await.unwrap_err();
+        let err = create_task(&pool, &project_id, req_missing)
+            .await
+            .unwrap_err();
         match err {
             AppError::BadRequest { code, .. } => assert_eq!(code, "invalid_task_title"),
             _ => panic!("expected BadRequest for missing title"),
@@ -780,9 +816,15 @@ mod tests {
         let pool = setup_pool().await;
         let project_id = insert_test_project(&pool, "OMNI", "Test").await;
 
-        create_task(&pool, &project_id, valid_create_req("T1", "D1")).await.unwrap();
-        create_task(&pool, &project_id, valid_create_req("T2", "D2")).await.unwrap();
-        create_task(&pool, &project_id, valid_create_req("T3", "D3")).await.unwrap();
+        create_task(&pool, &project_id, valid_create_req("T1", "D1"))
+            .await
+            .unwrap();
+        create_task(&pool, &project_id, valid_create_req("T2", "D2"))
+            .await
+            .unwrap();
+        create_task(&pool, &project_id, valid_create_req("T3", "D3"))
+            .await
+            .unwrap();
 
         let tasks = list_tasks(&pool, &project_id).await.unwrap();
         assert_eq!(tasks.len(), 3);
@@ -815,7 +857,9 @@ mod tests {
     async fn get_task_returns_existing() {
         let pool = setup_pool().await;
         let project_id = insert_test_project(&pool, "OMNI", "Test").await;
-        create_task(&pool, &project_id, valid_create_req("My Task", "Desc")).await.unwrap();
+        create_task(&pool, &project_id, valid_create_req("My Task", "Desc"))
+            .await
+            .unwrap();
 
         let task = get_task(&pool, &project_id, "OMNI-001").await.unwrap();
         assert_eq!(task.title, "My Task");
@@ -839,7 +883,9 @@ mod tests {
         let omni_id = insert_test_project(&pool, "OMNI", "OmniAgent").await;
         let erp_id = insert_test_project(&pool, "ERP", "ERP").await;
 
-        create_task(&pool, &omni_id, valid_create_req("Task", "Desc")).await.unwrap();
+        create_task(&pool, &omni_id, valid_create_req("Task", "Desc"))
+            .await
+            .unwrap();
 
         // Try to access OMNI-001 via ERP project
         let err = get_task(&pool, &erp_id, "OMNI-001").await.unwrap_err();
@@ -853,14 +899,22 @@ mod tests {
     async fn update_task_partial_title_only() {
         let pool = setup_pool().await;
         let project_id = insert_test_project(&pool, "OMNI", "Test").await;
-        create_task(&pool, &project_id, valid_create_req("Old Title", "Old Desc")).await.unwrap();
+        create_task(
+            &pool,
+            &project_id,
+            valid_create_req("Old Title", "Old Desc"),
+        )
+        .await
+        .unwrap();
 
         let req = UpdateTaskRequest {
             title: Some(Some("New Title".to_string())),
             description: None,
             acceptance_criteria: None,
         };
-        let updated = update_task(&pool, &project_id, "OMNI-001", req).await.unwrap();
+        let updated = update_task(&pool, &project_id, "OMNI-001", req)
+            .await
+            .unwrap();
 
         assert_eq!(updated.title, "New Title");
         assert_eq!(updated.description, "Old Desc"); // unchanged
@@ -882,7 +936,9 @@ mod tests {
             description: None,
             acceptance_criteria: Some(None), // set to null
         };
-        let updated = update_task(&pool, &project_id, "OMNI-001", update_req).await.unwrap();
+        let updated = update_task(&pool, &project_id, "OMNI-001", update_req)
+            .await
+            .unwrap();
         assert!(updated.acceptance_criteria.is_none());
     }
 
@@ -890,14 +946,18 @@ mod tests {
     async fn update_task_set_ac_empty_string_normalizes_to_null() {
         let pool = setup_pool().await;
         let project_id = insert_test_project(&pool, "OMNI", "Test").await;
-        create_task(&pool, &project_id, valid_create_req("T", "D")).await.unwrap();
+        create_task(&pool, &project_id, valid_create_req("T", "D"))
+            .await
+            .unwrap();
 
         let req = UpdateTaskRequest {
             title: None,
             description: None,
             acceptance_criteria: Some(Some("".to_string())),
         };
-        let updated = update_task(&pool, &project_id, "OMNI-001", req).await.unwrap();
+        let updated = update_task(&pool, &project_id, "OMNI-001", req)
+            .await
+            .unwrap();
         assert!(updated.acceptance_criteria.is_none());
     }
 
@@ -905,14 +965,18 @@ mod tests {
     async fn update_task_rejects_empty_title() {
         let pool = setup_pool().await;
         let project_id = insert_test_project(&pool, "OMNI", "Test").await;
-        create_task(&pool, &project_id, valid_create_req("T", "D")).await.unwrap();
+        create_task(&pool, &project_id, valid_create_req("T", "D"))
+            .await
+            .unwrap();
 
         let req = UpdateTaskRequest {
             title: Some(Some("".to_string())),
             description: None,
             acceptance_criteria: None,
         };
-        let err = update_task(&pool, &project_id, "OMNI-001", req).await.unwrap_err();
+        let err = update_task(&pool, &project_id, "OMNI-001", req)
+            .await
+            .unwrap_err();
         match err {
             AppError::BadRequest { code, .. } => assert_eq!(code, "invalid_task_title"),
             _ => panic!("expected BadRequest"),
@@ -938,7 +1002,9 @@ mod tests {
             description: None,
             acceptance_criteria: None,
         };
-        let err = update_task(&pool, &project_id, "OMNI-001", req).await.unwrap_err();
+        let err = update_task(&pool, &project_id, "OMNI-001", req)
+            .await
+            .unwrap_err();
         match err {
             AppError::Conflict { code, message } => {
                 assert_eq!(code, "task_locked");
@@ -967,7 +1033,9 @@ mod tests {
             description: None,
             acceptance_criteria: None,
         };
-        let err = update_task(&pool, &project_id, "OMNI-001", req).await.unwrap_err();
+        let err = update_task(&pool, &project_id, "OMNI-001", req)
+            .await
+            .unwrap_err();
         match err {
             AppError::Conflict { code, message } => {
                 assert_eq!(code, "task_locked");
@@ -982,7 +1050,9 @@ mod tests {
         let pool = setup_pool().await;
         let project_id = insert_test_project(&pool, "OMNI", "Test").await;
         let req = UpdateTaskRequest::default();
-        let err = update_task(&pool, &project_id, "OMNI-999", req).await.unwrap_err();
+        let err = update_task(&pool, &project_id, "OMNI-999", req)
+            .await
+            .unwrap_err();
         match err {
             AppError::NotFound { code, .. } => assert_eq!(code, "task_not_found"),
             _ => panic!("expected NotFound"),
@@ -993,13 +1063,17 @@ mod tests {
     async fn assign_agent_happy_path() {
         let pool = setup_pool().await;
         let project_id = insert_test_project(&pool, "OMNI", "Test").await;
-        create_task(&pool, &project_id, valid_create_req("T", "D")).await.unwrap();
+        create_task(&pool, &project_id, valid_create_req("T", "D"))
+            .await
+            .unwrap();
 
         let req = AssignAgentRequest {
             agent: "claude".to_string(),
             role: "coder".to_string(),
         };
-        let task = assign_agent(&pool, &project_id, "OMNI-001", req).await.unwrap();
+        let task = assign_agent(&pool, &project_id, "OMNI-001", req)
+            .await
+            .unwrap();
         assert_eq!(task.status, "Assigned");
         assert_eq!(task.agent.as_deref(), Some("claude"));
         assert_eq!(task.role.as_deref(), Some("coder"));
@@ -1023,7 +1097,9 @@ mod tests {
             agent: "codex".to_string(),
             role: "reviewer".to_string(),
         };
-        let task = assign_agent(&pool, &project_id, "OMNI-001", req).await.unwrap();
+        let task = assign_agent(&pool, &project_id, "OMNI-001", req)
+            .await
+            .unwrap();
         assert_eq!(task.status, "Assigned");
     }
 
@@ -1031,13 +1107,17 @@ mod tests {
     async fn assign_agent_rejects_invalid_agent() {
         let pool = setup_pool().await;
         let project_id = insert_test_project(&pool, "OMNI", "Test").await;
-        create_task(&pool, &project_id, valid_create_req("T", "D")).await.unwrap();
+        create_task(&pool, &project_id, valid_create_req("T", "D"))
+            .await
+            .unwrap();
 
         let req = AssignAgentRequest {
             agent: "gemini".to_string(),
             role: "coder".to_string(),
         };
-        let err = assign_agent(&pool, &project_id, "OMNI-001", req).await.unwrap_err();
+        let err = assign_agent(&pool, &project_id, "OMNI-001", req)
+            .await
+            .unwrap_err();
         match err {
             AppError::BadRequest { code, .. } => assert_eq!(code, "invalid_agent"),
             _ => panic!("expected BadRequest"),
@@ -1048,13 +1128,17 @@ mod tests {
     async fn assign_agent_rejects_invalid_role() {
         let pool = setup_pool().await;
         let project_id = insert_test_project(&pool, "OMNI", "Test").await;
-        create_task(&pool, &project_id, valid_create_req("T", "D")).await.unwrap();
+        create_task(&pool, &project_id, valid_create_req("T", "D"))
+            .await
+            .unwrap();
 
         let req = AssignAgentRequest {
             agent: "claude".to_string(),
             role: "manager".to_string(),
         };
-        let err = assign_agent(&pool, &project_id, "OMNI-001", req).await.unwrap_err();
+        let err = assign_agent(&pool, &project_id, "OMNI-001", req)
+            .await
+            .unwrap_err();
         match err {
             AppError::BadRequest { code, .. } => assert_eq!(code, "invalid_role"),
             _ => panic!("expected BadRequest"),
@@ -1079,7 +1163,9 @@ mod tests {
             agent: "claude".to_string(),
             role: "coder".to_string(),
         };
-        let err = assign_agent(&pool, &project_id, "OMNI-001", req).await.unwrap_err();
+        let err = assign_agent(&pool, &project_id, "OMNI-001", req)
+            .await
+            .unwrap_err();
         match err {
             AppError::Conflict { code, .. } => assert_eq!(code, "task_not_assignable"),
             _ => panic!("expected Conflict"),
@@ -1104,7 +1190,9 @@ mod tests {
             agent: "claude".to_string(),
             role: "coder".to_string(),
         };
-        let err = assign_agent(&pool, &project_id, "OMNI-001", req).await.unwrap_err();
+        let err = assign_agent(&pool, &project_id, "OMNI-001", req)
+            .await
+            .unwrap_err();
         match err {
             AppError::Conflict { code, .. } => assert_eq!(code, "task_not_assignable"),
             _ => panic!("expected Conflict"),
@@ -1115,7 +1203,9 @@ mod tests {
     async fn delete_task_draft_succeeds() {
         let pool = setup_pool().await;
         let project_id = insert_test_project(&pool, "OMNI", "Test").await;
-        create_task(&pool, &project_id, valid_create_req("T", "D")).await.unwrap();
+        create_task(&pool, &project_id, valid_create_req("T", "D"))
+            .await
+            .unwrap();
 
         delete_task(&pool, &project_id, "OMNI-001").await.unwrap();
 
@@ -1162,7 +1252,9 @@ mod tests {
     async fn delete_task_not_found() {
         let pool = setup_pool().await;
         let project_id = insert_test_project(&pool, "OMNI", "Test").await;
-        let err = delete_task(&pool, &project_id, "OMNI-999").await.unwrap_err();
+        let err = delete_task(&pool, &project_id, "OMNI-999")
+            .await
+            .unwrap_err();
         match err {
             AppError::NotFound { code, .. } => assert_eq!(code, "task_not_found"),
             _ => panic!("expected NotFound"),
@@ -1173,7 +1265,9 @@ mod tests {
 
     async fn setup_assigned_task(pool: &SqlitePool) -> (String, String) {
         let project_id = insert_test_project(pool, "OMNI", "Test").await;
-        let task = create_task(pool, &project_id, valid_create_req("Fix", "Desc")).await.unwrap();
+        let task = create_task(pool, &project_id, valid_create_req("Fix", "Desc"))
+            .await
+            .unwrap();
         assign_agent(
             pool,
             &project_id,
@@ -1192,7 +1286,9 @@ mod tests {
     async fn transition_to_running_assigned_to_running_success() {
         let pool = setup_pool().await;
         let (project_id, task_id) = setup_assigned_task(&pool).await;
-        let task = transition_to_running(&pool, &project_id, &task_id).await.unwrap();
+        let task = transition_to_running(&pool, &project_id, &task_id)
+            .await
+            .unwrap();
         assert_eq!(task.status, "Running");
     }
 
@@ -1200,9 +1296,13 @@ mod tests {
     async fn transition_to_running_draft_returns_task_not_assigned() {
         let pool = setup_pool().await;
         let project_id = insert_test_project(&pool, "OMNI", "Test").await;
-        let task = create_task(&pool, &project_id, valid_create_req("Fix", "Desc")).await.unwrap();
+        let task = create_task(&pool, &project_id, valid_create_req("Fix", "Desc"))
+            .await
+            .unwrap();
         // task is in Draft
-        let err = transition_to_running(&pool, &project_id, &task.id).await.unwrap_err();
+        let err = transition_to_running(&pool, &project_id, &task.id)
+            .await
+            .unwrap_err();
         match err {
             AppError::Conflict { code, message } => {
                 assert_eq!(code, "task_not_assigned");
@@ -1216,13 +1316,17 @@ mod tests {
     async fn transition_to_running_ready_returns_task_not_assigned() {
         let pool = setup_pool().await;
         let project_id = insert_test_project(&pool, "OMNI", "Test").await;
-        let task = create_task(&pool, &project_id, valid_create_req("Fix", "Desc")).await.unwrap();
+        let task = create_task(&pool, &project_id, valid_create_req("Fix", "Desc"))
+            .await
+            .unwrap();
         sqlx::query("UPDATE tasks SET status = 'Ready' WHERE id = ?")
             .bind(&task.id)
             .execute(&pool)
             .await
             .unwrap();
-        let err = transition_to_running(&pool, &project_id, &task.id).await.unwrap_err();
+        let err = transition_to_running(&pool, &project_id, &task.id)
+            .await
+            .unwrap_err();
         match err {
             AppError::Conflict { code, .. } => assert_eq!(code, "task_not_assigned"),
             _ => panic!("expected Conflict"),
@@ -1233,8 +1337,12 @@ mod tests {
     async fn transition_to_running_running_returns_session_already_active() {
         let pool = setup_pool().await;
         let (project_id, task_id) = setup_assigned_task(&pool).await;
-        transition_to_running(&pool, &project_id, &task_id).await.unwrap();
-        let err = transition_to_running(&pool, &project_id, &task_id).await.unwrap_err();
+        transition_to_running(&pool, &project_id, &task_id)
+            .await
+            .unwrap();
+        let err = transition_to_running(&pool, &project_id, &task_id)
+            .await
+            .unwrap_err();
         match err {
             AppError::Conflict { code, .. } => assert_eq!(code, "session_already_active"),
             _ => panic!("expected Conflict session_already_active"),
@@ -1245,17 +1353,25 @@ mod tests {
     async fn transition_to_running_paused_returns_task_not_assigned() {
         let pool = setup_pool().await;
         let project_id = insert_test_project(&pool, "OMNI", "Test").await;
-        let task = create_task(&pool, &project_id, valid_create_req("Fix", "Desc")).await.unwrap();
+        let task = create_task(&pool, &project_id, valid_create_req("Fix", "Desc"))
+            .await
+            .unwrap();
         sqlx::query("UPDATE tasks SET agent = 'claude', status = 'Paused' WHERE id = ?")
             .bind(&task.id)
             .execute(&pool)
             .await
             .unwrap();
-        let err = transition_to_running(&pool, &project_id, &task.id).await.unwrap_err();
+        let err = transition_to_running(&pool, &project_id, &task.id)
+            .await
+            .unwrap_err();
         match err {
             AppError::Conflict { code, message } => {
                 assert_eq!(code, "task_not_assigned");
-                assert!(message.contains("resume"), "msg should mention resume: {}", message);
+                assert!(
+                    message.contains("resume"),
+                    "msg should mention resume: {}",
+                    message
+                );
             }
             _ => panic!("expected Conflict"),
         }
@@ -1265,17 +1381,25 @@ mod tests {
     async fn transition_to_running_failed_returns_task_not_assigned() {
         let pool = setup_pool().await;
         let project_id = insert_test_project(&pool, "OMNI", "Test").await;
-        let task = create_task(&pool, &project_id, valid_create_req("Fix", "Desc")).await.unwrap();
+        let task = create_task(&pool, &project_id, valid_create_req("Fix", "Desc"))
+            .await
+            .unwrap();
         sqlx::query("UPDATE tasks SET agent = 'claude', status = 'Failed' WHERE id = ?")
             .bind(&task.id)
             .execute(&pool)
             .await
             .unwrap();
-        let err = transition_to_running(&pool, &project_id, &task.id).await.unwrap_err();
+        let err = transition_to_running(&pool, &project_id, &task.id)
+            .await
+            .unwrap_err();
         match err {
             AppError::Conflict { code, message } => {
                 assert_eq!(code, "task_not_assigned");
-                assert!(message.contains("resume"), "msg should mention resume: {}", message);
+                assert!(
+                    message.contains("resume"),
+                    "msg should mention resume: {}",
+                    message
+                );
             }
             _ => panic!("expected Conflict"),
         }
@@ -1285,13 +1409,17 @@ mod tests {
     async fn transition_to_running_done_returns_task_not_assigned() {
         let pool = setup_pool().await;
         let project_id = insert_test_project(&pool, "OMNI", "Test").await;
-        let task = create_task(&pool, &project_id, valid_create_req("Fix", "Desc")).await.unwrap();
+        let task = create_task(&pool, &project_id, valid_create_req("Fix", "Desc"))
+            .await
+            .unwrap();
         sqlx::query("UPDATE tasks SET agent = 'claude', status = 'Done' WHERE id = ?")
             .bind(&task.id)
             .execute(&pool)
             .await
             .unwrap();
-        let err = transition_to_running(&pool, &project_id, &task.id).await.unwrap_err();
+        let err = transition_to_running(&pool, &project_id, &task.id)
+            .await
+            .unwrap_err();
         match err {
             AppError::Conflict { code, .. } => assert_eq!(code, "task_not_assigned"),
             _ => panic!("expected Conflict"),
@@ -1302,13 +1430,17 @@ mod tests {
     async fn transition_to_running_cancelled_returns_task_not_assigned() {
         let pool = setup_pool().await;
         let project_id = insert_test_project(&pool, "OMNI", "Test").await;
-        let task = create_task(&pool, &project_id, valid_create_req("Fix", "Desc")).await.unwrap();
+        let task = create_task(&pool, &project_id, valid_create_req("Fix", "Desc"))
+            .await
+            .unwrap();
         sqlx::query("UPDATE tasks SET agent = 'claude', status = 'Cancelled' WHERE id = ?")
             .bind(&task.id)
             .execute(&pool)
             .await
             .unwrap();
-        let err = transition_to_running(&pool, &project_id, &task.id).await.unwrap_err();
+        let err = transition_to_running(&pool, &project_id, &task.id)
+            .await
+            .unwrap_err();
         match err {
             AppError::Conflict { code, .. } => assert_eq!(code, "task_not_assigned"),
             _ => panic!("expected Conflict"),
@@ -1319,7 +1451,9 @@ mod tests {
     async fn transition_to_running_unknown_task_returns_not_found() {
         let pool = setup_pool().await;
         let project_id = insert_test_project(&pool, "OMNI", "Test").await;
-        let err = transition_to_running(&pool, &project_id, "OMNI-999").await.unwrap_err();
+        let err = transition_to_running(&pool, &project_id, "OMNI-999")
+            .await
+            .unwrap_err();
         match err {
             AppError::NotFound { code, .. } => assert_eq!(code, "task_not_found"),
             _ => panic!("expected NotFound"),
@@ -1330,14 +1464,18 @@ mod tests {
     async fn transition_to_running_no_agent_returns_task_not_assigned() {
         let pool = setup_pool().await;
         let project_id = insert_test_project(&pool, "OMNI", "Test").await;
-        let task = create_task(&pool, &project_id, valid_create_req("Fix", "Desc")).await.unwrap();
+        let task = create_task(&pool, &project_id, valid_create_req("Fix", "Desc"))
+            .await
+            .unwrap();
         // Force status=Assigned but agent=NULL (defensive test)
         sqlx::query("UPDATE tasks SET status = 'Assigned', agent = NULL WHERE id = ?")
             .bind(&task.id)
             .execute(&pool)
             .await
             .unwrap();
-        let err = transition_to_running(&pool, &project_id, &task.id).await.unwrap_err();
+        let err = transition_to_running(&pool, &project_id, &task.id)
+            .await
+            .unwrap_err();
         match err {
             AppError::Conflict { code, .. } => assert_eq!(code, "task_not_assigned"),
             _ => panic!("expected Conflict for null agent"),
@@ -1348,7 +1486,9 @@ mod tests {
     async fn revert_to_assigned_running_to_assigned_success() {
         let pool = setup_pool().await;
         let (project_id, task_id) = setup_assigned_task(&pool).await;
-        transition_to_running(&pool, &project_id, &task_id).await.unwrap();
+        transition_to_running(&pool, &project_id, &task_id)
+            .await
+            .unwrap();
         revert_to_assigned(&pool, &task_id).await.unwrap();
         let task = get_task(&pool, &project_id, &task_id).await.unwrap();
         assert_eq!(task.status, "Assigned");
@@ -1358,7 +1498,9 @@ mod tests {
     async fn revert_to_assigned_not_running_is_noop() {
         let pool = setup_pool().await;
         let project_id = insert_test_project(&pool, "OMNI", "Test").await;
-        let task = create_task(&pool, &project_id, valid_create_req("Fix", "Desc")).await.unwrap();
+        let task = create_task(&pool, &project_id, valid_create_req("Fix", "Desc"))
+            .await
+            .unwrap();
         sqlx::query("UPDATE tasks SET agent = 'claude', status = 'Paused' WHERE id = ?")
             .bind(&task.id)
             .execute(&pool)

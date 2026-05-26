@@ -11,9 +11,10 @@ import type { Project } from "../../types/project";
 // Mock sessions API so mutation doesn't make real network calls
 vi.mock("../../api/sessions", () => ({
   startSession: vi.fn(),
+  resumeSession: vi.fn(),
 }));
 
-import { startSession } from "../../api/sessions";
+import { startSession, resumeSession } from "../../api/sessions";
 
 const MOCK_PROJECT: Project = {
   id: "proj-1",
@@ -352,6 +353,111 @@ describe("TaskDetailPanel", () => {
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Start Session" })).toBeDisabled();
+    });
+  });
+
+  // ─── Story 3.3: Resume Session wiring tests ─────────────────────────────
+
+  it("clicking Resume Session calls resumeSession with comment and clears textarea", async () => {
+    const mockResumeSession = vi.mocked(resumeSession);
+    mockResumeSession.mockResolvedValue({
+      sessionPk: "pk-123",
+      taskId: "OMNI-001",
+      sessionId: "cli-sess-aaa",
+      status: "running" as const,
+      runId: "run-456",
+      runNumber: 2,
+      runInput: "Check email edge case",
+      commentId: "comment-1",
+      commentSent: true,
+      startedAt: "2026-01-01T00:00:00Z",
+    });
+
+    renderWithTask(makeTask({ id: "OMNI-001", projectId: "proj-1", status: "paused" }));
+    fireEvent.click(screen.getByTestId("open-trigger"));
+
+    const textarea = screen.getByPlaceholderText(/Add a comment or instruction for the agent/i);
+    fireEvent.change(textarea, { target: { value: "Check email edge case" } });
+
+    const btn = screen.getByRole("button", { name: "Resume Session" });
+    fireEvent.click(btn);
+
+    await waitFor(() => {
+      expect(mockResumeSession).toHaveBeenCalledWith("proj-1", "OMNI-001", "Check email edge case");
+      expect(textarea).toHaveValue("");
+      expect(screen.getByText(/Resumed OMNI-001 with comment/i)).toBeInTheDocument();
+    });
+  });
+
+  it("clicking Resume Session without comment works", async () => {
+    const mockResumeSession = vi.mocked(resumeSession);
+    mockResumeSession.mockResolvedValue({
+      sessionPk: "pk-123",
+      taskId: "OMNI-001",
+      sessionId: "cli-sess-aaa",
+      status: "running" as const,
+      runId: "run-456",
+      runNumber: 2,
+      runInput: "retry",
+      commentId: null,
+      commentSent: null,
+      startedAt: "2026-01-01T00:00:00Z",
+    });
+
+    renderWithTask(makeTask({ id: "OMNI-001", projectId: "proj-1", status: "paused" }));
+    fireEvent.click(screen.getByTestId("open-trigger"));
+
+    const btn = screen.getByRole("button", { name: "Resume Session" });
+    fireEvent.click(btn);
+
+    await waitFor(() => {
+      expect(mockResumeSession).toHaveBeenCalledWith("proj-1", "OMNI-001", undefined);
+      expect(screen.getByText(/Session resumed for OMNI-001/i)).toBeInTheDocument();
+    });
+  });
+
+  it("shows warning toast on session_already_active warning", async () => {
+    const mockResumeSession = vi.mocked(resumeSession);
+    mockResumeSession.mockRejectedValue(
+      new ApiError(409, "session_already_active", "Session is already running"),
+    );
+
+    renderWithTask(makeTask({ status: "paused" }));
+    fireEvent.click(screen.getByTestId("open-trigger"));
+    fireEvent.click(screen.getByRole("button", { name: "Resume Session" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Session is already running")).toBeInTheDocument();
+    });
+  });
+
+  it("shows error toast on agent_not_found error", async () => {
+    const mockResumeSession = vi.mocked(resumeSession);
+    mockResumeSession.mockRejectedValue(
+      new ApiError(400, "agent_not_found", "Agent binary not found on PATH"),
+    );
+
+    renderWithTask(makeTask({ status: "paused" }));
+    fireEvent.click(screen.getByTestId("open-trigger"));
+    fireEvent.click(screen.getByRole("button", { name: "Resume Session" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Agent binary not found on PATH")).toBeInTheDocument();
+    });
+  });
+
+  it("resume button is disabled while mutation is pending", async () => {
+    const mockResumeSession = vi.mocked(resumeSession);
+    mockResumeSession.mockImplementation(() => new Promise(() => {}));
+
+    renderWithTask(makeTask({ status: "paused" }));
+    fireEvent.click(screen.getByTestId("open-trigger"));
+
+    const btn = screen.getByRole("button", { name: "Resume Session" });
+    fireEvent.click(btn);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Resume Session" })).toBeDisabled();
     });
   });
 });

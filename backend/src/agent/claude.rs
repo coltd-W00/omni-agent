@@ -1,6 +1,6 @@
+use chrono::{DateTime, Utc};
 use std::path::Path;
 use std::process::Stdio;
-use chrono::{DateTime, Utc};
 use tokio::process::Command;
 
 use super::AgentStrategy;
@@ -15,8 +15,8 @@ impl AgentStrategy for ClaudeStrategy {
     }
 
     fn spawn_command(&self, _task: &Task, _log_path: &Path) -> Command {
-        let binary = std::env::var("OMNI_AGENT_CLAUDE_BIN")
-            .unwrap_or_else(|_| "claude".to_string());
+        let binary =
+            std::env::var("OMNI_AGENT_CLAUDE_BIN").unwrap_or_else(|_| "claude".to_string());
         let mut cmd = Command::new(binary);
         cmd.kill_on_drop(true);
         cmd.stdin(Stdio::piped());
@@ -26,18 +26,22 @@ impl AgentStrategy for ClaudeStrategy {
     }
 
     fn resume_command(&self, session_id: &str, comment: Option<&str>) -> Command {
-        let binary = std::env::var("OMNI_AGENT_CLAUDE_BIN")
-            .unwrap_or_else(|_| "claude".to_string());
+        let binary =
+            std::env::var("OMNI_AGENT_CLAUDE_BIN").unwrap_or_else(|_| "claude".to_string());
         let mut cmd = Command::new(binary);
         cmd.arg("--continue").arg("--session-id").arg(session_id);
         cmd.kill_on_drop(true);
-        cmd.stdin(Stdio::piped());
+        if comment.is_some() {
+            cmd.stdin(Stdio::piped());
+        } else {
+            cmd.stdin(Stdio::null());
+        }
         cmd.stdout(Stdio::piped());
         cmd.stderr(Stdio::piped());
-        let _ = comment;
         cmd
     }
 
+    #[allow(clippy::collapsible_if)]
     fn parse_session_id_chunk(&self, chunk: &str) -> Option<String> {
         for line in chunk.lines() {
             if line.is_empty() {
@@ -52,7 +56,11 @@ impl AgentStrategy for ClaudeStrategy {
         None
     }
 
-    fn fallback_session_id_lookup(&self, _cwd: &Path, _started_at: DateTime<Utc>) -> Option<String> {
+    fn fallback_session_id_lookup(
+        &self,
+        _cwd: &Path,
+        _started_at: DateTime<Utc>,
+    ) -> Option<String> {
         None
     }
 }
@@ -62,7 +70,7 @@ mod tests {
     use super::*;
 
     fn strategy() -> ClaudeStrategy {
-        ClaudeStrategy::default()
+        ClaudeStrategy
     }
 
     #[test]
@@ -73,7 +81,10 @@ mod tests {
     #[test]
     fn parse_returns_some_when_json_has_session_id() {
         let input = r#"{"session_id":"abc-123","type":"start"}"#;
-        assert_eq!(strategy().parse_session_id_chunk(input), Some("abc-123".to_string()));
+        assert_eq!(
+            strategy().parse_session_id_chunk(input),
+            Some("abc-123".to_string())
+        );
     }
 
     #[test]
@@ -91,19 +102,27 @@ mod tests {
     #[test]
     fn parse_handles_multiple_lines() {
         let input = "not json\n{\"session_id\":\"xyz-456\",\"type\":\"start\"}";
-        assert_eq!(strategy().parse_session_id_chunk(input), Some("xyz-456".to_string()));
+        assert_eq!(
+            strategy().parse_session_id_chunk(input),
+            Some("xyz-456".to_string())
+        );
     }
 
     #[test]
     fn parse_handles_session_id_in_first_match() {
         let input = "{\"session_id\":\"first-id\"}\n{\"session_id\":\"second-id\"}";
-        assert_eq!(strategy().parse_session_id_chunk(input), Some("first-id".to_string()));
+        assert_eq!(
+            strategy().parse_session_id_chunk(input),
+            Some("first-id".to_string())
+        );
     }
 
     #[test]
     fn spawn_command_uses_env_override_when_set() {
         // SAFETY: test-only env manipulation, no threads at this point
-        unsafe { std::env::set_var("OMNI_AGENT_CLAUDE_BIN", "/tmp/mock-claude-test"); }
+        unsafe {
+            std::env::set_var("OMNI_AGENT_CLAUDE_BIN", "/tmp/mock-claude-test");
+        }
         let cmd = strategy().spawn_command(
             &crate::models::task::Task {
                 id: "T".to_string(),
@@ -122,6 +141,24 @@ mod tests {
         );
         let std_cmd = cmd.as_std();
         assert_eq!(std_cmd.get_program(), "/tmp/mock-claude-test");
-        unsafe { std::env::remove_var("OMNI_AGENT_CLAUDE_BIN"); }
+        unsafe {
+            std::env::remove_var("OMNI_AGENT_CLAUDE_BIN");
+        }
+    }
+
+    #[test]
+    fn resume_command_with_comment_has_stdin_piped() {
+        let s = ClaudeStrategy;
+        unsafe {
+            std::env::set_var("OMNI_AGENT_CLAUDE_BIN", "/tmp/mock-claude-test");
+        }
+        let cmd = s.resume_command("sess-uuid", Some("hello"));
+        let std_cmd = cmd.as_std();
+        assert_eq!(std_cmd.get_program(), "/tmp/mock-claude-test");
+        let args: Vec<&str> = std_cmd.get_args().map(|a| a.to_str().unwrap()).collect();
+        assert_eq!(args, vec!["--continue", "--session-id", "sess-uuid"]);
+        unsafe {
+            std::env::remove_var("OMNI_AGENT_CLAUDE_BIN");
+        }
     }
 }

@@ -223,7 +223,8 @@ async fn get_tasks_list_ordered() {
             .uri(format!("/api/projects/{}/tasks", project_id))
             .header("content-type", "application/json")
             .body(Body::from(
-                serde_json::json!({"title": format!("Task {}", i), "description": "Desc"}).to_string(),
+                serde_json::json!({"title": format!("Task {}", i), "description": "Desc"})
+                    .to_string(),
             ))
             .unwrap();
         app.clone().oneshot(req).await.unwrap();
@@ -351,7 +352,9 @@ async fn put_task_partial_update() {
         .method("POST")
         .uri(format!("/api/projects/{}/tasks", project_id))
         .header("content-type", "application/json")
-        .body(Body::from(r#"{"title":"Old Title","description":"Old Desc"}"#))
+        .body(Body::from(
+            r#"{"title":"Old Title","description":"Old Desc"}"#,
+        ))
         .unwrap();
     app.clone().oneshot(create_req).await.unwrap();
 
@@ -420,7 +423,10 @@ async fn assign_agent_happy_path() {
 
     let req = Request::builder()
         .method("POST")
-        .uri(format!("/api/projects/{}/tasks/OMNI-001/assign", project_id))
+        .uri(format!(
+            "/api/projects/{}/tasks/OMNI-001/assign",
+            project_id
+        ))
         .header("content-type", "application/json")
         .body(Body::from(r#"{"agent":"claude","role":"coder"}"#))
         .unwrap();
@@ -447,7 +453,10 @@ async fn assign_agent_invalid_agent() {
 
     let req = Request::builder()
         .method("POST")
-        .uri(format!("/api/projects/{}/tasks/OMNI-001/assign", project_id))
+        .uri(format!(
+            "/api/projects/{}/tasks/OMNI-001/assign",
+            project_id
+        ))
         .header("content-type", "application/json")
         .body(Body::from(r#"{"agent":"gemini","role":"coder"}"#))
         .unwrap();
@@ -476,7 +485,10 @@ async fn assign_agent_when_running() {
     // First assign (Draft → Assigned)
     let assign_req = Request::builder()
         .method("POST")
-        .uri(format!("/api/projects/{}/tasks/OMNI-001/assign", project_id))
+        .uri(format!(
+            "/api/projects/{}/tasks/OMNI-001/assign",
+            project_id
+        ))
         .header("content-type", "application/json")
         .body(Body::from(r#"{"agent":"claude","role":"coder"}"#))
         .unwrap();
@@ -485,7 +497,10 @@ async fn assign_agent_when_running() {
     // Second assign attempt (Assigned → not assignable)
     let req = Request::builder()
         .method("POST")
-        .uri(format!("/api/projects/{}/tasks/OMNI-001/assign", project_id))
+        .uri(format!(
+            "/api/projects/{}/tasks/OMNI-001/assign",
+            project_id
+        ))
         .header("content-type", "application/json")
         .body(Body::from(r#"{"agent":"codex","role":"reviewer"}"#))
         .unwrap();
@@ -535,7 +550,10 @@ async fn delete_task_non_draft_blocked() {
     // Assign → Assigned (not Draft)
     let assign_req = Request::builder()
         .method("POST")
-        .uri(format!("/api/projects/{}/tasks/OMNI-001/assign", project_id))
+        .uri(format!(
+            "/api/projects/{}/tasks/OMNI-001/assign",
+            project_id
+        ))
         .header("content-type", "application/json")
         .body(Body::from(r#"{"agent":"claude","role":"coder"}"#))
         .unwrap();

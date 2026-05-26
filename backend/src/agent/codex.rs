@@ -1,6 +1,6 @@
+use chrono::{DateTime, Utc};
 use std::path::Path;
 use std::process::Stdio;
-use chrono::{DateTime, Utc};
 use tokio::process::Command;
 
 use super::AgentStrategy;
@@ -15,8 +15,7 @@ impl AgentStrategy for CodexStrategy {
     }
 
     fn spawn_command(&self, _task: &Task, _log_path: &Path) -> Command {
-        let binary = std::env::var("OMNI_AGENT_CODEX_BIN")
-            .unwrap_or_else(|_| "codex".to_string());
+        let binary = std::env::var("OMNI_AGENT_CODEX_BIN").unwrap_or_else(|_| "codex".to_string());
         let mut cmd = Command::new(binary);
         cmd.kill_on_drop(true);
         cmd.stdin(Stdio::piped());
@@ -26,18 +25,21 @@ impl AgentStrategy for CodexStrategy {
     }
 
     fn resume_command(&self, session_id: &str, comment: Option<&str>) -> Command {
-        let binary = std::env::var("OMNI_AGENT_CODEX_BIN")
-            .unwrap_or_else(|_| "codex".to_string());
+        let binary = std::env::var("OMNI_AGENT_CODEX_BIN").unwrap_or_else(|_| "codex".to_string());
         let mut cmd = Command::new(binary);
         cmd.arg("resume").arg(session_id);
         cmd.kill_on_drop(true);
-        cmd.stdin(Stdio::piped());
+        if comment.is_some() {
+            cmd.stdin(Stdio::piped());
+        } else {
+            cmd.stdin(Stdio::null());
+        }
         cmd.stdout(Stdio::piped());
         cmd.stderr(Stdio::piped());
-        let _ = comment;
         cmd
     }
 
+    #[allow(clippy::collapsible_if)]
     fn parse_session_id_chunk(&self, chunk: &str) -> Option<String> {
         for line in chunk.lines() {
             if line.is_empty() {
@@ -57,6 +59,7 @@ impl AgentStrategy for CodexStrategy {
         None
     }
 
+    #[allow(clippy::collapsible_if)]
     fn fallback_session_id_lookup(&self, cwd: &Path, started_at: DateTime<Utc>) -> Option<String> {
         use std::fs;
         use std::time::SystemTime;
@@ -65,7 +68,9 @@ impl AgentStrategy for CodexStrategy {
             .map(std::path::PathBuf::from)
             .unwrap_or_else(|_| {
                 let home = std::env::var("HOME").unwrap_or_default();
-                std::path::PathBuf::from(home).join(".codex").join("sessions")
+                std::path::PathBuf::from(home)
+                    .join(".codex")
+                    .join("sessions")
             });
 
         let entries = fs::read_dir(&dir).ok()?;
@@ -127,7 +132,7 @@ mod tests {
     use std::io::Write;
 
     fn strategy() -> CodexStrategy {
-        CodexStrategy::default()
+        CodexStrategy
     }
 
     #[test]
@@ -138,7 +143,10 @@ mod tests {
     #[test]
     fn parse_returns_some_when_json_has_session_id() {
         let input = r#"{"session_id":"abc-123","type":"start"}"#;
-        assert_eq!(strategy().parse_session_id_chunk(input), Some("abc-123".to_string()));
+        assert_eq!(
+            strategy().parse_session_id_chunk(input),
+            Some("abc-123".to_string())
+        );
     }
 
     #[test]
@@ -167,19 +175,26 @@ mod tests {
         let result = strategy().fallback_session_id_lookup(std::path::Path::new("."), started_at);
         assert_eq!(result, Some(session_id.to_string()));
 
-        unsafe { std::env::remove_var("OMNI_AGENT_CODEX_SESSIONS_DIR"); }
+        unsafe {
+            std::env::remove_var("OMNI_AGENT_CODEX_SESSIONS_DIR");
+        }
         std::fs::remove_dir_all(&tmp_dir).ok();
     }
 
     #[test]
     fn fallback_returns_none_when_dir_missing() {
         unsafe {
-            std::env::set_var("OMNI_AGENT_CODEX_SESSIONS_DIR", "/nonexistent/codex-sessions-dir-xyz");
+            std::env::set_var(
+                "OMNI_AGENT_CODEX_SESSIONS_DIR",
+                "/nonexistent/codex-sessions-dir-xyz",
+            );
         }
         let started_at = Utc::now();
         let result = strategy().fallback_session_id_lookup(std::path::Path::new("."), started_at);
         assert_eq!(result, None);
-        unsafe { std::env::remove_var("OMNI_AGENT_CODEX_SESSIONS_DIR"); }
+        unsafe {
+            std::env::remove_var("OMNI_AGENT_CODEX_SESSIONS_DIR");
+        }
     }
 
     #[test]
@@ -205,7 +220,9 @@ mod tests {
         let result = strategy().fallback_session_id_lookup(std::path::Path::new("."), started_at);
         assert_eq!(result, None);
 
-        unsafe { std::env::remove_var("OMNI_AGENT_CODEX_SESSIONS_DIR"); }
+        unsafe {
+            std::env::remove_var("OMNI_AGENT_CODEX_SESSIONS_DIR");
+        }
         std::fs::remove_dir_all(&tmp_dir).ok();
     }
 
@@ -221,7 +238,11 @@ mod tests {
         std::fs::create_dir_all(&tmp_dir).unwrap();
 
         // Create three session files
-        for name in &["sess-aaa-111111111", "sess-bbb-222222222", "sess-ccc-333333333"] {
+        for name in &[
+            "sess-aaa-111111111",
+            "sess-bbb-222222222",
+            "sess-ccc-333333333",
+        ] {
             let path = tmp_dir.join(format!("{}.json", name));
             std::fs::write(&path, "{}").unwrap();
             // Small sleep to ensure different mtime
@@ -237,7 +258,25 @@ mod tests {
         // Should pick the latest file (sess-ccc-...)
         assert_eq!(result, Some("sess-ccc-333333333".to_string()));
 
-        unsafe { std::env::remove_var("OMNI_AGENT_CODEX_SESSIONS_DIR"); }
+        unsafe {
+            std::env::remove_var("OMNI_AGENT_CODEX_SESSIONS_DIR");
+        }
         std::fs::remove_dir_all(&tmp_dir).ok();
+    }
+
+    #[test]
+    fn resume_command_with_comment_has_stdin_piped() {
+        let s = CodexStrategy;
+        unsafe {
+            std::env::set_var("OMNI_AGENT_CODEX_BIN", "/tmp/mock-codex-test");
+        }
+        let cmd = s.resume_command("sess-uuid", Some("hello"));
+        let std_cmd = cmd.as_std();
+        assert_eq!(std_cmd.get_program(), "/tmp/mock-codex-test");
+        let args: Vec<&str> = std_cmd.get_args().map(|a| a.to_str().unwrap()).collect();
+        assert_eq!(args, vec!["resume", "sess-uuid"]);
+        unsafe {
+            std::env::remove_var("OMNI_AGENT_CODEX_BIN");
+        }
     }
 }

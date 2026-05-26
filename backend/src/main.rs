@@ -82,6 +82,14 @@ async fn main() -> anyhow::Result<()> {
         .route(
             "/projects/{project_id}/tasks/{task_id}/sessions/cancel",
             axum::routing::post(handlers::sessions::cancel_session),
+        )
+        .route(
+            "/projects/{project_id}/tasks/{task_id}/sessions/resume",
+            axum::routing::post(handlers::sessions::resume_session),
+        )
+        .route(
+            "/projects/{project_id}/tasks/{task_id}/comments",
+            axum::routing::post(handlers::comments::add_comment),
         );
 
     let state = Arc::new(state);
@@ -150,12 +158,10 @@ async fn flush_running_tasks(state: Arc<AppState>) -> Result<(), anyhow::Error> 
         .await?;
 
     // Step 3: Flush sessions running → paused
-    sqlx::query(
-        "UPDATE sessions SET status = 'paused', last_active = ? WHERE status = 'running'",
-    )
-    .bind(&now)
-    .execute(&state.db)
-    .await?;
+    sqlx::query("UPDATE sessions SET status = 'paused', last_active = ? WHERE status = 'running'")
+        .bind(&now)
+        .execute(&state.db)
+        .await?;
 
     // Step 4: Flush open runs → set ended_at, exit_code = -2
     sqlx::query("UPDATE runs SET exit_code = -2, ended_at = ? WHERE ended_at IS NULL")
@@ -182,6 +188,9 @@ async fn flush_running_tasks(state: Arc<AppState>) -> Result<(), anyhow::Error> 
         }
     }
 
-    info!(flushed_count = task_ids.len(), "All running tasks flushed to Paused");
+    info!(
+        flushed_count = task_ids.len(),
+        "All running tasks flushed to Paused"
+    );
     Ok(())
 }

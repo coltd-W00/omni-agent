@@ -7,6 +7,7 @@ import EmptyState from "../../components/EmptyState";
 import { useTaskDetail } from "../../contexts/TaskDetailContext";
 import { useToast } from "../../components/Toast";
 import { useStartSession } from "../../hooks/useStartSession";
+import { useResumeSession } from "../../hooks/useResumeSession";
 import { ApiError } from "../../api/client";
 import type { Task, TaskStatus } from "../../types/task";
 
@@ -38,6 +39,8 @@ interface ActionBarProps {
 function ActionBar({ projectId, task }: ActionBarProps) {
   const { showToast } = useToast();
   const startMut = useStartSession(projectId, task.id);
+  const resumeMut = useResumeSession(projectId, task.id);
+  const [commentText, setCommentText] = useState("");
 
   const handleStart = () => {
     startMut.mutate(undefined, {
@@ -47,6 +50,28 @@ function ActionBar({ projectId, task }: ActionBarProps) {
       onError: (err) => {
         const msg = err instanceof ApiError ? err.message : "Failed to start session";
         showToast({ tone: "error", message: msg });
+      },
+    });
+  };
+
+  const handleResume = () => {
+    const c = commentText.trim() ? commentText : undefined;
+    resumeMut.mutate(c, {
+      onSuccess: () => {
+        setCommentText("");
+        showToast({
+          tone: "success",
+          message: c
+            ? `Resumed ${task.id} with comment`
+            : `Session resumed for ${task.id}`,
+        });
+      },
+      onError: (err) => {
+        const msg = err instanceof ApiError ? err.message : "Failed to resume session";
+        const tone = err instanceof ApiError && err.code === "session_already_active"
+          ? "warning"
+          : "error";
+        showToast({ tone, message: msg });
       },
     });
   };
@@ -67,10 +92,35 @@ function ActionBar({ projectId, task }: ActionBarProps) {
   }
   if (task.status === "paused" || task.status === "failed") {
     return (
-      <div className="task-detail-panel__action-bar">
-        <Button variant="primary" size="md">Resume Session</Button>
-        <Button variant="secondary" size="md">Mark Done</Button>
-        <Button variant="ghost" size="md">Cancel</Button>
+      <div className="task-detail-panel__action-bar" style={{ flexDirection: "column", gap: "var(--space-3)", width: "100%" }}>
+        <textarea
+          value={commentText}
+          onChange={(e) => setCommentText(e.target.value)}
+          placeholder="Add a comment or instruction for the agent…"
+          rows={2}
+          style={{
+            width: "100%",
+            padding: "var(--space-2)",
+            borderRadius: "var(--radius-sm)",
+            border: "1px solid var(--border)",
+            background: "var(--bg-main)",
+            color: "var(--text-primary)",
+            fontFamily: "inherit",
+            resize: "vertical",
+          }}
+        />
+        <div style={{ display: "flex", gap: "var(--space-2)" }}>
+          <Button
+            variant="primary"
+            size="md"
+            onClick={handleResume}
+            disabled={resumeMut.isPending}
+          >
+            Resume Session
+          </Button>
+          <Button variant="secondary" size="md">Mark Done</Button>
+          <Button variant="ghost" size="md">Cancel</Button>
+        </div>
       </div>
     );
   }

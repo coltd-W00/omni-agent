@@ -87,6 +87,9 @@ mod tests {
         .fetch_one(&pool)
         .await
         .unwrap();
-        assert_eq!(task_seq_unique, 1, "UNIQUE index on tasks(project_id, seq) should exist");
+        assert_eq!(
+            task_seq_unique, 1,
+            "UNIQUE index on tasks(project_id, seq) should exist"
+        );
     }
 }

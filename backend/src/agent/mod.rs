@@ -1,8 +1,8 @@
-use std::path::Path;
-use tokio::process::Command;
-use chrono::{DateTime, Utc};
 use crate::error::AppError;
 use crate::models::task::Task;
+use chrono::{DateTime, Utc};
+use std::path::Path;
+use tokio::process::Command;
 
 pub trait AgentStrategy: Send + Sync + std::fmt::Debug {
     fn name(&self) -> &'static str;
@@ -23,8 +23,8 @@ pub mod codex;
 
 pub fn strategy_for(agent: &str) -> Result<Box<dyn AgentStrategy>, AppError> {
     match agent {
-        "claude" => Ok(Box::new(claude::ClaudeStrategy::default())),
-        "codex" => Ok(Box::new(codex::CodexStrategy::default())),
+        "claude" => Ok(Box::new(claude::ClaudeStrategy)),
+        "codex" => Ok(Box::new(codex::CodexStrategy)),
         other => Err(AppError::BadRequest {
             code: "invalid_agent",
             message: format!("Agent must be one of: codex, claude (got: {})", other),

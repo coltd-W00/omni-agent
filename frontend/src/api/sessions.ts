@@ -6,3 +6,34 @@ export const startSession = (projectId: string, taskId: string) =>
     `/projects/${projectId}/tasks/${taskId}/sessions/start`,
     { method: "POST", body: JSON.stringify({}) },
   );
+
+export interface ResumeSessionResponse {
+  sessionPk: string;
+  taskId: string;
+  sessionId: string;
+  status: "running";
+  runId: string;
+  runNumber: number;
+  runInput: string;
+  commentId: string | null;
+  commentSent: boolean | null;
+  startedAt: string;
+}
+
+export const resumeSession = (
+  projectId: string,
+  taskId: string,
+  comment?: string,
+) => {
+  const body: Record<string, string> = {};
+  if (comment !== undefined) {
+    body.comment = comment;
+  }
+  return apiFetch<ResumeSessionResponse>(
+    `/projects/${projectId}/tasks/${taskId}/sessions/resume`,
+    {
+      method: "POST",
+      body: JSON.stringify(body),
+    },
+  );
+};
