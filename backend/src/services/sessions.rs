@@ -81,9 +81,12 @@ pub async fn start_session(
         let _ = stdin.shutdown().await;
     }
 
-    // 7. Take stdout before inserting child into map
+    // 7. Take stdout/stderr before inserting child into map
     let stdout = child.stdout.take().ok_or_else(|| {
         AppError::Internal(anyhow::anyhow!("Failed to capture stdout from subprocess"))
+    })?;
+    let stderr = child.stderr.take().ok_or_else(|| {
+        AppError::Internal(anyhow::anyhow!("Failed to capture stderr from subprocess"))
     })?;
 
     // 8. Insert into subprocess_map (defensive collision check)
@@ -164,6 +167,7 @@ pub async fn start_session(
         )
         .await;
     });
+    tokio::spawn(stream_stderr_to_log(stderr, log_path.clone()));
 
     let now = Utc::now().to_rfc3339();
     Ok(StartSessionResponse {
@@ -174,6 +178,46 @@ pub async fn start_session(
         status: "running".to_string(),
         created_at: now,
     })
+}
+
+fn format_stderr_line(line: &str) -> String {
+    format!("[stderr] {}\n", line)
+}
+
+async fn stream_stderr_to_log(stderr: tokio::process::ChildStderr, log_path: PathBuf) {
+    use tokio::io::{AsyncWriteExt, BufReader};
+
+    if let Some(parent) = log_path.parent()
+        && let Err(e) = tokio::fs::create_dir_all(parent).await
+    {
+        tracing::error!(?e, log_path = ?log_path, "stderr task: failed to create log directory");
+        return;
+    }
+
+    let mut file = match tokio::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&log_path)
+        .await
+    {
+        Ok(f) => f,
+        Err(e) => {
+            tracing::error!(?e, log_path = ?log_path, "stderr task: failed to open log file");
+            return;
+        }
+    };
+
+    let mut reader = BufReader::new(stderr).lines();
+    while let Ok(Some(line)) = reader.next_line().await {
+        let formatted = format_stderr_line(&line);
+        if let Err(e) = file.write_all(formatted.as_bytes()).await {
+            tracing::warn!(?e, "stderr task: write failed, continuing");
+        }
+    }
+
+    if let Err(e) = file.flush().await {
+        tracing::warn!(?e, "stderr task: flush failed");
+    }
 }
 
 #[allow(clippy::too_many_arguments, clippy::collapsible_if)]
@@ -449,7 +493,11 @@ pub async fn resume_session(
     comment: Option<String>,
 ) -> Result<ResumeOutcome, AppError> {
     // 1. Validate comment empty-check (chỉ khi field được truyền)
-    if comment.as_ref().map(|s| s.trim().is_empty()).unwrap_or(false) {
+    if comment
+        .as_ref()
+        .map(|s| s.trim().is_empty())
+        .unwrap_or(false)
+    {
         return Err(AppError::BadRequest {
             code: "empty_comment",
             message: "Comment cannot be empty".to_string(),
@@ -535,11 +583,15 @@ pub async fn resume_session(
         // stdin dropped here → close pipe
     }
 
-    // 10. Take stdout TRƯỚC khi child vào map
+    // 10. Take stdout/stderr TRƯỚC khi child vào map
     let stdout = child
         .stdout
         .take()
         .ok_or_else(|| AppError::Internal(anyhow::anyhow!("subprocess stdout missing")))?;
+    let stderr = child
+        .stderr
+        .take()
+        .ok_or_else(|| AppError::Internal(anyhow::anyhow!("subprocess stderr missing")))?;
 
     // 11. Build log_path + ensure dir exists
     let run_id = Uuid::new_v4().to_string();
@@ -670,6 +722,7 @@ pub async fn resume_session(
         )
         .await;
     });
+    tokio::spawn(stream_stderr_to_log(stderr, log_path.clone()));
 
     Ok(ResumeOutcome {
         session_pk,
@@ -797,5 +850,13 @@ mod tests {
         let path = resolve_log_path("TASK-001", "run-abc");
         assert!(path.to_string_lossy().contains("TASK-001"));
         assert!(path.to_string_lossy().contains("run-abc.log"));
+    }
+
+    #[test]
+    fn format_stderr_line_adds_prefix_and_newline() {
+        assert_eq!(
+            format_stderr_line("err msg"),
+            "[stderr] err msg\n".to_string()
+        );
     }
 }

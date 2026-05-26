@@ -5,6 +5,7 @@ use sqlx::FromRow;
 #[serde(rename_all = "camelCase")]
 pub struct Run {
     pub id: String,
+    #[serde(skip_serializing)]
     pub session_id: String,
     pub run_number: i64,
     pub input: Option<String>,

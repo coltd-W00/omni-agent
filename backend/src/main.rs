@@ -88,6 +88,14 @@ async fn main() -> anyhow::Result<()> {
             axum::routing::post(handlers::sessions::resume_session),
         )
         .route(
+            "/projects/{project_id}/tasks/{task_id}/runs",
+            get(handlers::runs::list_runs),
+        )
+        .route(
+            "/projects/{project_id}/tasks/{task_id}/runs/{run_id}",
+            get(handlers::runs::get_run),
+        )
+        .route(
             "/projects/{project_id}/tasks/{task_id}/comments",
             axum::routing::post(handlers::comments::add_comment),
         );

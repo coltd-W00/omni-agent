@@ -66,18 +66,20 @@ pub async fn create_task(
         });
     }
 
-    let acceptance_criteria = req
-        .acceptance_criteria
-        .and_then(|s| {
-            let trimmed = s.trim().to_string();
-            if trimmed.is_empty() {
-                None
-            } else {
-                Some(trimmed)
-            }
-        });
+    let acceptance_criteria = req.acceptance_criteria.and_then(|s| {
+        let trimmed = s.trim().to_string();
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed)
+        }
+    });
 
-    if acceptance_criteria.as_ref().map(|ac| ac.chars().count() > 5000).unwrap_or(false) {
+    if acceptance_criteria
+        .as_ref()
+        .map(|ac| ac.chars().count() > 5000)
+        .unwrap_or(false)
+    {
         return Err(AppError::BadRequest {
             code: "invalid_task_acceptance_criteria",
             message: "Acceptance criteria must be at most 5000 characters".to_string(),

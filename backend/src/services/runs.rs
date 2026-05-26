@@ -3,6 +3,7 @@ use std::path::Path;
 use sqlx::SqlitePool;
 
 use crate::error::AppError;
+use crate::models::run::Run;
 
 /// Read last `max_lines` lines from log file, capped at `max_bytes`.
 pub async fn read_log_tail(log_path: &Path, max_lines: usize, max_bytes: usize) -> Option<String> {
@@ -36,10 +37,92 @@ pub async fn complete_run(
     Ok(())
 }
 
+async fn resolve_project_id(pool: &SqlitePool, project_id: &str) -> Result<String, AppError> {
+    sqlx::query_scalar::<_, String>("SELECT id FROM projects WHERE id = ?")
+        .bind(project_id)
+        .fetch_optional(pool)
+        .await?
+        .ok_or_else(|| AppError::NotFound {
+            code: "project_not_found",
+            message: format!("Project {} not found", project_id),
+        })
+}
+
+async fn verify_task_for_project(
+    pool: &SqlitePool,
+    project_pk: &str,
+    task_id: &str,
+) -> Result<(), AppError> {
+    let exists: bool =
+        sqlx::query_scalar("SELECT COUNT(*) > 0 FROM tasks WHERE id = ? AND project_id = ?")
+            .bind(task_id)
+            .bind(project_pk)
+            .fetch_one(pool)
+            .await?;
+
+    if !exists {
+        return Err(AppError::NotFound {
+            code: "task_not_found",
+            message: format!("Task {} not found", task_id),
+        });
+    }
+
+    Ok(())
+}
+
+pub async fn get_run_by_id(
+    pool: &SqlitePool,
+    project_id: &str,
+    task_id: &str,
+    run_id: &str,
+) -> Result<Run, AppError> {
+    let project_pk = resolve_project_id(pool, project_id).await?;
+    verify_task_for_project(pool, &project_pk, task_id).await?;
+
+    sqlx::query_as::<_, Run>(
+        "SELECT r.id, r.session_id, r.run_number, r.input, r.exit_code, r.log_path, r.log_tail, r.started_at, r.ended_at \
+         FROM runs r \
+         INNER JOIN sessions s ON r.session_id = s.id \
+         WHERE r.id = ? AND s.task_id = ?",
+    )
+    .bind(run_id)
+    .bind(task_id)
+    .fetch_optional(pool)
+    .await?
+    .ok_or_else(|| AppError::NotFound {
+        code: "run_not_found",
+        message: format!("Run {} not found for task {}", run_id, task_id),
+    })
+}
+
+pub async fn list_runs_for_task(
+    pool: &SqlitePool,
+    project_id: &str,
+    task_id: &str,
+) -> Result<Vec<Run>, AppError> {
+    let project_pk = resolve_project_id(pool, project_id).await?;
+    verify_task_for_project(pool, &project_pk, task_id).await?;
+
+    let runs = sqlx::query_as::<_, Run>(
+        "SELECT r.id, r.session_id, r.run_number, r.input, r.exit_code, r.log_path, r.log_tail, r.started_at, r.ended_at \
+         FROM runs r \
+         INNER JOIN sessions s ON r.session_id = s.id \
+         WHERE s.task_id = ? \
+         ORDER BY r.run_number DESC",
+    )
+    .bind(task_id)
+    .fetch_all(pool)
+    .await?;
+
+    Ok(runs)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::io::Write;
+
+    use crate::db::run_migrations;
 
     fn tmp_log(name: &str) -> std::path::PathBuf {
         let dir = std::env::temp_dir().join("omni-runs-test");
@@ -87,5 +170,239 @@ mod tests {
         let tail = read_log_tail(&path, 100, 10_240).await.unwrap();
         let lines: Vec<&str> = tail.lines().collect();
         assert_eq!(lines.len(), 10);
+    }
+
+    async fn setup_pool() -> SqlitePool {
+        let pool = SqlitePool::connect("sqlite::memory:").await.unwrap();
+        run_migrations(&pool).await.unwrap();
+        pool
+    }
+
+    async fn seed_project_task_session(pool: &SqlitePool) -> (String, String, String) {
+        let now = "2026-05-25T10:00:00+00:00";
+        let project_id = "proj-1".to_string();
+        let task_id = "OMNI-001".to_string();
+        let session_id = "session-1".to_string();
+
+        sqlx::query(
+            "INSERT INTO projects (id, key, name, created_at, updated_at) VALUES (?, 'OMNI', 'Omni', ?, ?)",
+        )
+        .bind(&project_id)
+        .bind(now)
+        .bind(now)
+        .execute(pool)
+        .await
+        .unwrap();
+
+        sqlx::query(
+            "INSERT INTO tasks (id, project_id, seq, title, description, status, created_at, updated_at) \
+             VALUES (?, ?, 1, 'Task', 'Desc', 'Paused', ?, ?)",
+        )
+        .bind(&task_id)
+        .bind(&project_id)
+        .bind(now)
+        .bind(now)
+        .execute(pool)
+        .await
+        .unwrap();
+
+        sqlx::query(
+            "INSERT INTO sessions (id, task_id, agent, session_id, status, created_at, last_active) \
+             VALUES (?, ?, 'claude', 'agent-session', 'paused', ?, ?)",
+        )
+        .bind(&session_id)
+        .bind(&task_id)
+        .bind(now)
+        .bind(now)
+        .execute(pool)
+        .await
+        .unwrap();
+
+        (project_id, task_id, session_id)
+    }
+
+    async fn seed_run(pool: &SqlitePool, session_id: &str, run_id: &str, run_number: i64) {
+        sqlx::query(
+            "INSERT INTO runs (id, session_id, run_number, input, exit_code, log_path, log_tail, started_at, ended_at) \
+             VALUES (?, ?, ?, 'input', 0, '/tmp/run.log', 'tail', '2026-05-25T10:00:00+00:00', '2026-05-25T10:00:30+00:00')",
+        )
+        .bind(run_id)
+        .bind(session_id)
+        .bind(run_number)
+        .execute(pool)
+        .await
+        .unwrap();
+    }
+
+    fn assert_not_found(err: AppError, expected_code: &str) {
+        match err {
+            AppError::NotFound { code, .. } => assert_eq!(code, expected_code),
+            other => panic!("expected NotFound, got {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn get_run_by_id_happy_path() {
+        let pool = setup_pool().await;
+        let (project_id, task_id, session_id) = seed_project_task_session(&pool).await;
+        seed_run(&pool, &session_id, "run-1", 1).await;
+
+        let run = get_run_by_id(&pool, &project_id, &task_id, "run-1")
+            .await
+            .unwrap();
+
+        assert_eq!(run.id, "run-1");
+        assert_eq!(run.run_number, 1);
+        assert_eq!(run.input.as_deref(), Some("input"));
+        assert_eq!(run.exit_code, Some(0));
+    }
+
+    #[tokio::test]
+    async fn get_run_by_id_returns_project_not_found_when_project_missing() {
+        let pool = setup_pool().await;
+        let err = get_run_by_id(&pool, "missing", "OMNI-001", "run-1")
+            .await
+            .unwrap_err();
+        assert_not_found(err, "project_not_found");
+    }
+
+    #[tokio::test]
+    async fn get_run_by_id_returns_task_not_found_when_task_missing() {
+        let pool = setup_pool().await;
+        let (project_id, _, _) = seed_project_task_session(&pool).await;
+        let err = get_run_by_id(&pool, &project_id, "OMNI-999", "run-1")
+            .await
+            .unwrap_err();
+        assert_not_found(err, "task_not_found");
+    }
+
+    #[tokio::test]
+    async fn get_run_by_id_returns_run_not_found_when_run_id_unknown() {
+        let pool = setup_pool().await;
+        let (project_id, task_id, _) = seed_project_task_session(&pool).await;
+        let err = get_run_by_id(&pool, &project_id, &task_id, "missing")
+            .await
+            .unwrap_err();
+        assert_not_found(err, "run_not_found");
+    }
+
+    #[tokio::test]
+    async fn get_run_by_id_returns_run_not_found_when_run_belongs_to_different_task() {
+        let pool = setup_pool().await;
+        let (project_id, task_id, _) = seed_project_task_session(&pool).await;
+        let now = "2026-05-25T10:00:00+00:00";
+        sqlx::query(
+            "INSERT INTO tasks (id, project_id, seq, title, description, status, created_at, updated_at) \
+             VALUES ('OMNI-002', ?, 2, 'Other', 'Desc', 'Paused', ?, ?)",
+        )
+        .bind(&project_id)
+        .bind(now)
+        .bind(now)
+        .execute(&pool)
+        .await
+        .unwrap();
+        sqlx::query(
+            "INSERT INTO sessions (id, task_id, agent, session_id, status, created_at, last_active) \
+             VALUES ('session-2', 'OMNI-002', 'claude', 'agent-session-2', 'paused', ?, ?)",
+        )
+        .bind(now)
+        .bind(now)
+        .execute(&pool)
+        .await
+        .unwrap();
+        seed_run(&pool, "session-2", "run-other", 1).await;
+
+        let err = get_run_by_id(&pool, &project_id, &task_id, "run-other")
+            .await
+            .unwrap_err();
+        assert_not_found(err, "run_not_found");
+    }
+
+    #[tokio::test]
+    async fn list_runs_for_task_returns_runs_sorted_desc_by_run_number() {
+        let pool = setup_pool().await;
+        let (project_id, task_id, session_id) = seed_project_task_session(&pool).await;
+        seed_run(&pool, &session_id, "run-2", 2).await;
+        seed_run(&pool, &session_id, "run-1", 1).await;
+        seed_run(&pool, &session_id, "run-3", 3).await;
+
+        let runs = list_runs_for_task(&pool, &project_id, &task_id)
+            .await
+            .unwrap();
+
+        let numbers: Vec<i64> = runs.iter().map(|run| run.run_number).collect();
+        assert_eq!(numbers, vec![3, 2, 1]);
+    }
+
+    #[tokio::test]
+    async fn list_runs_for_task_returns_empty_when_no_session() {
+        let pool = setup_pool().await;
+        let (project_id, task_id, _) = seed_project_task_session(&pool).await;
+        sqlx::query("DELETE FROM runs")
+            .execute(&pool)
+            .await
+            .unwrap();
+        sqlx::query("DELETE FROM sessions")
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        let runs = list_runs_for_task(&pool, &project_id, &task_id)
+            .await
+            .unwrap();
+        assert!(runs.is_empty());
+    }
+
+    #[tokio::test]
+    async fn list_runs_for_task_returns_project_not_found() {
+        let pool = setup_pool().await;
+        let err = list_runs_for_task(&pool, "missing", "OMNI-001")
+            .await
+            .unwrap_err();
+        assert_not_found(err, "project_not_found");
+    }
+
+    #[tokio::test]
+    async fn list_runs_for_task_returns_task_not_found() {
+        let pool = setup_pool().await;
+        let (project_id, _, _) = seed_project_task_session(&pool).await;
+        let err = list_runs_for_task(&pool, &project_id, "OMNI-999")
+            .await
+            .unwrap_err();
+        assert_not_found(err, "task_not_found");
+    }
+
+    #[tokio::test]
+    async fn list_runs_for_task_does_not_include_runs_of_other_tasks() {
+        let pool = setup_pool().await;
+        let (project_id, task_id, session_id) = seed_project_task_session(&pool).await;
+        seed_run(&pool, &session_id, "run-1", 1).await;
+        let now = "2026-05-25T10:00:00+00:00";
+        sqlx::query(
+            "INSERT INTO tasks (id, project_id, seq, title, description, status, created_at, updated_at) \
+             VALUES ('OMNI-002', ?, 2, 'Other', 'Desc', 'Paused', ?, ?)",
+        )
+        .bind(&project_id)
+        .bind(now)
+        .bind(now)
+        .execute(&pool)
+        .await
+        .unwrap();
+        sqlx::query(
+            "INSERT INTO sessions (id, task_id, agent, session_id, status, created_at, last_active) \
+             VALUES ('session-2', 'OMNI-002', 'claude', 'agent-session-2', 'paused', ?, ?)",
+        )
+        .bind(now)
+        .bind(now)
+        .execute(&pool)
+        .await
+        .unwrap();
+        seed_run(&pool, "session-2", "run-other", 1).await;
+
+        let runs = list_runs_for_task(&pool, &project_id, &task_id)
+            .await
+            .unwrap();
+        assert_eq!(runs.len(), 1);
+        assert_eq!(runs[0].id, "run-1");
     }
 }

@@ -1,5 +1,5 @@
 # generated: 2026-05-21T00:35:18+07:00
-# last_updated: 2026-05-26T10:35:00+07:00
+# last_updated: 2026-05-26T11:05:57+07:00
 # project: omni-agent
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: "2026-05-21T00:35:18+07:00"
-last_updated: "2026-05-26T10:35:00+07:00"
+last_updated: "2026-05-26T11:05:57+07:00"
 project: omni-agent
 project_key: NOKEY
 tracking_system: file-system
@@ -64,7 +64,7 @@ development_status:
   3-1-agentstrategy-trait-and-start-session: ready-for-dev
   3-2-session-exit-detection-and-graceful-shutdown: ready-for-dev
   3-3-resume-session-and-comment-tracking: ready-for-dev
-  3-4-run-log-dual-storage: ready-for-dev
+  3-4-run-log-dual-storage: review
   3-5a-session-summary-tab-and-optimistic-resume-ui: ready-for-dev
   3-5b-comments-runs-and-logs-tabs-and-runtimeline: ready-for-dev
   epic-3-retrospective: optional
