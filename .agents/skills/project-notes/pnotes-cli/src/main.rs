@@ -57,6 +57,24 @@ enum Commands {
         #[arg(long, default_value = "3")]
         limit: usize,
     },
+
+    /// Quality review commands
+    Quality {
+        #[command(subcommand)]
+        sub: QualitySubcommands,
+    },
+}
+
+#[derive(Subcommand)]
+enum QualitySubcommands {
+    /// Check pending notes and if a quality review is required
+    Status,
+    /// Record a completed quality review result
+    Record {
+        /// Path to the JSON file containing the review result
+        #[arg(long)]
+        from: PathBuf,
+    },
 }
 
 #[derive(Subcommand)]
@@ -714,6 +732,281 @@ fn cmd_show(id: &str) {
     print!("{content}");
 }
 
+// ── Quality Review commands ──────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct LastReview {
+    id: Option<String>,
+    reviewed_at: Option<String>,
+    reviewed_until: Option<String>,
+    notes_reviewed: usize,
+    average_score: Option<f64>,
+    decision: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct ReviewLogFrontmatter {
+    schema_version: usize,
+    last_review: LastReview,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct ReviewInput {
+    id: String,
+    reviewed_at: String,
+    reviewed_until: String,
+    notes_reviewed: usize,
+    average_score: f64,
+    decision: String,
+}
+
+fn review_log_path() -> PathBuf {
+    PathBuf::from(".agents/skills/project-notes/self-improvement/note-quality-review-log.md")
+}
+
+fn ensure_review_log_exists() -> Result<(), String> {
+    let path = review_log_path();
+    if !path.exists() {
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).map_err(|e| format!("Failed to create directories for review log: {e}"))?;
+        }
+        let initial_content = r#"---
+schema_version: 1
+last_review:
+  id: null
+  reviewed_at: null
+  reviewed_until: null
+  notes_reviewed: 0
+  average_score: null
+  decision: null
+---
+
+# Note Quality Review Log
+
+<!-- Append reviews below. Do not rewrite or remove this header. -->
+"#;
+        fs::write(&path, initial_content).map_err(|e| format!("Failed to write initial review log: {e}"))?;
+    }
+    Ok(())
+}
+
+fn split_frontmatter_and_body(content: &str) -> Option<(String, String)> {
+    let content_trimmed = content.trim_start();
+    if !content_trimmed.starts_with("---") {
+        return None;
+    }
+    let after_first = &content_trimmed[3..];
+    let end_idx = after_first.find("\n---")?;
+    let body_idx = end_idx + 4; // skip '\n' and '---'
+    let full_end_idx = 3 + body_idx;
+    if full_end_idx <= content_trimmed.len() {
+        let frontmatter = content_trimmed[..full_end_idx].to_string();
+        let body = content_trimmed[full_end_idx..].to_string();
+        Some((frontmatter, body))
+    } else {
+        None
+    }
+}
+
+fn parse_review_log_frontmatter(content: &str) -> Result<ReviewLogFrontmatter, String> {
+    let yaml = extract_frontmatter(content).ok_or("No frontmatter found in review log")?;
+    serde_yaml::from_str(yaml).map_err(|e| format!("Review log YAML parse error: {e}"))
+}
+
+fn parse_datetime(s: &str, default_offset: chrono::FixedOffset) -> Result<chrono::DateTime<chrono::FixedOffset>, String> {
+    use chrono::TimeZone;
+    if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(s) {
+        return Ok(dt);
+    }
+    if let Ok(date) = chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d") {
+        if let Some(ndt) = date.and_hms_opt(0, 0, 0) {
+            if let Some(dt) = default_offset.from_local_datetime(&ndt).single() {
+                return Ok(dt);
+            }
+        }
+    }
+    Err(format!("Failed to parse datetime: {s}"))
+}
+
+fn cmd_quality_status() {
+    if let Err(e) = ensure_review_log_exists() {
+        eprintln!("Error: {e}");
+        std::process::exit(1);
+    }
+
+    let log_path = review_log_path();
+    let content = match fs::read_to_string(&log_path) {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("Error reading review log: {e}");
+            std::process::exit(1);
+        }
+    };
+
+    let log_fm = match parse_review_log_frontmatter(&content) {
+        Ok(fm) => fm,
+        Err(e) => {
+            eprintln!("Error parsing review log frontmatter: {e}");
+            std::process::exit(1);
+        }
+    };
+
+    let reviewed_until = log_fm.last_review.reviewed_until;
+    let notes = load_all_notes();
+
+    let mut pending = vec![];
+    use chrono::Offset;
+    let local_offset = chrono::Local::now().offset().fix();
+
+    for (path, fm) in notes {
+        if fm.note_type != "continuity" {
+            continue;
+        }
+        let is_pending = match &reviewed_until {
+            None => true,
+            Some(until_str) => {
+                if let Ok(until_dt) = parse_datetime(until_str, local_offset) {
+                    if let Ok(note_dt) = parse_datetime(&fm.created_at, *until_dt.offset()) {
+                        note_dt > until_dt
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
+            }
+        };
+        if is_pending {
+            pending.push((path, fm));
+        }
+    }
+
+    pending.sort_by(|a, b| {
+        let a_dt = parse_datetime(&a.1.created_at, local_offset).ok();
+        let b_dt = parse_datetime(&b.1.created_at, local_offset).ok();
+        match (a_dt, b_dt) {
+            (Some(da), Some(db)) => da.cmp(&db).then_with(|| a.0.cmp(&b.0)),
+            _ => a.1.created_at.cmp(&b.1.created_at).then_with(|| a.0.cmp(&b.0)),
+        }
+    });
+
+    let count = pending.len();
+    let review_required = if count >= 5 { "yes" } else { "no" };
+    let trigger = if count >= 5 {
+        "new_notes_since_last_review >= 5"
+    } else {
+        "below_threshold"
+    };
+
+    let last_review_str = match &reviewed_until {
+        Some(s) => s.as_str(),
+        None => "null",
+    };
+
+    println!("last_review: {last_review_str}");
+    println!("new_notes: {count}");
+    println!("review_required: {review_required}");
+    println!("trigger: {trigger}");
+    println!();
+    println!("notes:");
+    for (path, _) in &pending {
+        println!("- {}", path.display());
+    }
+}
+
+fn cmd_quality_record(from: &PathBuf) {
+    let json_content = match fs::read_to_string(from) {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("Error reading JSON file '{}': {e}", from.display());
+            std::process::exit(1);
+        }
+    };
+
+    let input: ReviewInput = match serde_json::from_str(&json_content) {
+        Ok(inp) => inp,
+        Err(e) => {
+            eprintln!("Error parsing JSON from '{}': {e}", from.display());
+            std::process::exit(1);
+        }
+    };
+
+    let decision = &input.decision;
+    if decision != "keep"
+        && decision != "amend"
+        && decision != "rollback"
+        && decision != "inconclusive"
+    {
+        eprintln!(
+            "Error: invalid decision '{}'. Must be one of: keep, amend, rollback, inconclusive",
+            decision
+        );
+        std::process::exit(1);
+    }
+
+    if let Err(e) = ensure_review_log_exists() {
+        eprintln!("Error: {e}");
+        std::process::exit(1);
+    }
+
+    let log_path = review_log_path();
+    let old_content = match fs::read_to_string(&log_path) {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("Error reading review log: {e}");
+            std::process::exit(1);
+        }
+    };
+
+    let (frontmatter_part, body_part) = match split_frontmatter_and_body(&old_content) {
+        Some(parts) => parts,
+        None => {
+            eprintln!("Error: could not parse frontmatter in review log");
+            std::process::exit(1);
+        }
+    };
+
+    let mut log_fm = match parse_review_log_frontmatter(&frontmatter_part) {
+        Ok(fm) => fm,
+        Err(e) => {
+            eprintln!("Error parsing review log frontmatter: {e}");
+            std::process::exit(1);
+        }
+    };
+
+    log_fm.last_review = LastReview {
+        id: Some(input.id.clone()),
+        reviewed_at: Some(input.reviewed_at.clone()),
+        reviewed_until: Some(input.reviewed_until.clone()),
+        notes_reviewed: input.notes_reviewed,
+        average_score: Some(input.average_score),
+        decision: Some(input.decision.clone()),
+    };
+
+    let new_yaml = match serde_yaml::to_string(&log_fm) {
+        Ok(y) => y,
+        Err(e) => {
+            eprintln!("Error serializing review log frontmatter: {e}");
+            std::process::exit(1);
+        }
+    };
+
+    let body_trimmed = body_part.trim_start_matches('\n').trim_start_matches('\r');
+    let new_content = format!("---\n{new_yaml}---\n\n{body_trimmed}");
+
+    if let Err(e) = fs::write(&log_path, new_content) {
+        eprintln!("Error writing updated review log: {e}");
+        std::process::exit(1);
+    }
+
+    println!("recorded: {}", input.id);
+    println!("last_review: {}", input.reviewed_until);
+    println!("notes_reviewed: {}", input.notes_reviewed);
+    println!("average_score: {}", input.average_score);
+    println!("decision: {}", input.decision);
+}
+
+
 fn guide_text() -> &'static str {
     r#"Project Notes Usage Guide for LLMs
 ==================================
@@ -746,6 +1039,12 @@ Commands:
 
   pnotes show <id>
     Print one full note.
+
+  pnotes quality status
+    Check pending notes and if a quality review is required.
+
+  pnotes quality record --from <review-result.json>
+    Record a completed quality review result.
 
 After implementation output:
 - Create a continuity note.
@@ -815,6 +1114,10 @@ fn main() {
         Commands::Show { id } => cmd_show(&id),
         Commands::Guide => cmd_guide(),
         Commands::Brief { area, tag, task, limit } => cmd_brief(area, tag, task, limit),
+        Commands::Quality { sub } => match sub {
+            QualitySubcommands::Status => cmd_quality_status(),
+            QualitySubcommands::Record { from } => cmd_quality_record(&from),
+        },
     }
 }
 
@@ -1388,6 +1691,8 @@ areas:
         assert!(text.contains("pnotes recall"));
         assert!(text.contains("Prefer"));
         assert!(text.contains("fallback"));
+        assert!(text.contains("pnotes quality status"));
+        assert!(text.contains("pnotes quality record"));
     }
 
     #[test]
@@ -1431,5 +1736,35 @@ areas:
         assert_eq!(scored[0].3.task, "note-new");
         assert_eq!(scored[1].0, 5);
         assert_eq!(scored[1].3.task, "note-old");
+    }
+
+    #[test]
+    fn test_parse_datetime() {
+        use chrono::Offset;
+        let local_offset = chrono::Local::now().offset().fix();
+        
+        let dt1 = parse_datetime("2026-05-26T20:10:00+07:00", local_offset).unwrap();
+        assert_eq!(dt1.to_rfc3339(), "2026-05-26T20:10:00+07:00");
+        
+        let dt2 = parse_datetime("2026-05-26", local_offset).unwrap();
+        let expected = format!("2026-05-26T00:00:00{}", dt2.offset().to_string());
+        assert_eq!(dt2.to_rfc3339()[..19], expected[..19]);
+        
+        assert!(parse_datetime("invalid", local_offset).is_err());
+    }
+
+    #[test]
+    fn test_split_frontmatter_and_body() {
+        let content = r#"---
+schema_version: 1
+---
+
+# Header
+Body text
+"#;
+        let (fm, body) = split_frontmatter_and_body(content).unwrap();
+        assert_eq!(fm, "---\nschema_version: 1\n---");
+        assert!(body.contains("# Header"));
+        assert!(body.contains("Body text"));
     }
 }
