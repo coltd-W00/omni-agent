@@ -239,6 +239,7 @@ function NextSuggestedActionBlock({ projectId, task }: { projectId: string; task
             onClick={handleResume}
             disabled={resumeMut.isPending}
             aria-label="Resume Session"
+            data-action="resume-session"
           >
             {resumeMut.isPending ? "Starting…" : "Resume Session"}
           </Button>

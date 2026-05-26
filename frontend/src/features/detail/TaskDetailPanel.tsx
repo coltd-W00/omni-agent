@@ -9,6 +9,7 @@ import { useToast } from "../../components/Toast";
 import { useStartSession } from "../../hooks/useStartSession";
 import { ApiError } from "../../api/client";
 import { useTask } from "../../hooks/useTask";
+import { useFocusTrap } from "../../hooks/useFocusTrap";
 import CommentsTabPanel from "./CommentsTabPanel";
 import LogsTabPanel from "./LogsTabPanel";
 import RunsTabPanel from "./RunsTabPanel";
@@ -141,7 +142,11 @@ export default function TaskDetailPanel() {
   const [activeTab, setActiveTab] = useState<PanelTab>("summary");
   const [focusedRunId, setFocusedRunId] = useState<string | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLElement>(null);
   const isOpen = selectedTask !== null;
+
+  // Trap focus when panel is open
+  useFocusTrap(panelRef, isOpen);
 
   // AC-7: call useTask with polling when running
   const taskQuery = useTask(selectedProject?.id ?? null, selectedTask?.id ?? null);
@@ -200,6 +205,7 @@ export default function TaskDetailPanel() {
 
       {/* Slide-in panel (AC-1) */}
       <aside
+        ref={panelRef}
         className="task-detail-panel"
         role="complementary"
         aria-label={`Task detail: ${task.title}`}

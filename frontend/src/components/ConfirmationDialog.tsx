@@ -44,15 +44,28 @@ export default function ConfirmationDialog({
     dialogRef.current?.close();
   };
 
+  const triggeringElementRef = useRef<HTMLElement | null>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+
   // Sync open prop → showModal / close
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
     if (open && !dialog.open) {
+      triggeringElementRef.current =
+        document.activeElement instanceof HTMLElement
+          ? document.activeElement
+          : null;
       dialog.showModal();
+      setTimeout(() => headingRef.current?.focus(), 10);
     } else if (!open && dialog.open) {
       closeReasonRef.current = null;
       dialog.close();
+      const triggeringElement = triggeringElementRef.current;
+      if (triggeringElement && triggeringElement.isConnected) {
+        setTimeout(() => triggeringElement.focus(), 0);
+      }
+      triggeringElementRef.current = null;
     }
   }, [open]);
 
@@ -98,6 +111,7 @@ export default function ConfirmationDialog({
     <dialog
       ref={dialogRef}
       className="app-confirm-dialog"
+      aria-modal="true"
       aria-labelledby={titleId}
       aria-describedby={description ? descId : undefined}
       onMouseDown={(event) => {
@@ -106,7 +120,13 @@ export default function ConfirmationDialog({
         }
       }}
     >
-      <h2 id={titleId} className="app-confirm-dialog__title">
+      <h2
+        ref={headingRef}
+        tabIndex={-1}
+        id={titleId}
+        className="app-confirm-dialog__title"
+        style={{ outline: "none" }}
+      >
         {title}
       </h2>
       {description && (
@@ -119,7 +139,6 @@ export default function ConfirmationDialog({
         <Button
           variant="ghost"
           size="md"
-          autoFocus
           onClick={closeAsCancel}
         >
           {cancelLabel ?? "Cancel"}

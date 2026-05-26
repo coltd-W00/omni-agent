@@ -22,21 +22,33 @@ export default function CreateProjectModal({ open, onClose }: CreateProjectModal
 
   const mutation = useCreateProjectMutation();
 
+  const triggeringElementRef = useRef<HTMLElement | null>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+
   // Sync open prop → showModal / close
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
     if (open && !dialog.open) {
+      triggeringElementRef.current =
+        document.activeElement instanceof HTMLElement
+          ? document.activeElement
+          : null;
       dialog.showModal();
       // Reset form state
       setName("");
       setKey("");
       setNameError(null);
       setKeyError(null);
-      // AutoFocus name field
-      setTimeout(() => nameRef.current?.focus(), 10);
+      // Focus heading
+      setTimeout(() => headingRef.current?.focus(), 10);
     } else if (!open && dialog.open) {
       dialog.close();
+      const triggeringElement = triggeringElementRef.current;
+      if (triggeringElement && triggeringElement.isConnected) {
+        setTimeout(() => triggeringElement.focus(), 0);
+      }
+      triggeringElementRef.current = null;
     }
   }, [open]);
 
@@ -121,7 +133,13 @@ export default function CreateProjectModal({ open, onClose }: CreateProjectModal
         }
       }}
     >
-      <h2 id="create-project-title" className="create-project-modal__title">
+      <h2
+        ref={headingRef}
+        tabIndex={-1}
+        id="create-project-title"
+        className="create-project-modal__title"
+        style={{ outline: "none" }}
+      >
         Create new project
       </h2>
 

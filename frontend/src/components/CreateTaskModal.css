@@ -66,6 +66,7 @@
 .app-create-task-modal__textarea:focus {
   outline: none;
   border-color: var(--brand-primary);
+  box-shadow: var(--shadow-focus);
 }
 
 .app-create-task-modal__input--error,

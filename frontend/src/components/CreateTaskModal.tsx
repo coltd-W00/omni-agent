@@ -34,14 +34,25 @@ export default function CreateTaskModal({
   const setActiveProject = useSetActiveProject();
   const queryClient = useQueryClient();
 
+  const triggeringElementRef = useRef<HTMLElement | null>(null);
+
   // Sync open prop → showModal / close
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
     if (open && !dialog.open) {
+      triggeringElementRef.current =
+        document.activeElement instanceof HTMLElement
+          ? document.activeElement
+          : null;
       dialog.showModal();
     } else if (!open && dialog.open) {
       dialog.close();
+      const triggeringElement = triggeringElementRef.current;
+      if (triggeringElement && triggeringElement.isConnected) {
+        setTimeout(() => triggeringElement.focus(), 0);
+      }
+      triggeringElementRef.current = null;
     }
   }, [open]);
 

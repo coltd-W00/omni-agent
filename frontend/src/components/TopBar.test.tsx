@@ -29,6 +29,24 @@ beforeEach(() => {
   vi.mocked(useActiveProjectId).mockReturnValue(null);
 });
 
+import { NewTaskModalProvider, useNewTaskModal } from "../contexts/NewTaskModalContext";
+import CreateTaskModal from "./CreateTaskModal";
+
+function TestTopBarWrapper() {
+  const activeProjectId = useActiveProjectId();
+  const { open, closeModal } = useNewTaskModal();
+  return (
+    <>
+      <TopBar />
+      <CreateTaskModal
+        open={open}
+        projectId={activeProjectId}
+        onClose={closeModal}
+      />
+    </>
+  );
+}
+
 function renderTopBar() {
   const qc = new QueryClient({
     defaultOptions: { mutations: { retry: false } },
@@ -36,7 +54,9 @@ function renderTopBar() {
   return render(
     <QueryClientProvider client={qc}>
       <ToastProvider>
-        <TopBar />
+        <NewTaskModalProvider>
+          <TestTopBarWrapper />
+        </NewTaskModalProvider>
       </ToastProvider>
     </QueryClientProvider>,
   );

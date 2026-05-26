@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeAll } from "vitest";
 import ConfirmationDialog from "./ConfirmationDialog";
@@ -92,9 +92,11 @@ describe("ConfirmationDialog", () => {
     expect(onCancel).toHaveBeenCalled();
   });
 
-  it("focus lands on Cancel button when dialog opens", () => {
+  it("focus lands on heading when dialog opens", async () => {
     renderDialog();
-    const cancelBtn = screen.getByRole("button", { name: "Cancel" });
-    expect(cancelBtn).toHaveFocus();
+    const heading = screen.getByRole("heading", { name: "Delete task" });
+    await waitFor(() => {
+      expect(heading).toHaveFocus();
+    });
   });
 });

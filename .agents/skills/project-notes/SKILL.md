@@ -1,734 +1,448 @@
 ---
 name: project-notes
-description: Bắt buộc dùng pnotes trước khi implement, trước khi khám phá source code diện rộng, và như một completion gate sau mọi implementation output dù task nhỏ hay lớn. Không được báo task complete nếu chưa tạo continuity note hoặc nêu rõ lý do skip hợp lệ. Dùng pnotes để recall decisions, invariants, risks, tests, missing tests, traps, dead ends, và continuity notes của project mà không phải scan toàn bộ repository.
+description: Quy trình bắt buộc sử dụng pnotes trước khi implement, trước khi khám phá source code diện rộng, và làm cổng kiểm soát hoàn thành (completion gate) sau mọi thay đổi code. Đảm bảo tính liên tục của dự án (continuity) mà không cần quét toàn bộ repository.
 ---
 
 # SKILL: project-notes
 
-## 1. Mục đích và ranh giới
+## 1. Mục đích và Ranh giới
 
-Dùng project-local notes để:
+> **Nguyên tắc cốt lõi:** Sử dụng project-local notes để tái hồi phục context, cô lập rủi ro và chuyển giao trạng thái làm việc (handoff) hiệu quả giữa các Agent hoặc giữa Agent và Con người.
 
-- recall context quan trọng trước khi sửa code;
-- tránh lặp lại traps/dead ends;
-- không bỏ qua decisions, invariants, risks, tests, missing tests đã biết;
-- giảm việc scan source files không liên quan;
-- lưu lại continuity sau implementation cho agent/human tiếp theo.
+* **Nhiệm vụ chính:**
+    * Tái gọi (recall) context quan trọng trước khi can thiệp source code.
+    * Ngăn chặn việc lặp lại các vết xe đổ (traps/dead ends).
+    * Bảo toàn các quyết định (decisions), bất biến (invariants), rủi ro (risks) và lỗ hổng kiểm thử (missing tests).
+    * Giảm thiểu chi phí duyệt (scan) các file không liên quan.
+    * Lưu lại ghi chú liên tục (continuity notes) phục vụ phiên làm việc kế tiếp.
 
-Tool mặc định:
+* **Hệ thống phân định lưu trữ:**
 
-    ./bin/pnotes
+| Thành phần | Đường dẫn / Công cụ | Vai trò cấu trúc |
+| :--- | :--- | :--- |
+| **Tool mặc định** | `./bin/pnotes` | Lớp CLI điều hướng, truy xuất và hỗ trợ nhanh. |
+| **Source of Truth** | `.project-notes/notes/*.md` | Định dạng lưu trữ gốc, toàn vẹn dữ liệu. |
+| **Skill Artifacts** | `.agents/skills/project-notes/self-improvement/` | Nơi lưu trữ artifacts tự cải tiến của chính skill này. |
 
-Storage của project đang làm việc:
+* **Giới hạn nghiêm ngặt:** Không sử dụng thư mục dự án `.project-notes/` để lưu trữ log/backup/matrix thuộc về nội bộ cơ chế tự cải tiến của chính skill `project-notes`.
 
-    .project-notes/notes/*.md
+---
 
-Markdown notes là source of truth. CLI chỉ là lớp recall/brief/helper.
+## 2. Trigger bắt buộc (Mandatory Triggers)
 
-Không dùng `.project-notes/` để lưu backup/log/matrix của chính skill `project-notes`. Self-improvement artifacts của skill phải nằm cạnh skill, ví dụ:
+Agent bắt buộc phải kích hoạt skill này tại 3 thời điểm chiến lược sau:
 
-    .agents/skills/project-notes/self-improvement/
+### 2.1 Trước khi Thực hiện (Pre-implementation)
+Áp dụng trước khi sửa đổi source code cho feature, bugfix, refactor, migration, hoặc thay đổi hành vi hệ thống (behavior change).
 
-## 2. Trigger bắt buộc
+* **Chiến lược ưu tiên câu lệnh:**
+    1.  *Lựa chọn 1 (Ưu tiên cao nhất):* `./bin/pnotes brief --area <path> --limit 3`
+    2.  *Lựa chọn 2 (Fallback nếu brief trống/lỗi):* `./bin/pnotes recall --area <path> --limit 3`
+* **Bộ lọc nâng cao (Khi xác định rõ task/tag):**
+    * `./bin/pnotes brief --area <path> --tag <tag> --limit 3`
+    * `./bin/pnotes recall --task <slug>`
+    * `./bin/pnotes recall --tag <tag>`
 
-### 2.1 Trước khi implement
+> **Ranh giới:** Phải đọc kỹ brief/notes trả về trước khi can thiệp code. Nghiêm cấm hành vi tự động quét (scan) toàn bộ thư mục `.project-notes/notes/` theo mặc định.
 
-Phải dùng skill này trước khi sửa source code cho feature, bugfix, refactor, migration, hoặc behavior change.
+### 2.2 Trước khi Khám phá Source Code diện rộng (Wide-scope Exploration)
+Kích hoạt bắt buộc khi:
+* Tìm kiếm vị trí implement một tính năng chưa rõ định vị.
+* Điều tra (investigate) bug chạy xuyên suốt qua nhiều file/module.
+* Chuẩn bị can thiệp vào một module hoặc phân hệ (subsystem) chưa quen thuộc.
 
-Ưu tiên:
+> **Mục tiêu:** Tối ưu hóa hiệu năng bằng cách loại bỏ việc đọc mã nguồn không liên quan và tận dụng triệt để những ngữ cảnh (context) đã được xử lý trước đó.
 
-    ./bin/pnotes brief --area <path> --limit 3
+### 2.3 Sau khi có Kết quả Thực hiện (Post-implementation Output)
+Bao gồm mọi thay đổi liên quan đến: Source code, tests, config, scripts, migrations, generated files, hoặc project behavior.
 
-Fallback nếu `brief` chưa có hoặc không hữu ích:
+> **Quy định hoàn thành (Completion Gate):** Task **chưa** được coi là hoàn thành nếu chưa thỏa mãn một trong hai điều kiện:
+> 1. Đã khởi tạo thành công Continuity Note đạt chuẩn.
+> 2. Đã cung cấp lý do bỏ qua (skip reason) hoàn toàn hợp lệ.
+>
+> *Nghiêm cấm lý do từ chối dựa trên: task nhỏ, thay đổi đơn giản, git diff đã rõ ràng hoặc phần tổng hợp (final summary) đã đề cập.*
 
-    ./bin/pnotes recall --area <path> --limit 3
+---
 
-Có thể thêm filter khi biết task/tag:
+## 3. Điều kiện ngoại lệ (Exceptions & Skip Reasons)
 
-    ./bin/pnotes brief --area <path> --tag <tag> --limit 3
-    ./bin/pnotes recall --task <slug>
-    ./bin/pnotes recall --tag <tag>
+### 3.1 Trường hợp không áp dụng skill
+* Tác vụ Q&A thuần túy, không tương tác hoặc chỉnh sửa repository.
+* Dịch thuật, viết tài liệu hoặc rewrite văn bản (prose).
+* Đọc một file độc lập do người dùng cung cấp mà không cần thám hiểm code/thay đổi code.
+* Tác vụ ngoài repo không được thiết lập `./bin/pnotes` hoặc `.project-notes/`.
+* Thông tin mật, nhạy cảm không được phép lưu vết vào repo.
 
-Trước khi sửa code, phải đọc brief hoặc notes liên quan được trả về. Không scan toàn bộ `.project-notes/notes/` theo mặc định.
+### 3.2 Lý do bỏ qua hợp lệ (Valid Skip Reasons)
+Tác vụ chỉ được phép bỏ qua cổng kiểm soát project notes nếu thuộc một trong các lý do sau:
+* Không có bất kỳ thay đổi nào liên quan đến code/config/test/script/behavior.
+* Tác vụ là Read-only hoặc Pure Q&A.
+* Repository hiện tại chưa cấu hình hoặc không hỗ trợ `pnotes`.
+* User trực tiếp đưa ra yêu cầu bằng văn bản: không tạo note.
 
-### 2.2 Trước khi khám phá source code diện rộng
+---
 
-Phải dùng skill này trước khi:
+## 4. Danh mục câu lệnh (Command Reference)
 
-- tìm feature được implement ở đâu;
-- investigate bug qua nhiều file;
-- chuẩn bị sửa một module;
-- cần hiểu một subsystem chưa quen.
+# Khởi tạo hệ thống (Chỉ chạy một lần nếu chưa có)
+./bin/pnotes init
 
-Mục tiêu không phải tránh đọc code. Mục tiêu là tránh đọc code không liên quan và tránh khám phá lại context đã biết.
+# Kiểm tra an toàn trước khi xử lý (Pre-work recall/brief)
+./bin/pnotes brief --area src/session-manager --limit 3
+./bin/pnotes brief --area src/session-manager --tag resume-flow --limit 3
+./bin/pnotes recall --area src/session-manager --limit 3
+./bin/pnotes recall --task auth-fix
+./bin/pnotes recall --tag bug
 
-### 2.3 Sau khi có implementation output
+# Đọc chi tiết một ghi chú cụ thể
+./bin/pnotes show <note-id>
 
-Implementation output bao gồm thay đổi ở:
+# Tra cứu hướng dẫn sử dụng từ CLI
+./bin/pnotes guide
 
-- source code;
-- tests;
-- config;
-- scripts;
-- migrations;
-- generated project files;
-- project behavior.
+### Khởi tạo Continuity Note bằng CLI
 
-Sau implementation, task chưa được xem là complete cho đến khi một trong hai điều đúng:
-
-1. Đã tạo continuity note.
-2. Đã nêu rõ lý do skip hợp lệ.
-
-Không được skip chỉ vì task nhỏ, change đơn giản, chỉ sửa vài dòng, final summary đã nói rồi, hoặc git diff đủ rõ.
-
-## 3. Khi không dùng
-
-Không dùng skill này cho:
-
-- Q&A thuần túy, không làm việc với repo;
-- dịch thuật hoặc rewrite prose;
-- đọc một file user đưa sẵn khi không cần source exploration hoặc code change;
-- task ngoài repo không có `./bin/pnotes` hoặc `.project-notes/`;
-- thông tin nhạy cảm không nên commit vào repo.
-
-Valid skip reasons:
-
-- không có code/config/test/script/behavior changed;
-- task là pure Q&A hoặc read-only;
-- repo không có pnotes setup;
-- user explicitly yêu cầu không tạo note.
-
-## 4. Command reference
-
-Initialize một lần nếu cần:
-
-    ./bin/pnotes init
-
-Pre-work recall/brief:
-
-    ./bin/pnotes brief --area src/session-manager --limit 3
-    ./bin/pnotes brief --area src/session-manager --tag resume-flow --limit 3
-    ./bin/pnotes recall --area src/session-manager --limit 3
-    ./bin/pnotes recall --task auth-fix
-    ./bin/pnotes recall --tag bug
-
-Tạo continuity note:
+* *Trường hợp CLI hỗ trợ tham số cơ bản:*
 
     ./bin/pnotes add continuity \
-      --task auth-fix \
-      --signal "JWT expiry edge case fixed in middleware" \
-      --area src/auth \
-      --tag bug \
-      --handoff auth-fix-execution-handoff.md
+    --task auth-fix \
+    --signal "JWT expiry edge case fixed in middleware" \
+    --area src/auth \
+    --tag bug \
+    --handoff auth-fix-execution-handoff.md
 
-Nếu CLI hỗ trợ metadata flags, dùng trực tiếp:
+
+* *Trường hợp CLI hỗ trợ đầy đủ Metadata Flags (Khuyến khích dùng trực tiếp):*
 
     ./bin/pnotes add continuity \
-      --task agent-work-cockpit \
-      --signal "Session id capture should not rely on arbitrary stdout parsing." \
-      --area src/session-manager \
-      --tag resume-flow \
-      --decision "Use explicit machine-readable session markers." \
-      --invariant "Stored session id must map to exactly one agent execution." \
-      --risk "CLI stdout format may change between versions." \
-      --test-command "npm test -- session-manager" \
-      --test-covers "resume existing session" \
-      --test-covers "create new session when missing id" \
-      --missing-test "No automated test currently protects browser-close-does-not-kill-subprocess."
-
-Đọc full note:
-
-    ./bin/pnotes show <note-id>
-
-In CLI usage guide:
-
-    ./bin/pnotes guide
-
-Nếu CLI hiện tại chưa hỗ trợ một metadata flag nào đó, không bỏ note. Tạo note bằng supported flags trước, rồi enrich frontmatter thủ công.
-
-## 5. Workflow trước khi implement
-
-1. Xác định target area, task slug, hoặc tag.
-2. Chạy `pnotes brief` nếu có.
-3. Nếu `brief` chưa có hoặc không hữu ích, chạy `pnotes recall`.
-4. Chỉ đọc notes liên quan được trả về.
-5. Rút ra decisions, invariants, risks, tests, missing tests, traps, dead ends, next-agent hints.
-6. Sau đó mới inspect target source files và nearest tests.
-7. Giữ code change surgical.
-
-Nếu không có note nào match:
-
-- không fail;
-- tiếp tục source inspection bình thường;
-- sau implementation, tạo note nếu phát hiện reusable project knowledge mới.
-
-## 6. Workflow sau khi implement
-
-1. Review thay đổi thực tế.
-2. So sánh implementation với Handoff/task intent.
-3. Xác định project knowledge có giá trị:
-   - decisions;
-   - invariants;
-   - risks;
-   - tests đã chạy và behavior chúng cover;
-   - missing test coverage;
-   - deviations;
-   - traps/gotchas;
-   - dead ends;
-   - validation delta;
-   - một next-agent hint quan trọng nhất.
-4. Tạo continuity note.
-5. Inspect generated note như một project memory artifact, không như completion checkbox.
-6. Reformat/enrich note nếu chưa đủ hữu ích cho future `pnotes brief`.
-7. Không viết changelog.
-
-Final response phải include:
-
-    Project notes: created <path>
-
-hoặc:
-
-    Project notes: skipped — <valid reason>
-
-## 7. Note schema
-
-Mỗi note được lưu tại:
-
-    .project-notes/notes/{YYYY-MM-DD}-{task-slug}.md
-
-Frontmatter cơ bản:
-
-    ---
-    id: 2026-05-25-auth-fix
-    type: continuity
-    task: auth-fix
-    created_at: 2026-05-25
-    signal: "JWT expiry edge case fixed in middleware"
-    areas:
-      - src/auth
-    tags:
-      - bug
-    supersedes: []
-    ---
-
-`id` và `task` phải slug-safe, stable, và dễ dùng với CLI. Tránh spaces, dấu `:`, `&`, `/`, quotes, hoặc punctuation gây khó copy/paste. Human-readable title có thể nằm trong `signal` hoặc `## task`, không dùng làm `id`/`task`.
-
-Good:
-
-    id: 2026-05-26-story-3-5a-session-summary-tab-optimistic-resume-ui
-    task: story-3-5a-session-summary-tab-optimistic-resume-ui
-
-Bad:
-
-    id: '2026-05-26-Story 3.5a: Session Summary Tab & Optimistic Resume UI'
-    task: 'Story 3.5a: Session Summary Tab & Optimistic Resume UI'
-
-`areas` phải đủ cụ thể để recall và là YAML list các repo paths riêng biệt. Không dùng broad labels, không gom nhiều area vào một string như `backend, frontend`, và không dùng path quá rộng nếu change chỉ đụng một vài module.
-
-Good:
-
-    areas:
-      - frontend/src/features/detail
-      - frontend/src/hooks
-
-Bad:
-
-    areas:
-      - frontend/src
-      - backend, frontend
-
-Optional frontmatter cho `pnotes brief`:
-
-    decisions:
-      - "Use explicit machine-readable session markers."
-
-    invariants:
-      - "Stored session id must map to exactly one agent execution."
-
-    risks:
-      - "CLI stdout format may change between versions."
-
-    tests:
-      - command: "npm test -- session-manager"
-        covers:
-          - "resume existing session"
-          - "create new session when missing id"
-
-    missing_tests:
-      - "No test for browser-close-does-not-kill-subprocess."
-
-Metadata chất lượng:
-
-- `decisions`: mỗi item là một durable choice; không gộp nhiều decisions và không viết implementation summary.
-- `invariants`: behavior hoặc contract không được phá khi sửa sau này.
-- `risks`: mô tả điều gì có thể sai; có thể nhắc mitigation, nhưng risk phải explicit.
-- `tests`: mỗi command có `covers` non-empty nếu ghi test; mỗi cover item nói behavior được bảo vệ, không chỉ tên test.
-- `missing_tests`: ghi coverage gap đã biết, ví dụ thiếu browser E2E, visual regression, real backend integration, SIGTERM/process lifecycle test, build/typecheck, hoặc real CLI validation qua nhiều agent.
-
-Body sections bắt buộc:
-
-    ## task
-    {task-slug} — {run-id nếu có} — {handoff link nếu có}
-
-    ## deviations
-    None hoặc những điểm làm khác Handoff/plan
-
-    ## traps
-    Hidden constraints, gotchas, hoặc điều kiện không hiển nhiên
-
-    ## dead_ends
-    Approach đã thử và bị loại, kèm lý do
-
-    ## validation_delta
-    As expected, Not run — reason: ..., hoặc validation difference đáng chú ý
-
-    ## next_agent_hint
-    Một high-signal hint cho agent tiếp theo
-
-Minimum note hợp lệ có thể dùng:
-
-- `None` cho `deviations`, `traps`, `dead_ends`;
-- `As expected` cho `validation_delta` chỉ khi validation thật sự đúng như kỳ vọng;
-- `Not run — reason: ...` nếu validation chưa chạy;
-- `See Handoff. No surprises.` chỉ khi thật sự không có reusable hint.
-
-Không ghi `## traps\nNone` nếu implementation có async cache timing, rollback logic, subprocess lifecycle, DB state transition, parser/grouping behavior, race condition, heuristic runtime detection, frontend state reset, test timing/microtask issue, hoặc hidden backend/frontend contract.
-
-## 8. Note Quality Gate
-
-Sau khi tạo continuity note, phải inspect generated file trước final response.
-
-Note chưa complete chỉ vì file đã tồn tại. Note phải cải thiện chất lượng future `pnotes brief` và giúp agent sau sửa code an toàn hơn.
-
-Nếu check nào fail, edit note trước final response:
-
-- `id` và `task` là slug-safe, không phải full human title.
-- `areas` là repo paths cụ thể, không phải broad labels hoặc comma-joined strings.
-- `decisions` là durable one-decision-per-item.
-- `invariants` ghi behavior/contract không được phá.
-- `risks` mô tả điều có thể sai, không chỉ mô tả mitigation.
-- `tests` có command và non-empty behavior coverage.
-- `missing_tests` ghi known coverage gaps nếu có.
-- `traps` không phải `None` nếu task có lifecycle, rollback, async, parser, cache, integration, hoặc hidden contract.
-- `next_agent_hint` cụ thể, trừ khi thật sự không có reusable hint.
-- Note là readable multiline Markdown.
-
-### 8.1 Formatting
-
-Continuity note phải là Markdown nhiều dòng, dễ đọc, dễ diff, dễ review, và dễ cho LLM đọc.
-
-Không được serialize frontmatter hoặc body thành một hoặc hai dòng dài.
-
-Một note hợp lệ phải có:
-
-- `---` mở và đóng frontmatter trên dòng riêng;
-- mỗi frontmatter key trên dòng riêng;
-- YAML lists dạng multiline;
-- mỗi body section bắt đầu trên dòng riêng;
-- dòng trống giữa frontmatter và body;
-- dòng trống giữa các body sections.
-
-Nếu note hiện ra như một hoặc hai dòng rất dài, note chưa đạt chuẩn. Phải reformat trước final response.
-
-### 8.2 Frontmatter enrichment
-
-Sau khi tạo note, phải inspect frontmatter.
-
-Nếu applicable, điền:
-
-- `decisions`: quyết định bền vững đã chọn/xác nhận;
-- `invariants`: behavior constraint không được phá;
-- `risks`: failure mode, race condition, fragility, operational risk;
-- `tests`: command đã chạy và behavior được bảo vệ;
-- `missing_tests`: coverage gap đã biết;
-- `supersedes`: exact note id bị thay thế.
-
-Không chỉ ghi structured project memory trong body nếu thông tin đó thuộc về frontmatter.
-
-Weak:
-
-    decisions:
-      - "Added SummaryTab, polling, resume, and tests."
-    risks:
-      - "Ensured rollback of DB changes and killing subprocess if start fails."
-    tests:
-      - command: "cd backend && cargo test && cd frontend && npm run test"
-        covers: []
-
-Better:
-
-    decisions:
-      - "Move Resume Session button and comment input from ActionBar into SummaryTab."
-      - "Poll task detail every 5s while task status is running."
-      - "Use optimistic resume mutation with rollback for both task detail and task list query caches."
-    risks:
-      - "Resume start can leave DB changes or spawned subprocess orphaned if agent start fails mid-flow."
-    tests:
-      - command: "cd frontend && npm test"
-        covers:
-          - "Summary tab renders status-specific blocks for paused, failed, and running tasks."
-          - "Optimistic resume updates task status to running and rolls back on API failure."
-          - "Task polling starts while status is running and stops after status leaves running."
-
-### 8.3 Anti-garbage
-
-Không thêm các section:
-
-    ## what_i_did
-    ## summary
-    ## implementation_details
-    ## files_changed
-    ## changelog
-
-Những thông tin đó thuộc về git diff, commit message, PR description, hoặc execution evidence.
-
-Trước khi viết một dòng vào note, tự hỏi:
-
-    Thông tin này đã rõ từ git diff, Handoff, hoặc evidence chưa?
-
-Nếu có rồi, không viết lại, trừ khi nó cần được ghi dưới dạng decision, invariant, risk, test coverage, hoặc missing test.
-
-### 8.4 next_agent_hint
-
-`next_agent_hint` phải chứa một hint hữu ích nhất cho agent tiếp theo.
-
-Không dùng `See Handoff` nếu task đã introduce, thay đổi, xác nhận, hoặc bảo vệ decision, invariant, risk, parser/scoring/lifecycle behavior, test coverage, missing test, race condition, compatibility constraint, hoặc non-obvious trap.
-
-Weak:
-
-    See Handoff.
-
-Better:
-
-    Do not simplify test metadata parsing to Clap-only; --test-covers must stay attached to the nearest preceding --test-command.
-
-### 8.5 Test coverage wording
-
-`tests.covers` phải mô tả behavior được bảo vệ, không chỉ ghi tên test hoặc implementation detail mơ hồ.
-
-Weak:
-
+    --task agent-work-cockpit \
+    --signal "Session id capture should not rely on arbitrary stdout parsing." \
+    --area src/session-manager \
+    --tag resume-flow \
+    --decision "Use explicit machine-readable session markers." \
+    --invariant "Stored session id must map to exactly one agent execution." \
+    --risk "CLI stdout format may change between versions." \
+    --test-command "npm test -- session-manager" \
+    --test-covers "resume existing session" \
+    --test-covers "create new session when missing id" \
+    --missing-test "No automated test currently protects browser-close-does-not-kill-subprocess."
+
+
+> **Lưu ý tương thích:** Nếu CLI thiếu flag cho một metadata cụ thể, Agent không được bỏ qua metadata đó. Hãy tạo note với các flag được hỗ trợ trước, sau đó bổ sung thủ công vào phần Frontmatter của file Markdown.
+
+---
+
+## 5. Quy trình thực hiện (Workflows)
+
+### 5.1 Luồng xử lý Trước khi Implement
+
+1. **Định vị:** Xác định rõ target area, task slug, hoặc tag liên quan.
+2. **Truy vấn bước 1:** Thực thi `pnotes brief` để lấy tổng quan an toàn.
+3. **Truy vấn bước 2:** Nếu `brief` không khả dụng hoặc rỗng, thực thi ngay `pnotes recall`.
+4. **Hấp thụ:** Đọc cô đọng các notes liên quan được trả về.
+5. **Trích xuất:** Định hình rõ: *decisions, invariants, risks, tests, missing tests, traps, dead ends, next-agent hints*.
+6. **Thực thi cục bộ:** Inspect các file source mục tiêu và các tầng test gần nhất.
+7. **Sửa đổi mã nguồn:** Giữ cho các thay đổi mang tính chính xác cao và khu trú (surgical change).
+
+*Lưu ý:* Nếu không tìm thấy ghi chú nào khớp, Agent không được báo lỗi, tiếp tục quy trình dò code bình thường và chuẩn bị tinh thần thu thập kiến thức mới cho bước sau.
+
+### 5.2 Luồng xử lý Sau khi Implement
+
+1. **Kiểm tra thực tế:** Review toàn bộ thay đổi (diff) vừa tạo ra.
+2. **Đánh giá mục tiêu:** Đối chiếu mã nguồn mới với Handoff/Task Intent ban đầu.
+3. **Cô đọng tri thức:** Chắt lọc các giá trị tái sử dụng: *decisions, invariants, risks, tests, missing_tests, deviations, traps, dead_ends, validation_delta, next_agent_hint*.
+4. **Tạo Note:** Khởi tạo continuity note thông qua CLI hoặc chỉnh sửa thủ công theo đúng Schema.
+5. **Đảm bảo chất lượng:** Tự kiểm tra lại file vừa tạo (xem như một kiến trúc lưu trữ tri thức bền vững, bắt buộc có tính tái sử dụng cho agent sau, không phải check cho có).
+6. **Chuẩn hóa:** Tối ưu hóa cấu trúc/reformat file để phục vụ tốt cho cơ chế `pnotes brief` tương lai.
+7. **Giới hạn nội dung:** Tuyệt đối không biến ghi chú thành một file changelog trùng lặp.
+8. **Phản hồi:** Trả về trạng thái ghi chú bắt buộc trong final response.
+
+---
+
+## 6. Cấu trúc Note Schema chuẩn chỉnh
+
+Mỗi ghi chú được định danh cố định tại đường dẫn: `.project-notes/notes/{YYYY-MM-DD}-{task-slug}.md`
+
+### 6.1 Cấu trúc Frontmatter (YAML)
+
+```yaml
+---
+id: 2026-05-25-auth-fix
+type: continuity
+task: auth-fix
+created_at: 2026-05-25
+signal: "JWT expiry edge case fixed in middleware"
+areas:
+  - src/auth
+tags:
+  - bug
+supersedes: []
+# Optional Frontmatter bổ sung cho pnotes brief
+decisions:
+  - "Use explicit machine-readable session markers."
+invariants:
+  - "Stored session id must map to exactly one agent execution."
+risks:
+  - "CLI stdout format may change between versions."
+tests:
+  - command: "npm test -- session-manager"
     covers:
-      - "id filename derivation"
+      - "resume existing session"
+      - "create new session when missing id"
+missing_tests:
+  - "No test for browser-close-does-not-kill-subprocess."
+---
 
-Better:
+```
 
-    covers:
-      - "generated note id matches resolved filename when collision suffix is used"
+#### Quy chuẩn dữ liệu Frontmatter:
 
-Nếu command đã chạy nhưng coverage không rõ, ghi điều đã validate thủ công trong `validation_delta`, không invent coverage.
+* `id` & `task`: Bắt buộc phải là dạng slug-safe (chỉ chứa chữ thường, số, dấu gạch ngang). Không chứa khoảng trắng, dấu hai chấm, dấu gạch chéo, dấu ngoặc hoặc các ký tự đặc biệt.
+* *Đúng:* `id: 2026-05-26-story-3-5a-session-summary`
+* *Sai:* `id: '2026-05-26-Story 3.5a: Session Summary'`
 
-Nếu backend/frontend/CLI/UI commands bảo vệ behavior khác nhau, tách thành nhiều `tests` entries thay vì gộp thành một command dài.
 
-## 9. Recall, brief, scoring, supersedes
+* `areas`: Phải là một YAML list chứa các đường dẫn repo riêng biệt, tường minh. Không dùng nhãn chung chung, không gộp nhiều area thành một chuỗi phân cách bởi dấu phẩy.
+* *Đúng:* Khai báo rõ ràng từng dòng `- frontend/src/hooks`
+* *Sai:* `- backend, frontend` hoặc các thư mục gốc quá rộng nếu thay đổi chỉ nằm ở module nhỏ.
 
-`pnotes recall` trả về notes liên quan.
 
-`pnotes brief` trả về current change safety context được aggregate từ notes liên quan.
+* `decisions`: Mỗi item phản ánh một quyết định mang tính bền vững; không gộp nhiều quyết định vào một dòng, không mô tả tiến trình thực hiện.
+* `risks`: Ghi rõ kịch bản lỗi hệ thống (failure mode), có thể kèm phương án giảm thiểu, nhưng bản chất rủi ro phải trực diện.
+* `tests`: Mỗi command phải đi kèm mảng `covers` không rỗng. Phải mô tả hành vi được bảo vệ, không chỉ ghi tên hàm test.
+* `missing_tests`: Liệt kê các lỗ hổng test đã nhận diện (ví dụ: thiếu E2E browser, thiếu kiểm thử vòng đời tiến trình, thiếu CLI validation diện rộng).
 
-Với `brief`, notes đã bị supersede phải bị loại khỏi aggregation khi superseding note cũng relevant.
+### 6.2 Cấu trúc Body Sections (Markdown)
 
-Nếu note B khai báo:
+```markdown
+## task
+{task-slug} — {run-id nếu có} — {handoff link nếu có}
 
-    supersedes:
-      - note-A
+## deviations
+None hoặc các điểm thiết kế/thực thi đi chệch khỏi Handoff/Plan ban đầu.
 
-thì `brief` không được aggregate `decisions`, `invariants`, `risks`, `tests`, `missing_tests`, hoặc recent continuity signal từ note-A khi note-B relevant.
+## traps
+Các ràng buộc ngầm (hidden constraints), gotchas, hoặc các điều kiện biên không hiển nhiên.
 
-`recall` có thể vẫn hiển thị superseded notes nếu CLI chưa hỗ trợ filter riêng.
+## dead_ends
+Các hướng tiếp cận đã thử nghiệm nhưng thất bại hoặc bị loại bỏ, kèm lý do chi tiết.
 
-Scoring nên ưu tiên:
+## validation_delta
+Kết quả nghiệm thu: "As expected", hoặc "Not run — reason: ...", hoặc các khác biệt kiểm thử đáng chú ý.
 
-    Area exact match: +5
-    Area prefix match: +4
-    Task exact match: +3
-    Tag match: +2
-    Text match trong signal/read_when: +2
-    Recency boost: +1
+## next_agent_hint
+Một chỉ dẫn có mật độ thông tin cao (high-signal) dành riêng cho Agent kế tiếp.
 
-Tie-break: `created_at` DESC.
+```
 
-## 10. Immutability
+> **Tiêu chuẩn điền thông tin tối thiểu:** > * Có thể dùng `None` cho `deviations`, `traps`, `dead_ends`.
+> * Có thể dùng `As expected` cho `validation_delta` nếu việc kiểm thử chuẩn xác hoàn toàn.
+> * Chỉ dùng `See Handoff. No surprises.` cho mục `next_agent_hint` khi và chỉ khi hệ thống thực sự không có bất kỳ rủi ro ngầm hay kiến thức tái sử dụng nào.
+> * **Đặc biệt:** Tuyệt đối không ghi `## traps\nNone` nếu kiến trúc xử lý có dính dáng đến: *async cache timing, rollback logic, subprocess lifecycle, trạng thái chuyển đổi DB, race conditions, parser behavior, hoặc các ràng buộc giao tiếp ngầm giữa frontend/backend.*
 
-Continuity notes là immutable execution records.
+---
 
-Được phép sửa:
+## 7. Tiêu chuẩn chất lượng nghiêm ngặt (Quality Gate)
 
-- typo;
-- broken link;
-- wrong relative path;
-- formatting không đổi nghĩa.
+Sau khi tạo ghi chú, Agent phải tự động chạy cơ chế kiểm soát chất lượng (Inspect) trước khi đưa ra phản hồi cuối cùng cho người dùng.
 
-Không được sửa:
+### 7.1 Quy định Định dạng (Formatting Discipline)
 
-- rewrite conclusions;
-- remove deviations;
-- thêm traps mới phát hiện vào note cũ;
-- đổi validation result;
-- đổi `next_agent_hint`.
+* Continuity Note bắt buộc phải là Markdown nhiều dòng, tường minh, dễ diff và dễ đọc bởi cả người và LLM.
+* Không được gom Frontmatter hoặc Body thành một hoặc hai dòng siêu dài.
+* Cặp ký tự định ranh giới frontmatter `---` phải nằm riêng biệt trên một dòng độc lập.
+* Giữa Frontmatter và phần Body, cũng như giữa các Section với nhau bắt buộc phải cách nhau bởi ít nhất một dòng trống.
 
-Nếu substantive information thay đổi sau này, tạo note mới và dùng:
+### 7.2 Phòng chống Rác thông tin (Anti-garbage Guidelines)
 
-    supersedes:
-      - old-note-id
+* **Tuyệt đối không** tự tiện thêm các phân đoạn mang tính chất nhật ký cá nhân như: `## what_i_did`, `## summary`, `## implementation_details`, `## files_changed`, `## changelog`.
+* Trước khi viết bất kỳ thông tin nào vào phần body, hãy luôn tự vấn: *"Thông tin này đã hiển thị rõ trong git diff, file Handoff hoặc bằng chứng thực thi (evidence) chưa?"*. Nếu câu trả lời là **Đã rõ**, nghiêm cấm đưa vào note, trừ khi nó được cấu trúc lại dưới dạng một *decision, invariant, risk, hoặc test coverage*.
 
-Dùng exact note id, không match mờ theo title/path.
+### 7.3 Chuẩn hóa ngôn từ Test Coverage (`tests.covers`)
 
-## 11. Security guardrails
+Mô tả trực diện hành vi nghiệp vụ được bảo toàn, không ghi chung chung tên file hay tiến trình kỹ thuật mơ hồ.
 
-Không lưu:
+* *Yếu (Weak):* `covers: - "id filename derivation"`
+* *Mạnh (Better):* `covers: - "generated note id matches resolved filename when collision suffix is used"`
+* Nếu thực hiện nhiều lệnh kiểm thử trên các môi trường khác nhau (backend, frontend, CLI), hãy phân tách thành các entry riêng biệt trong mảng `tests`, không nối chuỗi dài bằng dấu `&&`.
 
-- credentials;
-- API keys;
-- private tokens;
-- passwords;
-- personal data;
-- customer secrets;
-- production secrets.
+---
 
-Nếu note hữu ích nhưng có thông tin nhạy cảm, viết bản đã sanitize.
+## 8. Cơ chế Recall, Brief & Scoring
 
-## 12. Failure handling
+### 8.1 Logic Aggregate và Quyền ghi đè (Supersedes)
 
-Nếu thiếu `./bin/pnotes`:
+* `pnotes brief` tổng hợp context an toàn từ các note có liên quan, tự động loại trừ các dữ liệu cũ đã bị ghi đè (superseded).
+* Nếu **Ghi chú B** khai báo trường thuộc tính:
+```yaml
+supersedes:
+  - note-A
 
-- báo project-notes unavailable;
-- tiếp tục source inspection bình thường;
-- nói rõ không thể chạy pnotes recall/brief.
+```
 
-Nếu lỗi permission:
+Khi Ghi chú B được xác định là có liên quan (relevant), hệ thống `brief` sẽ lập tức cô lập và loại bỏ toàn bộ dữ liệu từ `note-A` (bao gồm decisions, invariants, risks, tests, và signal) ra khỏi kết quả tổng hợp cuối cùng nhằm tránh gây nhiễu context.
 
-    chmod +x bin/pnotes
+### 8.2 Ma trận Trọng số Tìm kiếm (Scoring System)
 
-Nếu `brief` unavailable nhưng `recall` có:
+Khi thực thi tìm kiếm, các ghi chú được chấm điểm tự động để sắp xếp độ ưu tiên theo bảng sau:
 
-    ./bin/pnotes recall --area <path> --limit 3
+| Tiêu chí khớp dữ liệu (Match Criteria) | Điểm số cộng thêm (Score) |
+| --- | --- |
+| Khớp chính xác Area (`Area exact match`) | `+5` |
+| Khớp tiền tố đường dẫn Area (`Area prefix match`) | `+4` |
+| Khớp chính xác mã định danh Task (`Task exact match`) | `+3` |
+| Khớp thẻ phân loại (`Tag match`) | `+2` |
+| Khớp từ khóa trong chuỗi `signal` hoặc `read_when` | `+2` |
+| Ưu tiên ghi chú mới nhất (`Recency boost`) | `+1` |
+| **Tiêu chí gỡ hòa (Tie-break)** | Sắp xếp theo thứ tự `created_at` **DESC** (Mới xếp trước) |
 
-Nếu không có note nào match:
+---
 
-- tiếp tục bình thường;
-- không scan toàn bộ notes;
-- sau implementation, tạo note nếu phát hiện reusable project knowledge mới.
+## 9. Tính bất biến & Bảo mật (Immutability & Security)
 
-## 13. Self-improvement discipline
+### 9.1 Tính bất biến (Immutability)
 
-Self-improvement không phải giấy phép để thêm rule vào `SKILL.md` sau mỗi lỗi nhỏ.
+Continuity notes hoạt động như những biên bản thực thi bất biến (immutable execution records).
 
-Khi phát hiện vấn đề, phải phân loại root cause trước khi sửa skill:
+* *Hành vi ĐƯỢC PHÉP:* Sửa lỗi chính tả, liên kết bị gãy, hiệu chỉnh đường dẫn tương đối hoặc reformat hiển thị mà không thay đổi ngữ nghĩa.
+* *Hành vi CẤM:* Khởi tạo lại kết luận, xóa bỏ phân đoạn lỗi (deviations), chèn thêm các bẫy (traps) mới phát hiện vào một note cũ đã đóng, thay đổi kết quả kiểm thử (validation result) hoặc biến đổi nội dung `next_agent_hint`.
+* *Giải pháp thay thế:* Nếu thông tin cốt lõi thay đổi, bắt buộc phải tạo một note mới hoàn toàn và sử dụng cơ chế `supersedes` để chỉ định chính xác ID của note cũ.
 
-1. Tool capability gap — ưu tiên sửa CLI/tool.
-2. Workflow enforcement gap — ưu tiên tighten completion gate trong AGENTS.md hoặc workflow nhỏ nhất.
-3. Documentation clarity gap — ưu tiên rewrite/simplify section hiện có.
-4. Artifact quality gap — ưu tiên template/checklist/validation.
-5. One-off execution mistake — không sửa skill, chỉ log nếu có khả năng tái diễn.
-6. Product/design decision — tạo handoff/decision note, không vá skill.
+### 9.2 Rào chắn Bảo mật (Security Guardrails)
 
-Minimal intervention priority:
+Tuyệt đối không ghi nhận các thông tin nhạy cảm vào project notes dưới mọi hình thức, bao gồm: Credentials, API keys, private tokens, passwords, personal data, customer secrets, production secrets. Mọi dữ liệu đưa vào bắt buộc phải được làm sạch (sanitize) hoàn toàn.
 
-1. No change.
-2. Improve CLI/tool behavior.
-3. Improve template/generated output.
-4. Tighten AGENTS.md gate.
-5. Rewrite existing SKILL section.
-6. Add new SKILL section.
-7. Add new process artifact.
+---
 
-Chỉ thêm section mới khi issue recurring/high-impact, rule general, có success metric, và có rollback condition.
+## 10. Xử lý sự cố (Failure Handling)
 
-Không add rule nếu chỉ hard-code một incident cụ thể.
+* **Trường hợp thiếu tập tin thực thi `./bin/pnotes`:**
+* Thông báo tường minh: `project-notes unavailable`.
+* Tiếp tục quy trình thám hiểm và chỉnh sửa mã nguồn bình thường.
+* Nêu rõ trong báo cáo việc không thể thực thi recall/brief.
 
-Every non-trivial self-improvement is an experiment. It must define:
 
-- expected effect;
-- trial window;
-- review metric;
-- rollback condition.
+* **Trường hợp lỗi phân quyền (Permission Denied):** Thực thi ngay lệnh cấp quyền truy cập: `chmod +x bin/pnotes`
+* **Trường hợp lệnh `brief` lỗi nhưng `recall` chạy được:** Chuyển đổi trạng thái sang lệnh dự phòng: `./bin/pnotes recall --area <path> --limit 3`
+* **Trường hợp không tìm thấy ghi chú nào khớp (No match):** Tiếp tục thực hiện task bình thường, không quét bừa bãi toàn bộ kho dữ liệu. Khi kết thúc task, nếu phát hiện tri thức mới có khả năng tái sử dụng, tiến hành lập note như quy định.
 
-Default trial window:
+---
 
-    Review after 5-10 new continuity notes.
+## 11. Kỷ luật Tự cải tiến (Self-improvement Discipline)
 
-After trial window, choose:
+> **Nguyên tắc tối cao:** Tự cải tiến không phải là cái cớ để tùy tiện chèn thêm các quy tắc rời rạc vào `SKILL.md` sau mỗi lỗi vận hành nhỏ. Mọi chỉnh sửa đối với skill phải tuân thủ quy trình phân lập nguyên nhân và ưu tiên can thiệp tối thiểu.
 
-- `keep` nếu note quality/workflow compliance cải thiện rõ mà không tăng noise;
-- `amend` nếu có ích nhưng quá nặng/mơ hồ/gây friction;
-- `rollback` nếu không cải thiện, tăng noise, giảm fill rate, giảm compliance, hoặc tăng agent friction;
-- `inconclusive` nếu chưa đủ notes.
+### 11.1 Phân loại Nguyên nhân gốc (Root Cause Classification)
 
-Do not keep a self-improvement only because it sounds reasonable.
+Trước khi chỉnh sửa skill, lỗi phải được phân loại chính xác vào 1 trong 6 nhóm:
 
-## 14. Self-improvement artifacts
+1. *Tool capability gap:* Thiếu hụt năng lực của công cụ CLI -> Ưu tiên nâng cấp công cụ/CLI.
+2. *Workflow enforcement gap:* Lỏng lẻo trong khâu kiểm soát hoàn thành -> Thắt chặt kiểm soát tại `AGENTS.md`.
+3. *Documentation clarity gap:* Tài liệu mơ hồ -> Viết lại hoặc tinh giản hóa phân đoạn tài liệu hiện có.
+4. *Artifact quality gap:* Chất lượng note kém -> Cải tiến template/checklist hoặc công cụ validation.
+5. *One-off execution mistake:* Sai sót nhất thời của Agent -> Không sửa đổi skill, chỉ log lại nếu cần cảnh báo.
+6. *Product/design decision:* Thay đổi mang tính thiết kế sản phẩm -> Tạo handoff/decision note, nghiêm cấm vá skill.
 
-Self-improvement artifacts của skill/workflow nằm cạnh skill, không nằm trong `.project-notes/` của project app.
+### 11.2 Thứ tự Ưu tiên Can thiệp Tối thiểu (Minimal Intervention Priority)
 
-Nếu skill nằm tại:
+Agent bắt buộc phải duyệt qua thứ tự ưu tiên từ thấp đến cao, chỉ chuyển sang bước sau nếu bước trước không thể giải quyết triệt để vấn đề:
 
-    .agents/skills/project-notes/SKILL.md
+1. Giữ nguyên trạng hệ thống (No change).
+2. Cải tiến hành vi của công cụ CLI (`bin/pnotes`).
+3. Tối ưu hóa cấu trúc template / định dạng dữ liệu đầu ra.
+4. Thắt chặt chẽ hơn cổng kiểm soát tại file cấu hình `AGENTS.md`.
+5. Viết lại hoặc làm rõ nội dung của một Section hiện có trong `SKILL.md`.
+6. Chỉ thêm Section mới trong `SKILL.md` khi lỗi có tính lặp lại cao, có ảnh hưởng lớn, quy tắc mang tính tổng quát, có chỉ số đo lường thành công và có điều kiện khôi phục (rollback condition).
+7. Thêm mới một tệp cấu trúc quy trình (process artifact).
 
-thì dùng:
+### 11.3 Cơ chế Thử nghiệm (Experimentation Rules)
 
-    .agents/skills/project-notes/self-improvement/
-      backups/
-      improvement-log.md
-      note-quality-matrix.md
+Mỗi chỉnh sửa phi tiểu tiết (non-trivial self-improvement) đối với cấu trúc skill đều được coi là một cuộc thử nghiệm và bắt buộc phải định nghĩa: *expected effect, trial window, review metric, và rollback condition.*
 
-### 14.1 Backup
+* **Khung thử nghiệm mặc định (Trial Window):** Đánh giá lại sau khi có thêm từ **5 đến 10** continuity notes mới được khởi tạo.
+* **Các trạng thái quyết định sau thử nghiệm:**
+* `keep`: Tiếp tục giữ nếu chất lượng ghi chú và tính tuân thủ quy trình tăng tiến rõ rệt mà không sinh nhiễu (noise).
+* `amend`: Tinh chỉnh nếu quy tắc có giá trị nhưng gây ma sát vận hành (friction) cao hoặc còn mơ hồ.
+* `rollback`: Khôi phục trạng thái cũ ngay lập tức nếu thử nghiệm không mang lại cải tiến, làm tăng nhiễu, giảm tỷ lệ điền ghi chú (fill rate) hoặc tăng độ trễ xử lý của Agent.
+* `inconclusive`: Chưa đủ số lượng ghi chú cần thiết để đưa ra kết luận.
 
-Backup trước khi thay đổi:
+---
 
-- `SKILL.md`;
-- AGENTS.md rule liên quan project-notes;
-- note schema;
-- CLI guide output;
-- completion gate;
-- formatting/enrichment rules;
-- scoring/brief/recall semantics;
-- `note-quality-matrix.md` nếu scoring criteria thay đổi.
+## 12. Định dạng Tệp Tri thức Tự cải tiến (Self-improvement Artifacts)
 
-Backup path:
+Toàn bộ tri thức tự cải tiến phải được lưu biệt lập tại cấu trúc thư mục phân tách: `<skill-root>/self-improvement/` (Ví dụ: `.agents/skills/project-notes/self-improvement/`).
 
-    <skill-root>/self-improvement/backups/YYYY-MM-DD-{target-name}-before-{task-slug}.md
+### 12.1 Nhật ký Cải tiến (improvement-log.md)
 
-### 14.2 Improvement log
+Mọi hành vi thay đổi cấu trúc skill phải được append vào tệp này theo cấu trúc cố định:
 
-Mỗi self-improvement task append vào:
+```markdown
+## YYYY-MM-DD — {task-slug}
 
-    <skill-root>/self-improvement/improvement-log.md
+Changed:
+- [Mô tả chi tiết các điểm thay đổi]
 
-Entry tối thiểu:
+Why:
+- [Nguyên nhân cốt lõi và lập luận]
 
-    ## YYYY-MM-DD — {task-slug}
+Expected effect:
+- [Hành vi hoặc chỉ số mong đợi sẽ cải thiện]
 
-    Changed:
-    - ...
+Risk:
+- [Rủi ro hệ thống hoặc độ trễ phát sinh]
 
-    Why:
-    - ...
+Follow-up review:
+- Quy trình review: Đánh giá lại sau 5-10 continuity notes mới.
+- Quyết định hướng đi: lựa chọn giữa keep, amend, rollback, hoặc inconclusive.
 
-    Expected effect:
-    - ...
+```
 
-    Risk:
-    - ...
+### 12.2 Ma trận Chất lượng Ghi chú (note-quality-matrix.md)
 
-    Follow-up review:
-    - Review after 5-10 new continuity notes.
-    - Decide: keep, amend, rollback, or inconclusive.
+Khi có sự thay đổi về tiêu chí đánh giá, Agent phải thực hiện sao lưu matrix cũ trước khi cập nhật dữ liệu mới. Hệ thống chấm điểm bắt buộc áp dụng thang điểm từ `0 đến 2` cho 4 trục chất lượng chính:
 
-### 14.3 Note quality matrix
+| Trục Chất lượng | Tiêu chí Kiểm định dữ liệu |
+| --- | --- |
+| **Metadata quality** | Kiểm tra độ chuẩn xác của `signal`, `areas`, `tags`, `decisions`, `invariants`, `risks`, `tests`, `missing_tests`, `supersedes`. |
+| **Body quality** | Kiểm tra độ sâu thông tin của `deviations`, `traps`, `dead_ends`, `validation_delta`, `next_agent_hint`. |
+| **Formatting quality** | Xác thực cú pháp multiline Markdown, tính hợp lệ của YAML, cấu trúc list thân thiện với diff, phân tách section bằng dòng trống. |
+| **Anti-garbage quality** | Xác nhận không trùng lặp changelog, không bịa đặt dữ liệu test, không để lộ thông tin mật, có giá trị thực tế cho `pnotes brief`. |
 
-Khi thay đổi cách đánh giá chất lượng note, backup matrix cũ nếu có rồi ghi lại matrix mới tại:
+* *Hướng dẫn chấm điểm:* `0` = Thiếu hụt hoặc gây hại; `1` = Có xuất hiện nhưng còn yếu/mơ hồ; `2` = Rõ ràng, hữu ích và mang tính hành động cao (actionable).
 
-    <skill-root>/self-improvement/note-quality-matrix.md
+### 12.3 Kích hoạt Chấm điểm Chất lượng (Scoring Trigger)
 
-Matrix tối thiểu phải chấm 0-2 cho các nhóm:
+Agent **bắt buộc** phải thực hiện chấm điểm toàn diện các ghi chú bằng ma trận `note-quality-matrix.md` khi rơi vào một trong các trường hợp sau:
 
-- Metadata quality: `signal`, `areas`, `tags`, `decisions`, `invariants`, `risks`, `tests`, `missing_tests`, `supersedes`.
-- Body quality: `deviations`, `traps`, `dead_ends`, `validation_delta`, `next_agent_hint`.
-- Formatting quality: multiline Markdown, valid/readable YAML, diff-friendly lists, separated sections.
-- Anti-garbage quality: no changelog duplication, no invented coverage/decisions, no secrets, useful for `pnotes brief`.
+1. Hệ thống ghi nhận thêm từ 5 đến 10 continuity notes mới kể từ lần điều chỉnh skill gần nhất.
+2. Trước khi đưa ra quyết định chuyển đổi trạng thái thử nghiệm (`keep`, `amend`, hoặc `rollback`).
+3. Trước khi tiến hành bất kỳ sửa đổi nào tác động vào `SKILL.md`, note schema, completion gate, hoặc logic xử lý của `pnotes brief/recall`.
+4. Phát hiện tối thiểu 2 ghi chú gần nhất mắc cùng một lỗi hệ thống (ví dụ: area quá rộng, covers trống, dùng hint lười biếng dạng "See Handoff").
+5. Đầu ra của `pnotes brief` trả về kết quả nhiễu, mâu thuẫn, trống rỗng hoặc mất khả năng định hướng hành vi cho Agent.
+6. Agent tìm cách vượt qua cổng kiểm soát hoàn thành hoặc sử dụng lý do skip không hợp lệ.
+7. Nhận được yêu cầu hoặc nghi ngờ về việc sụt giảm chất lượng ghi chú từ phía User hoặc Reviewer.
 
-Score guide:
+> **Lưu ý kỷ luật:** Không chạy chấm điểm cho từng ghi chú đơn lẻ sau mỗi task. Quy trình này chỉ kích hoạt để đánh giá xu hướng hệ thống (pattern review). Mỗi lượt đánh giá phải lưu vết vào tệp `<skill-root>/self-improvement/note-quality-review-log.md`.
 
-- 0 = missing or harmful
-- 1 = present but weak
-- 2 = clear, useful, actionable
+---
 
-Recommendation:
+## 13. Định dạng Phản hồi Bắt buộc tại Đầu ra (Output Requirements)
 
-- Keep as-is
-- Amend mechanical formatting only
-- Create follow-up note
-- Update skill/pnotes rule
-- Improve CLI support
+Để vượt qua các cổng kiểm soát tiến trình, Agent bắt buộc phải đính kèm các block trạng thái tiêu chuẩn ở cuối phản hồi cuối cùng (final response) tùy theo loại tác vụ:
 
-### 14.4 Scoring trigger
+### 13.1 Đối với Tác vụ Thực hiện Code (Code Implementation Task Completion)
 
-Phải chấm điểm notes bằng `note-quality-matrix.md` khi một trong các trigger sau xảy ra:
+Project notes: created <path_đến_file_ghi_chú>
 
-1. Đã có 5-10 continuity notes mới kể từ lần thay đổi skill/project-notes gần nhất.
-2. Trước khi quyết định `keep`, `amend`, hoặc `rollback` một self-improvement rule.
-3. Trước khi thay đổi `SKILL.md`, note schema, completion gate, hoặc `pnotes brief/recall` semantics.
-4. Khi phát hiện ít nhất 2 notes gần đây có cùng một lỗi chất lượng, ví dụ:
-   - `areas` quá rộng;
-   - `tests.covers` rỗng;
-   - `next_agent_hint` là `See Handoff` dù có reusable context;
-   - thiếu `missing_tests` dù có coverage gap;
-   - note bị serialize thành long lines.
-5. Khi `pnotes brief` trả output noisy, mâu thuẫn, quá rỗng, hoặc không giúp agent quyết định đọc/sửa gì.
-6. Khi agent bỏ qua project notes completion gate hoặc dùng skip reason không hợp lệ.
-7. Khi user hoặc reviewer nghi ngờ note quality đang giảm.
+*Hoặc trong trường hợp không tạo note hợp lệ:*
 
-Không chấm điểm sau mọi note đơn lẻ. Chấm điểm dùng để review pattern, không phải thủ tục bắt buộc cho từng task.
+Project notes: skipped — <lý_do_bỏ_qua_hợp_lệ>
 
-Mỗi lần chấm điểm phải tạo hoặc append một review entry vào:
+### 13.2 Đối với Tác vụ Tự cải tiến Skill (Self-improvement Task Completion)
 
-    <skill-root>/self-improvement/note-quality-review-log.md
-
-Entry tối thiểu:
-
-    ## YYYY-MM-DD — note-quality-review
-
-    Trigger:
-    - ...
-
-    Notes reviewed:
-    - note-id-1
-    - note-id-2
-
-    Average scores:
-    - Metadata Quality: ...
-    - Body Quality: ...
-    - Formatting Quality: ...
-    - Anti-Garbage Quality: ...
-    - Overall: ...
-
-    Main regressions:
-    - ...
-
-    Decision:
-    - keep / amend / rollback / inconclusive
-
-    Follow-up:
-    - ...
-
-### 14.5 Self-improvement completion
-
-Self-improvement task chưa complete cho đến khi applicable items được xử lý:
-
-- backup created hoặc skip reason recorded;
-- improvement log updated;
-- note-quality-matrix backed up before rewrite nếu matrix đã tồn tại và scoring criteria changed;
-- score matrix created/updated nếu note quality scoring rules changed;
-- final response includes changed self-improvement artifact paths.
-- note-quality scoring completed and review log updated when a scoring trigger applies;
-
-Final response phải include:
-
-    Self-improvement decision: keep / amend / rollback / inconclusive / not-reviewed
-    Backup: created <path> / skipped — <reason>
-    Improvement log: updated <path>
-    Score matrix backup: created <path> / skipped — <reason>
-    Score matrix: created-or-updated <path> / unchanged — <reason>
-    Note quality review: updated <path> / skipped — <reason>
-
-## 15. Completion requirement
-
-Một code implementation task chưa hoàn tất cho đến khi một trong các điều sau đúng:
-
-1. Đã tạo continuity note cho implementation output.
-2. Agent nói rõ vì sao không cần note:
-   - không có code/config/test/script behavior changed;
-   - task là pure Q&A hoặc read-only;
-   - repo không có pnotes setup;
-   - user explicitly yêu cầu không tạo note.
-
-Không được dùng “task nhỏ” làm lý do skip project-notes.
-
-Final response phải include:
-
-    Project notes: created <path>
-
-hoặc:
-
-    Project notes: skipped — <valid reason>
+Self-improvement decision: keep / amend / rollback / inconclusive / not-reviewed
+Backup: created <path> / skipped — <reason>
+Improvement log: updated <path>
+Score matrix backup: created <path> / skipped — <reason>
+Score matrix: created-or-updated <path> / unchanged — <reason>
+Note quality review: updated <path> / skipped — <reason>
