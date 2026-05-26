@@ -50,6 +50,7 @@ async fn main() -> anyhow::Result<()> {
     let state = AppState {
         db: pool,
         subprocess_map: Arc::new(Mutex::new(HashMap::new())),
+        agent_config_path: services::agent_config::default_config_path(),
     };
 
     let api_router = Router::new()
@@ -98,6 +99,19 @@ async fn main() -> anyhow::Result<()> {
         .route(
             "/projects/{project_id}/tasks/{task_id}/comments",
             get(handlers::comments::list_comments).post(handlers::comments::add_comment),
+        )
+        .route(
+            "/agents",
+            get(handlers::agent_config::list_agents).post(handlers::agent_config::create_agent),
+        )
+        .route(
+            "/agents/{name}",
+            axum::routing::put(handlers::agent_config::update_agent)
+                .delete(handlers::agent_config::delete_agent),
+        )
+        .route(
+            "/agents/{name}/test",
+            axum::routing::post(handlers::agent_config::test_agent),
         );
 
     let state = Arc::new(state);

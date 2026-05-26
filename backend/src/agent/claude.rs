@@ -7,7 +7,18 @@ use super::AgentStrategy;
 use crate::models::task::Task;
 
 #[derive(Debug, Default)]
-pub struct ClaudeStrategy;
+pub struct ClaudeStrategy {
+    pub binary: Option<String>,
+}
+
+impl ClaudeStrategy {
+    fn binary(&self) -> String {
+        self.binary
+            .clone()
+            .or_else(|| std::env::var("OMNI_AGENT_CLAUDE_BIN").ok())
+            .unwrap_or_else(|| "claude".to_string())
+    }
+}
 
 impl AgentStrategy for ClaudeStrategy {
     fn name(&self) -> &'static str {
@@ -15,9 +26,7 @@ impl AgentStrategy for ClaudeStrategy {
     }
 
     fn spawn_command(&self, _task: &Task, _log_path: &Path) -> Command {
-        let binary =
-            std::env::var("OMNI_AGENT_CLAUDE_BIN").unwrap_or_else(|_| "claude".to_string());
-        let mut cmd = Command::new(binary);
+        let mut cmd = Command::new(self.binary());
         cmd.kill_on_drop(true);
         cmd.stdin(Stdio::piped());
         cmd.stdout(Stdio::piped());
@@ -26,9 +35,7 @@ impl AgentStrategy for ClaudeStrategy {
     }
 
     fn resume_command(&self, session_id: &str, comment: Option<&str>) -> Command {
-        let binary =
-            std::env::var("OMNI_AGENT_CLAUDE_BIN").unwrap_or_else(|_| "claude".to_string());
-        let mut cmd = Command::new(binary);
+        let mut cmd = Command::new(self.binary());
         cmd.arg("--continue").arg("--session-id").arg(session_id);
         cmd.kill_on_drop(true);
         if comment.is_some() {
@@ -70,7 +77,7 @@ mod tests {
     use super::*;
 
     fn strategy() -> ClaudeStrategy {
-        ClaudeStrategy
+        ClaudeStrategy::default()
     }
 
     #[test]
@@ -118,12 +125,11 @@ mod tests {
     }
 
     #[test]
-    fn spawn_command_uses_env_override_when_set() {
-        // SAFETY: test-only env manipulation, no threads at this point
-        unsafe {
-            std::env::set_var("OMNI_AGENT_CLAUDE_BIN", "/tmp/mock-claude-test");
+    fn spawn_command_uses_configured_binary_when_set() {
+        let cmd = ClaudeStrategy {
+            binary: Some("/tmp/mock-claude-test".to_string()),
         }
-        let cmd = strategy().spawn_command(
+        .spawn_command(
             &crate::models::task::Task {
                 id: "T".to_string(),
                 project_id: "P".to_string(),
@@ -141,14 +147,11 @@ mod tests {
         );
         let std_cmd = cmd.as_std();
         assert_eq!(std_cmd.get_program(), "/tmp/mock-claude-test");
-        unsafe {
-            std::env::remove_var("OMNI_AGENT_CLAUDE_BIN");
-        }
     }
 
     #[test]
     fn resume_command_with_comment_has_stdin_piped() {
-        let s = ClaudeStrategy;
+        let s = ClaudeStrategy::default();
         unsafe {
             std::env::set_var("OMNI_AGENT_CLAUDE_BIN", "/tmp/mock-claude-test");
         }

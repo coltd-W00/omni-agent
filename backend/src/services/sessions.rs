@@ -28,6 +28,7 @@ fn resolve_log_path(task_id: &str, run_id: &str) -> PathBuf {
 pub async fn start_session(
     pool: &SqlitePool,
     subprocess_map: Arc<Mutex<HashMap<String, Child>>>,
+    agent_config_path: &std::path::Path,
     project_id: &str,
     task_id: &str,
 ) -> Result<StartSessionResponse, AppError> {
@@ -45,7 +46,8 @@ pub async fn start_session(
     })?;
 
     // 3. Resolve strategy
-    let strategy = agent::strategy_for(agent_name)?;
+    let agent_config = crate::services::agent_config::get_agent(agent_config_path, agent_name)?;
+    let strategy = agent::strategy_for_config(&agent_config.protocol, agent_config.binary.clone());
 
     // 4. Prepare log path + create parent dirs
     let session_pk = Uuid::new_v4().to_string();
@@ -143,7 +145,7 @@ pub async fn start_session(
 
     // 10. Spawn background streaming + session ID capture task
     let pool_clone = pool.clone();
-    let strategy_clone = agent::strategy_for(agent_name).expect("strategy already validated");
+    let strategy_clone = agent::strategy_for_config(&agent_config.protocol, agent_config.binary);
     let session_pk_clone = session_pk.clone();
     let run_id_clone = run_id.clone();
     let log_path_clone = log_path.clone();
@@ -559,7 +561,8 @@ pub async fn resume_session(
     }
 
     // 7. Build resume command via strategy
-    let strategy = crate::agent::strategy_for(&agent)?;
+    let agent_config = crate::services::agent_config::get_agent(&state.agent_config_path, &agent)?;
+    let strategy = crate::agent::strategy_for_config(&agent_config.protocol, agent_config.binary);
     let mut cmd = strategy.resume_command(&session_id_str, comment.as_deref());
 
     // 8. AC-10: Spawn TRƯỚC khi commit DB

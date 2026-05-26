@@ -193,8 +193,8 @@ export default function TaskDetailPanel() {
     if (runId !== undefined) setFocusedRunId(runId);
   };
 
-  const agentRuntime: "codex" | "claude" = task.agent ?? "codex";
-  const agentName = task.role ?? task.agent ?? "unassigned";
+  const agentRuntime = task.agent === "claude" || task.agent === "codex" ? task.agent : undefined;
+  const agentName = task.agent ?? task.role ?? "unassigned";
 
   return (
     <>

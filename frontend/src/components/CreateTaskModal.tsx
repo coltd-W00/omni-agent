@@ -5,8 +5,11 @@ import { useQueryClient } from "@tanstack/react-query";
 import Button from "./Button";
 import { useToast } from "./Toast";
 import { useCreateTask } from "../hooks/useTasks";
+import { useAgents } from "../hooks/useAgents";
+import { assignAgent } from "../api/tasks";
 import { ApiError } from "../api/client";
 import { useSetActiveProject } from "../features/project/ActiveProjectContext";
+import { TaskRole } from "../types/task";
 
 interface CreateTaskModalProps {
   open: boolean;
@@ -23,6 +26,8 @@ export default function CreateTaskModal({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [ac, setAc] = useState("");
+  const [selectedAgent, setSelectedAgent] = useState("");
+  const [selectedRole, setSelectedRole] = useState<TaskRole>(TaskRole.Coder);
   const [errors, setErrors] = useState<{
     title?: string;
     description?: string;
@@ -30,6 +35,8 @@ export default function CreateTaskModal({
   }>({});
 
   const createMutation = useCreateTask(projectId);
+  const agentsQuery = useAgents();
+  const enabledAgents = (agentsQuery.data ?? []).filter((agent) => agent.enabled);
   const { showToast } = useToast();
   const setActiveProject = useSetActiveProject();
   const queryClient = useQueryClient();
@@ -62,6 +69,8 @@ export default function CreateTaskModal({
       setTitle("");
       setDescription("");
       setAc("");
+      setSelectedAgent("");
+      setSelectedRole(TaskRole.Coder);
       setErrors({});
     }
   }, [open]);
@@ -106,6 +115,13 @@ export default function CreateTaskModal({
         acceptanceCriteria:
           ac.trim() === "" ? undefined : ac.trim(),
       });
+      if (selectedAgent && projectId) {
+        await assignAgent(projectId, task.id, {
+          agent: selectedAgent,
+          role: selectedRole,
+        });
+        void queryClient.invalidateQueries({ queryKey: ["tasks", projectId] });
+      }
       showToast({ tone: "success", message: `Task ${task.id} created` });
       onClose();
     } catch (err) {
@@ -263,6 +279,54 @@ export default function CreateTaskModal({
             </span>
           )}
         </div>
+
+        <div className="app-create-task-modal__field">
+          <label
+            htmlFor="create-task-agent"
+            className="app-create-task-modal__label"
+          >
+            Agent
+          </label>
+          <select
+            id="create-task-agent"
+            className="app-create-task-modal__select"
+            value={selectedAgent}
+            onChange={(e) => setSelectedAgent(e.target.value)}
+          >
+            <option value="">Create as draft</option>
+            {enabledAgents.map((agent) => (
+              <option key={agent.name} value={agent.name}>
+                {agent.name}
+              </option>
+            ))}
+          </select>
+          <span className="app-create-task-modal__hint">
+            Disabled agents are hidden from this list.
+          </span>
+        </div>
+
+        {selectedAgent && (
+          <div className="app-create-task-modal__field">
+            <label
+              htmlFor="create-task-role"
+              className="app-create-task-modal__label"
+            >
+              Role
+            </label>
+            <select
+              id="create-task-role"
+              className="app-create-task-modal__select"
+              value={selectedRole}
+              onChange={(e) => setSelectedRole(e.target.value as TaskRole)}
+            >
+              {Object.values(TaskRole).map((role) => (
+                <option key={role} value={role}>
+                  {role}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div className="app-create-task-modal__footer">
           <Button

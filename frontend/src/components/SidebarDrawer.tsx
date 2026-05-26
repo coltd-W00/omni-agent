@@ -79,6 +79,14 @@ export default function SidebarDrawer() {
               <span>All Tasks</span>
             </NavLink>
           </li>
+          <li>
+            <NavLink to="/agents" className={itemClass} onClick={close}>
+              <span className="app-sidebar-drawer__item-icon" aria-hidden="true">
+                AI
+              </span>
+              <span>Agents</span>
+            </NavLink>
+          </li>
         </ul>
       </aside>
     </>

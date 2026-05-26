@@ -7,7 +7,18 @@ use super::AgentStrategy;
 use crate::models::task::Task;
 
 #[derive(Debug, Default)]
-pub struct CodexStrategy;
+pub struct CodexStrategy {
+    pub binary: Option<String>,
+}
+
+impl CodexStrategy {
+    fn binary(&self) -> String {
+        self.binary
+            .clone()
+            .or_else(|| std::env::var("OMNI_AGENT_CODEX_BIN").ok())
+            .unwrap_or_else(|| "codex".to_string())
+    }
+}
 
 impl AgentStrategy for CodexStrategy {
     fn name(&self) -> &'static str {
@@ -15,8 +26,7 @@ impl AgentStrategy for CodexStrategy {
     }
 
     fn spawn_command(&self, _task: &Task, _log_path: &Path) -> Command {
-        let binary = std::env::var("OMNI_AGENT_CODEX_BIN").unwrap_or_else(|_| "codex".to_string());
-        let mut cmd = Command::new(binary);
+        let mut cmd = Command::new(self.binary());
         cmd.kill_on_drop(true);
         cmd.stdin(Stdio::piped());
         cmd.stdout(Stdio::piped());
@@ -25,8 +35,7 @@ impl AgentStrategy for CodexStrategy {
     }
 
     fn resume_command(&self, session_id: &str, comment: Option<&str>) -> Command {
-        let binary = std::env::var("OMNI_AGENT_CODEX_BIN").unwrap_or_else(|_| "codex".to_string());
-        let mut cmd = Command::new(binary);
+        let mut cmd = Command::new(self.binary());
         cmd.arg("resume").arg(session_id);
         cmd.kill_on_drop(true);
         if comment.is_some() {
@@ -132,7 +141,7 @@ mod tests {
     use std::io::Write;
 
     fn strategy() -> CodexStrategy {
-        CodexStrategy
+        CodexStrategy::default()
     }
 
     #[test]
@@ -266,7 +275,7 @@ mod tests {
 
     #[test]
     fn resume_command_with_comment_has_stdin_piped() {
-        let s = CodexStrategy;
+        let s = CodexStrategy::default();
         unsafe {
             std::env::set_var("OMNI_AGENT_CODEX_BIN", "/tmp/mock-codex-test");
         }

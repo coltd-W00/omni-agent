@@ -1,4 +1,4 @@
-// TODO(Story 2.x): add Inbox, Review Queue, AGENTS section, Settings (UX section 2.2).
+// TODO(Story 2.x): add Inbox, Review Queue, Settings (UX section 2.2).
 import { NavLink } from "react-router";
 import ProjectSwitcher from "../features/project/ProjectSwitcher";
 
@@ -26,6 +26,14 @@ export default function Sidebar() {
                 📋
               </span>
               <span className="app-sidebar__item-label">All Tasks</span>
+            </NavLink>
+          </li>
+          <li>
+            <NavLink to="/agents" className={itemClass} title="Agents">
+              <span className="app-sidebar__item-icon" aria-hidden="true">
+                AI
+              </span>
+              <span className="app-sidebar__item-label">Agents</span>
             </NavLink>
           </li>
         </ul>

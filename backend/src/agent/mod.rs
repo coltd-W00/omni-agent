@@ -1,4 +1,5 @@
 use crate::error::AppError;
+use crate::models::agent_config::AgentProtocol;
 use crate::models::task::Task;
 use chrono::{DateTime, Utc};
 use std::path::Path;
@@ -23,11 +24,22 @@ pub mod codex;
 
 pub fn strategy_for(agent: &str) -> Result<Box<dyn AgentStrategy>, AppError> {
     match agent {
-        "claude" => Ok(Box::new(claude::ClaudeStrategy)),
-        "codex" => Ok(Box::new(codex::CodexStrategy)),
+        "claude" => Ok(Box::new(claude::ClaudeStrategy::default())),
+        "codex" => Ok(Box::new(codex::CodexStrategy::default())),
         other => Err(AppError::BadRequest {
             code: "invalid_agent",
             message: format!("Agent must be one of: codex, claude (got: {})", other),
+        }),
+    }
+}
+
+pub fn strategy_for_config(protocol: &AgentProtocol, binary: String) -> Box<dyn AgentStrategy> {
+    match protocol {
+        AgentProtocol::Claude => Box::new(claude::ClaudeStrategy {
+            binary: (binary != "claude").then_some(binary),
+        }),
+        AgentProtocol::Codex => Box::new(codex::CodexStrategy {
+            binary: (binary != "codex").then_some(binary),
         }),
     }
 }

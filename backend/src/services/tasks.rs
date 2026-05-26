@@ -1,7 +1,9 @@
+use std::path::Path;
+
 use crate::error::AppError;
 use crate::models::task::{AssignAgentRequest, CreateTaskRequest, Task, UpdateTaskRequest};
+use crate::services::agent_config;
 use sqlx::{Connection, SqlitePool};
-
 const VALID_AGENTS: &[&str] = &["codex", "claude"];
 const VALID_ROLES: &[&str] = &["coder", "reviewer", "planner", "debugger", "refactorer"];
 
@@ -259,14 +261,32 @@ pub async fn assign_agent(
     task_id: &str,
     req: AssignAgentRequest,
 ) -> Result<Task, AppError> {
-    // Validate agent
     if !VALID_AGENTS.contains(&req.agent.as_str()) {
         return Err(AppError::BadRequest {
             code: "invalid_agent",
             message: "Agent must be one of: codex, claude".to_string(),
         });
     }
+    assign_agent_validated(pool, project_id, task_id, req).await
+}
 
+pub async fn assign_agent_with_config(
+    pool: &SqlitePool,
+    agent_config_path: &Path,
+    project_id: &str,
+    task_id: &str,
+    req: AssignAgentRequest,
+) -> Result<Task, AppError> {
+    agent_config::enabled_agent(agent_config_path, &req.agent)?;
+    assign_agent_validated(pool, project_id, task_id, req).await
+}
+
+async fn assign_agent_validated(
+    pool: &SqlitePool,
+    project_id: &str,
+    task_id: &str,
+    req: AssignAgentRequest,
+) -> Result<Task, AppError> {
     // Validate role
     if !VALID_ROLES.contains(&req.role.as_str()) {
         return Err(AppError::BadRequest {

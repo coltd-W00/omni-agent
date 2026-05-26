@@ -18,6 +18,7 @@ pub async fn start_session(
     let resp = sessions::start_session(
         &state.db,
         state.subprocess_map.clone(),
+        &state.agent_config_path,
         &project_id,
         &task_id,
     )

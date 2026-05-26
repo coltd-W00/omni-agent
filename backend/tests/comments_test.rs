@@ -40,6 +40,8 @@ async fn build_comments_app() -> (Router, Arc<AppState>) {
     let state = Arc::new(AppState {
         db: pool,
         subprocess_map: Arc::new(Mutex::new(HashMap::new())),
+        agent_config_path: std::env::temp_dir()
+            .join(format!("omni-agent-test-{}.json", uuid::Uuid::new_v4())),
     });
 
     let api_router = Router::new()

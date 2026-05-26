@@ -48,6 +48,7 @@
 }
 
 .app-create-task-modal__input,
+.app-create-task-modal__select,
 .app-create-task-modal__textarea {
   width: 100%;
   padding: var(--space-2) var(--space-3);
@@ -63,6 +64,7 @@
 }
 
 .app-create-task-modal__input:focus,
+.app-create-task-modal__select:focus,
 .app-create-task-modal__textarea:focus {
   outline: none;
   border-color: var(--brand-primary);

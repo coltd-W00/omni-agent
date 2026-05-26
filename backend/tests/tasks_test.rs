@@ -41,6 +41,8 @@ async fn build_test_app_with_pool() -> (Router, SqlitePool) {
     let state = AppState {
         db: pool.clone(),
         subprocess_map: Arc::new(Mutex::new(HashMap::new())),
+        agent_config_path: std::env::temp_dir()
+            .join(format!("omni-agent-test-{}.json", uuid::Uuid::new_v4())),
     };
 
     let api_router = Router::new()

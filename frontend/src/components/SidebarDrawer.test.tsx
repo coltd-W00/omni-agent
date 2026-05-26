@@ -91,6 +91,6 @@ describe("SidebarDrawer", () => {
     closeButton.focus();
     fireEvent.keyDown(drawer, { key: "Tab", shiftKey: true });
 
-    expect(screen.getByRole("link", { name: "All Tasks" })).toHaveFocus();
+    expect(screen.getByRole("link", { name: "Agents" })).toHaveFocus();
   });
 });

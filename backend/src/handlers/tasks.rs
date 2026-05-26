@@ -52,7 +52,14 @@ pub async fn assign_agent(
     Path((project_id, task_id)): Path<(String, String)>,
     Json(req): Json<AssignAgentRequest>,
 ) -> Result<Json<Task>, AppError> {
-    let task = services::tasks::assign_agent(&state.db, &project_id, &task_id, req).await?;
+    let task = services::tasks::assign_agent_with_config(
+        &state.db,
+        &state.agent_config_path,
+        &project_id,
+        &task_id,
+        req,
+    )
+    .await?;
     Ok(Json(task))
 }
 

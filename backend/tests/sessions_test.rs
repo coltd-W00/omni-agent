@@ -42,6 +42,8 @@ async fn build_sessions_app() -> (Router, Arc<AppState>) {
     let state = Arc::new(AppState {
         db: pool.clone(),
         subprocess_map: Arc::new(Mutex::new(HashMap::new())),
+        agent_config_path: std::env::temp_dir()
+            .join(format!("omni-agent-test-{}.json", uuid::Uuid::new_v4())),
     });
 
     let api_router = Router::new()
@@ -814,6 +816,8 @@ async fn build_sessions_app_with_cancel() -> (Router, Arc<AppState>) {
     let state = Arc::new(AppState {
         db: pool.clone(),
         subprocess_map: Arc::new(Mutex::new(HashMap::new())),
+        agent_config_path: std::env::temp_dir()
+            .join(format!("omni-agent-test-{}.json", uuid::Uuid::new_v4())),
     });
 
     let api_router = Router::new()
@@ -1247,6 +1251,8 @@ async fn build_sessions_app_with_resume() -> (Router, Arc<AppState>) {
     let state = Arc::new(AppState {
         db: pool.clone(),
         subprocess_map: Arc::new(Mutex::new(HashMap::new())),
+        agent_config_path: std::env::temp_dir()
+            .join(format!("omni-agent-test-{}.json", uuid::Uuid::new_v4())),
     });
 
     let api_router = Router::new()

@@ -16,7 +16,7 @@ export const TaskAgent = {
   Codex: "codex",
   Claude: "claude",
 } as const;
-export type TaskAgent = (typeof TaskAgent)[keyof typeof TaskAgent];
+export type TaskAgent = string;
 
 export const TaskRole = {
   Coder: "coder",
