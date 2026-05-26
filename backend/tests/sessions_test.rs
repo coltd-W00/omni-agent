@@ -104,7 +104,8 @@ async fn setup_assigned_task(app: &Router, agent: &str) -> (String, String) {
         .uri("/api/projects")
         .header("content-type", "application/json")
         .body(Body::from(
-            serde_json::json!({"name": "OmniAgent", "key": "OMNI"}).to_string(),
+            serde_json::json!({"name": "OmniAgent", "key": "OMNI", "workspacePath": "/tmp"})
+                .to_string(),
         ))
         .unwrap();
     let res = app.clone().oneshot(req).await.unwrap();
@@ -117,7 +118,7 @@ async fn setup_assigned_task(app: &Router, agent: &str) -> (String, String) {
         .uri(format!("/api/projects/{}/tasks", project_id))
         .header("content-type", "application/json")
         .body(Body::from(
-            r#"{"title":"Fix login","description":"Token broken"}"#,
+            r#"{"title": "Fix login", "description": "Token broken", "agent": "claude", "role": "coder"}"#,
         ))
         .unwrap();
     let res = app.clone().oneshot(req).await.unwrap();
@@ -257,6 +258,80 @@ async fn start_session_claude_happy_path() {
         std::env::remove_var("OMNI_AGENT_CLAUDE_BIN");
         std::env::remove_var("MOCK_AGENT_SESSION_ID");
         std::env::remove_var("MOCK_AGENT_DELAY_MS");
+        std::env::remove_var("MOCK_AGENT_SLEEP_SECS");
+    }
+}
+
+#[tokio::test]
+#[serial]
+async fn start_session_spawns_agent_in_project_workspace() {
+    let tmp_home = std::env::temp_dir().join(format!("omni-test-home-cwd-{}", std::process::id()));
+    let workspace =
+        std::env::temp_dir().join(format!("omni-test-workspace-cwd-{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&tmp_home).unwrap();
+    std::fs::create_dir_all(&workspace).unwrap();
+    unsafe {
+        std::env::set_var("HOME", tmp_home.to_str().unwrap());
+        std::env::set_var("OMNI_AGENT_CLAUDE_BIN", mock_bin());
+        std::env::set_var("MOCK_AGENT_SESSION_ID", "cwd-test-uuid");
+        std::env::set_var("MOCK_AGENT_PRINT_CWD", "1");
+        std::env::set_var("MOCK_AGENT_SLEEP_SECS", "10");
+    }
+
+    let (app, state) = build_sessions_app().await;
+
+    let req = Request::builder()
+        .method("POST")
+        .uri("/api/projects")
+        .header("content-type", "application/json")
+        .body(Body::from(
+            serde_json::json!({
+                "name": "OmniAgent",
+                "key": "OMNI",
+                "workspacePath": workspace.to_str().unwrap()
+            })
+            .to_string(),
+        ))
+        .unwrap();
+    let res = app.clone().oneshot(req).await.unwrap();
+    let project_body = body_json(res.into_body()).await;
+    let project_id = project_body["id"].as_str().unwrap().to_string();
+
+    let req = Request::builder()
+        .method("POST")
+        .uri(format!("/api/projects/{}/tasks", project_id))
+        .header("content-type", "application/json")
+        .body(Body::from(
+            r#"{"title":"Fix","description":"Desc","agent":"claude","role":"coder"}"#,
+        ))
+        .unwrap();
+    let res = app.clone().oneshot(req).await.unwrap();
+    let task_body = body_json(res.into_body()).await;
+    let task_id = task_body["id"].as_str().unwrap().to_string();
+
+    let (status, body) = start_session(&app, &project_id, &task_id).await;
+    assert_eq!(status, StatusCode::OK, "body: {}", body);
+
+    tokio::time::sleep(tokio::time::Duration::from_millis(300)).await;
+    let log_path: String = sqlx::query_scalar("SELECT log_path FROM runs LIMIT 1")
+        .fetch_one(&state.db)
+        .await
+        .unwrap();
+    let log_content = std::fs::read_to_string(log_path).unwrap();
+    assert!(
+        log_content.contains(&format!("cwd={}", workspace.to_string_lossy())),
+        "log content: {}",
+        log_content
+    );
+
+    drain_subprocesses(&state).await;
+    std::fs::remove_dir_all(&tmp_home).ok();
+    std::fs::remove_dir_all(&workspace).ok();
+    unsafe {
+        std::env::remove_var("HOME");
+        std::env::remove_var("OMNI_AGENT_CLAUDE_BIN");
+        std::env::remove_var("MOCK_AGENT_SESSION_ID");
+        std::env::remove_var("MOCK_AGENT_PRINT_CWD");
         std::env::remove_var("MOCK_AGENT_SLEEP_SECS");
     }
 }
@@ -502,7 +577,7 @@ async fn start_session_task_in_draft_returns_409() {
         std::env::set_var("OMNI_AGENT_CLAUDE_BIN", mock_bin());
     }
 
-    let (app, _state) = build_sessions_app().await;
+    let (app, state) = build_sessions_app().await;
 
     // Create project + task but do NOT assign agent (stays Draft)
     let req = Request::builder()
@@ -510,7 +585,8 @@ async fn start_session_task_in_draft_returns_409() {
         .uri("/api/projects")
         .header("content-type", "application/json")
         .body(Body::from(
-            serde_json::json!({"name": "OmniAgent", "key": "OMNI"}).to_string(),
+            serde_json::json!({"name": "OmniAgent", "key": "OMNI", "workspacePath": "/tmp"})
+                .to_string(),
         ))
         .unwrap();
     let res = app.clone().oneshot(req).await.unwrap();
@@ -521,11 +597,18 @@ async fn start_session_task_in_draft_returns_409() {
         .method("POST")
         .uri(format!("/api/projects/{}/tasks", project_id))
         .header("content-type", "application/json")
-        .body(Body::from(r#"{"title":"Fix","description":"Desc"}"#))
+        .body(Body::from(
+            r#"{"title": "Fix", "description": "Desc", "agent": "claude", "role": "coder"}"#,
+        ))
         .unwrap();
     let res = app.clone().oneshot(req).await.unwrap();
     let task_body = body_json(res.into_body()).await;
     let task_id = task_body["id"].as_str().unwrap().to_string();
+    sqlx::query("UPDATE tasks SET status = 'Draft' WHERE id = ?")
+        .bind(&task_id)
+        .execute(&state.db)
+        .await
+        .unwrap();
 
     let (status, body) = start_session(&app, &project_id, &task_id).await;
     assert_eq!(status, StatusCode::CONFLICT);
@@ -537,6 +620,33 @@ async fn start_session_task_in_draft_returns_409() {
         std::env::remove_var("HOME");
         std::env::remove_var("OMNI_AGENT_CLAUDE_BIN");
     }
+}
+
+#[tokio::test]
+async fn start_session_legacy_project_without_workspace_returns_409() {
+    let (app, state) = build_sessions_app().await;
+    let now = "2026-05-27T00:00:00Z";
+    sqlx::query(
+        "INSERT INTO projects (id, key, name, created_at, updated_at, workspace_path) VALUES ('proj-legacy', 'OMNI', 'Omni', ?, ?, NULL)",
+    )
+    .bind(now)
+    .bind(now)
+    .execute(&state.db)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO tasks (id, project_id, seq, title, description, agent, role, status, created_at, updated_at) \
+         VALUES ('OMNI-001', 'proj-legacy', 1, 'Task', 'Desc', 'claude', 'coder', 'Assigned', ?, ?)",
+    )
+    .bind(now)
+    .bind(now)
+    .execute(&state.db)
+    .await
+    .unwrap();
+
+    let (status, body) = start_session(&app, "proj-legacy", "OMNI-001").await;
+    assert_eq!(status, StatusCode::CONFLICT);
+    assert_eq!(body["error"], "project_workspace_missing");
 }
 
 #[tokio::test]

@@ -23,7 +23,7 @@ import { useTasks } from "../../hooks/useTasks";
 const mockUseResolvedActiveProject = vi.mocked(useResolvedActiveProject);
 const mockUseTasks = vi.mocked(useTasks);
 
-const MOCK_PROJECT: Project = { id: "proj-1", name: "OmniAgent", key: "OMNI", createdAt: "2026-01-01T00:00:00Z", updatedAt: "2026-01-01T00:00:00Z" };
+const MOCK_PROJECT: Project = { id: "proj-1", name: "OmniAgent", key: "OMNI", workspacePath: "/tmp", createdAt: "2026-01-01T00:00:00Z", updatedAt: "2026-01-01T00:00:00Z" };
 
 function makeTask(overrides: Partial<Task> = {}): Task {
   return {

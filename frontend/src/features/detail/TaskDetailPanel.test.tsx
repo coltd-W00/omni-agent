@@ -45,6 +45,7 @@ const MOCK_PROJECT: Project = {
   id: "proj-1",
   name: "OmniAgent",
   key: "OMNI",
+  workspacePath: "/tmp",
   createdAt: "2026-01-01T00:00:00Z",
   updatedAt: "2026-01-01T00:00:00Z",
 };
@@ -165,6 +166,16 @@ describe("TaskDetailPanel", () => {
     fireEvent.click(screen.getByTestId("open-trigger"));
     expect(screen.getByRole("button", { name: "Start Session" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Resume Session" })).not.toBeInTheDocument();
+  });
+
+  it("disables Start Session and shows Workspace missing when project workspace is missing", () => {
+    renderWithTask(makeTask({ status: "assigned" }), {
+      ...MOCK_PROJECT,
+      workspacePath: null,
+    });
+    fireEvent.click(screen.getByTestId("open-trigger"));
+    expect(screen.getAllByText("Workspace missing").length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: "Start Session" })).toBeDisabled();
   });
 
   // D.1.4 — Action Bar: no buttons when status=running

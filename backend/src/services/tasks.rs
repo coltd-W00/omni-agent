@@ -48,6 +48,7 @@ pub async fn create_task(
     project_id: &str,
     req: CreateTaskRequest,
 ) -> Result<Task, AppError> {
+    validate_assignment(req.agent.as_deref(), req.role.as_deref())?;
     // Validate title
     let title = req.title.unwrap_or_default();
     let title = title.trim().to_string();
@@ -76,6 +77,8 @@ pub async fn create_task(
             Some(trimmed)
         }
     });
+    let agent = req.agent.unwrap().trim().to_string();
+    let role = req.role.unwrap().trim().to_string();
 
     if acceptance_criteria
         .as_ref()
@@ -118,7 +121,7 @@ pub async fn create_task(
 
     sqlx::query(
         "INSERT INTO tasks (id, project_id, seq, title, description, acceptance_criteria, agent, role, status, created_at, updated_at) \
-         VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, 'Draft', ?, ?)",
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Assigned', ?, ?)",
     )
     .bind(&task_id)
     .bind(project_id)
@@ -126,6 +129,8 @@ pub async fn create_task(
     .bind(&title)
     .bind(&description)
     .bind(&acceptance_criteria)
+    .bind(&agent)
+    .bind(&role)
     .bind(&now)
     .bind(&now)
     .execute(&mut *tx)
@@ -140,12 +145,45 @@ pub async fn create_task(
         title,
         description,
         acceptance_criteria,
-        agent: None,
-        role: None,
-        status: "Draft".to_string(),
+        agent: Some(agent),
+        role: Some(role),
+        status: "Assigned".to_string(),
         created_at: now.clone(),
         updated_at: now,
     })
+}
+
+pub async fn create_task_with_config(
+    pool: &SqlitePool,
+    agent_config_path: &Path,
+    project_id: &str,
+    req: CreateTaskRequest,
+) -> Result<Task, AppError> {
+    if let Some(agent) = req.agent.as_deref() {
+        agent_config::enabled_agent(agent_config_path, agent)?;
+    }
+    create_task(pool, project_id, req).await
+}
+
+fn validate_assignment(agent: Option<&str>, role: Option<&str>) -> Result<(), AppError> {
+    let agent = agent.map(str::trim).unwrap_or_default();
+    if agent.is_empty() {
+        return Err(AppError::BadRequest {
+            code: "invalid_agent",
+            message: "Agent must be one of: codex, claude".to_string(),
+        });
+    }
+
+    let role = role.map(str::trim).unwrap_or_default();
+    if !VALID_ROLES.contains(&role) {
+        return Err(AppError::BadRequest {
+            code: "invalid_role",
+            message: "Role must be one of: coder, reviewer, planner, debugger, refactorer"
+                .to_string(),
+        });
+    }
+
+    Ok(())
 }
 
 pub async fn update_task(
@@ -287,21 +325,14 @@ async fn assign_agent_validated(
     task_id: &str,
     req: AssignAgentRequest,
 ) -> Result<Task, AppError> {
-    // Validate role
-    if !VALID_ROLES.contains(&req.role.as_str()) {
-        return Err(AppError::BadRequest {
-            code: "invalid_role",
-            message: "Role must be one of: coder, reviewer, planner, debugger, refactorer"
-                .to_string(),
-        });
-    }
+    validate_assignment(Some(&req.agent), Some(&req.role))?;
 
     // F3 (TOCTOU): verify status is assignable before updating; use WHERE to guard against
     // concurrent status change. F4: check rows_affected and re-fetch from DB.
     let existing = get_task(pool, project_id, task_id).await?;
 
     let status_lower = existing.status.to_lowercase();
-    if status_lower != "draft" && status_lower != "ready" {
+    if status_lower != "draft" && status_lower != "ready" && status_lower != "assigned" {
         return Err(AppError::Conflict {
             code: "task_not_assignable",
             message: format!("Cannot assign agent to task in {} status", status_lower),
@@ -310,10 +341,10 @@ async fn assign_agent_validated(
 
     let now = chrono::Utc::now().to_rfc3339();
 
-    // Atomic update: only succeeds if status is still Draft or Ready
+    // Atomic update: only succeeds if status is still Draft, Ready, or Assigned
     let result = sqlx::query(
         "UPDATE tasks SET agent = ?, role = ?, status = 'Assigned', updated_at = ? \
-         WHERE id = ? AND project_id = ? AND status IN ('Draft', 'Ready')",
+         WHERE id = ? AND project_id = ? AND status IN ('Draft', 'Ready', 'Assigned')",
     )
     .bind(&req.agent)
     .bind(&req.role)
@@ -616,6 +647,7 @@ mod tests {
             pool,
             CreateProjectRequest {
                 key: key.to_string(),
+                workspace_path: Some("/tmp".to_string()),
                 name: name.to_string(),
             },
         )
@@ -629,6 +661,8 @@ mod tests {
             title: Some(title.to_string()),
             description: Some(description.to_string()),
             acceptance_criteria: None,
+            agent: Some("claude".to_string()),
+            role: Some("coder".to_string()),
         }
     }
 
@@ -647,8 +681,8 @@ mod tests {
 
         assert_eq!(task.id, "OMNI-001");
         assert_eq!(task.seq, 1);
-        assert_eq!(task.status, "Draft");
-        assert!(task.agent.is_none());
+        assert_eq!(task.status, "Assigned");
+        assert_eq!(task.agent.as_deref(), Some("claude"));
         assert!(!task.created_at.is_empty());
     }
 
@@ -709,6 +743,8 @@ mod tests {
                 title: Some(title.to_string()),
                 description: Some("desc".to_string()),
                 acceptance_criteria: None,
+                agent: Some("claude".to_string()),
+                role: Some("coder".to_string()),
             };
             let err = create_task(&pool, &project_id, req).await.unwrap_err();
             match err {
@@ -722,6 +758,8 @@ mod tests {
             title: None,
             description: Some("desc".to_string()),
             acceptance_criteria: None,
+            agent: Some("claude".to_string()),
+            role: Some("coder".to_string()),
         };
         let err = create_task(&pool, &project_id, req_missing)
             .await
@@ -741,6 +779,8 @@ mod tests {
             title: Some(long_title),
             description: Some("desc".to_string()),
             acceptance_criteria: None,
+            agent: Some("claude".to_string()),
+            role: Some("coder".to_string()),
         };
         let err = create_task(&pool, &project_id, req).await.unwrap_err();
         match err {
@@ -759,6 +799,8 @@ mod tests {
                 title: Some("title".to_string()),
                 description: Some(desc.to_string()),
                 acceptance_criteria: None,
+                agent: Some("claude".to_string()),
+                role: Some("coder".to_string()),
             };
             let err = create_task(&pool, &project_id, req).await.unwrap_err();
             match err {
@@ -777,6 +819,8 @@ mod tests {
             title: Some("title".to_string()),
             description: Some(long_desc),
             acceptance_criteria: None,
+            agent: Some("claude".to_string()),
+            role: Some("coder".to_string()),
         };
         let err = create_task(&pool, &project_id, req).await.unwrap_err();
         match err {
@@ -794,6 +838,8 @@ mod tests {
             title: Some("title".to_string()),
             description: Some("desc".to_string()),
             acceptance_criteria: Some(long_ac),
+            agent: Some("claude".to_string()),
+            role: Some("coder".to_string()),
         };
         let err = create_task(&pool, &project_id, req).await.unwrap_err();
         match err {
@@ -812,6 +858,8 @@ mod tests {
             title: Some("title".to_string()),
             description: Some("desc".to_string()),
             acceptance_criteria: Some("".to_string()),
+            agent: Some("claude".to_string()),
+            role: Some("coder".to_string()),
         };
         let task = create_task(&pool, &project_id, req).await.unwrap();
         assert!(task.acceptance_criteria.is_none());
@@ -950,6 +998,8 @@ mod tests {
             title: Some("T".to_string()),
             description: Some("D".to_string()),
             acceptance_criteria: Some("Some AC".to_string()),
+            agent: Some("claude".to_string()),
+            role: Some("coder".to_string()),
         };
         create_task(&pool, &project_id, req).await.unwrap();
 
@@ -969,6 +1019,10 @@ mod tests {
         let pool = setup_pool().await;
         let project_id = insert_test_project(&pool, "OMNI", "Test").await;
         create_task(&pool, &project_id, valid_create_req("T", "D"))
+            .await
+            .unwrap();
+        sqlx::query("UPDATE tasks SET status = 'Draft' WHERE id = 'OMNI-001'")
+            .execute(&pool)
             .await
             .unwrap();
 
@@ -1228,6 +1282,10 @@ mod tests {
         create_task(&pool, &project_id, valid_create_req("T", "D"))
             .await
             .unwrap();
+        sqlx::query("UPDATE tasks SET status = 'Draft' WHERE id = 'OMNI-001'")
+            .execute(&pool)
+            .await
+            .unwrap();
 
         delete_task(&pool, &project_id, "OMNI-001").await.unwrap();
 
@@ -1321,7 +1379,11 @@ mod tests {
         let task = create_task(&pool, &project_id, valid_create_req("Fix", "Desc"))
             .await
             .unwrap();
-        // task is in Draft
+        sqlx::query("UPDATE tasks SET status = 'Draft' WHERE id = ?")
+            .bind(&task.id)
+            .execute(&pool)
+            .await
+            .unwrap();
         let err = transition_to_running(&pool, &project_id, &task.id)
             .await
             .unwrap_err();

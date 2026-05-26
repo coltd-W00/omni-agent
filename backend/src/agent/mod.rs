@@ -7,7 +7,7 @@ use tokio::process::Command;
 
 pub trait AgentStrategy: Send + Sync + std::fmt::Debug {
     fn name(&self) -> &'static str;
-    fn spawn_command(&self, task: &Task, log_path: &Path) -> Command;
+    fn spawn_command(&self, task: &Task, log_path: &Path, workspace_path: &Path) -> Command;
     fn resume_command(&self, session_id: &str, comment: Option<&str>) -> Command;
     fn parse_session_id_chunk(&self, chunk: &str) -> Option<String>;
     fn fallback_session_id_lookup(

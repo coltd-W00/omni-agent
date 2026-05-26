@@ -34,7 +34,13 @@ pub async fn create_task(
     Path(project_id): Path<String>,
     Json(req): Json<CreateTaskRequest>,
 ) -> Result<(StatusCode, Json<Task>), AppError> {
-    let task = services::tasks::create_task(&state.db, &project_id, req).await?;
+    let task = services::tasks::create_task_with_config(
+        &state.db,
+        &state.agent_config_path,
+        &project_id,
+        req,
+    )
+    .await?;
     Ok((StatusCode::CREATED, Json(task)))
 }
 

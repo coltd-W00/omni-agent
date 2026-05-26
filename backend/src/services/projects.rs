@@ -6,7 +6,7 @@ use crate::models::project::{CreateProjectRequest, Project};
 
 pub async fn list_projects(pool: &SqlitePool) -> Result<Vec<Project>, AppError> {
     let projects = sqlx::query_as::<_, Project>(
-        "SELECT id, name, key, created_at, updated_at FROM projects ORDER BY created_at ASC",
+        "SELECT id, name, key, workspace_path, created_at, updated_at FROM projects ORDER BY created_at ASC",
     )
     .fetch_all(pool)
     .await?;
@@ -44,15 +44,17 @@ pub async fn create_project(
         });
     }
 
+    let workspace_path = validate_workspace_path(req.workspace_path.as_deref())?;
     let id = Uuid::new_v4().to_string();
     let now = chrono::Utc::now().to_rfc3339();
 
     let result = sqlx::query(
-        "INSERT INTO projects (id, name, key, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+        "INSERT INTO projects (id, name, key, workspace_path, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
     )
     .bind(&id)
     .bind(&name)
     .bind(&req.key)
+    .bind(&workspace_path)
     .bind(&now)
     .bind(&now)
     .execute(pool)
@@ -63,6 +65,7 @@ pub async fn create_project(
             id,
             name,
             key: req.key,
+            workspace_path: Some(workspace_path),
             created_at: now.clone(),
             updated_at: now,
         }),
@@ -73,6 +76,58 @@ pub async fn create_project(
             })
         }
         Err(e) => Err(AppError::Internal(anyhow::anyhow!(e))),
+    }
+}
+
+pub fn validate_workspace_path(value: Option<&str>) -> Result<String, AppError> {
+    let workspace_path = value.map(str::trim).unwrap_or_default();
+    if workspace_path.is_empty() {
+        return Err(invalid_workspace_path());
+    }
+
+    let path = std::path::Path::new(workspace_path);
+    if !path.is_absolute() {
+        return Err(invalid_workspace_path());
+    }
+
+    let metadata = std::fs::metadata(path).map_err(|_| invalid_workspace_path())?;
+    if !metadata.is_dir() {
+        return Err(invalid_workspace_path());
+    }
+
+    std::fs::read_dir(path).map_err(|_| invalid_workspace_path())?;
+    Ok(workspace_path.to_string())
+}
+
+pub async fn workspace_path_for_run(
+    pool: &SqlitePool,
+    project_id: &str,
+) -> Result<String, AppError> {
+    let workspace_path =
+        sqlx::query_scalar::<_, Option<String>>("SELECT workspace_path FROM projects WHERE id = ?")
+            .bind(project_id)
+            .fetch_optional(pool)
+            .await?
+            .ok_or_else(|| AppError::NotFound {
+                code: "project_not_found",
+                message: format!("Project {} does not exist", project_id),
+            })?;
+
+    let workspace_path = workspace_path.ok_or_else(|| AppError::Conflict {
+        code: "project_workspace_missing",
+        message: "Project workspace is missing".to_string(),
+    })?;
+
+    validate_workspace_path(Some(&workspace_path)).map_err(|_| AppError::Conflict {
+        code: "project_workspace_missing",
+        message: "Project workspace is missing or inaccessible".to_string(),
+    })
+}
+
+fn invalid_workspace_path() -> AppError {
+    AppError::BadRequest {
+        code: "invalid_workspace_path",
+        message: "Workspace path must be an absolute existing readable directory".to_string(),
     }
 }
 
@@ -136,6 +191,7 @@ mod tests {
         let req = CreateProjectRequest {
             name: "OmniAgent Core".to_string(),
             key: "OMNI".to_string(),
+            workspace_path: Some("/tmp".to_string()),
         };
         let project = create_project(&pool, req).await.unwrap();
         assert_eq!(project.name, "OmniAgent Core");
@@ -152,6 +208,7 @@ mod tests {
             let req = CreateProjectRequest {
                 name: "Test".to_string(),
                 key: key.to_string(),
+                workspace_path: Some("/tmp".to_string()),
             };
             let err = create_project(&pool, req).await.unwrap_err();
             match err {
@@ -171,6 +228,7 @@ mod tests {
             CreateProjectRequest {
                 name: "".to_string(),
                 key: "TEST".to_string(),
+                workspace_path: Some("/tmp".to_string()),
             },
         )
         .await
@@ -187,6 +245,7 @@ mod tests {
             CreateProjectRequest {
                 name: long_name,
                 key: "TEST".to_string(),
+                workspace_path: Some("/tmp".to_string()),
             },
         )
         .await
@@ -203,6 +262,7 @@ mod tests {
             CreateProjectRequest {
                 name: unicode_name.clone(),
                 key: "UNICODE".to_string(),
+                workspace_path: Some("/tmp".to_string()),
             },
         )
         .await
@@ -216,12 +276,14 @@ mod tests {
         let req1 = CreateProjectRequest {
             name: "First".to_string(),
             key: "OMNI".to_string(),
+            workspace_path: Some("/tmp".to_string()),
         };
         create_project(&pool, req1).await.unwrap();
 
         let req2 = CreateProjectRequest {
             name: "Second".to_string(),
             key: "OMNI".to_string(),
+            workspace_path: Some("/tmp".to_string()),
         };
         let err = create_project(&pool, req2).await.unwrap_err();
         match err {
@@ -238,6 +300,7 @@ mod tests {
             CreateProjectRequest {
                 name: "Test".to_string(),
                 key: "TEST".to_string(),
+                workspace_path: Some("/tmp".to_string()),
             },
         )
         .await
@@ -261,6 +324,7 @@ mod tests {
             CreateProjectRequest {
                 name: "Test".to_string(),
                 key: "BLCK".to_string(),
+                workspace_path: Some("/tmp".to_string()),
             },
         )
         .await

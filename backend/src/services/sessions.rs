@@ -14,7 +14,7 @@ use crate::agent::{self, AgentStrategy};
 use crate::error::AppError;
 use crate::models::comment::Comment;
 use crate::models::session::{CancelSessionResponse, StartSessionResponse};
-use crate::services::{runs, tasks};
+use crate::services::{projects, runs, tasks};
 
 fn resolve_log_path(task_id: &str, run_id: &str) -> PathBuf {
     let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
@@ -32,8 +32,8 @@ pub async fn start_session(
     project_id: &str,
     task_id: &str,
 ) -> Result<StartSessionResponse, AppError> {
-    // 1. Verify project exists first
-    tasks::verify_project_exists(pool, project_id).await?;
+    // 1. Verify project workspace before mutating task state.
+    let workspace_path = projects::workspace_path_for_run(pool, project_id).await?;
 
     // 2. Transition task status Assigned → Running atomically
     let task = tasks::transition_to_running(pool, project_id, task_id).await?;
@@ -59,7 +59,8 @@ pub async fn start_session(
     }
 
     // 5. Build + spawn subprocess
-    let mut command = strategy.spawn_command(&task, &log_path);
+    let workspace_path_buf = PathBuf::from(&workspace_path);
+    let mut command = strategy.spawn_command(&task, &log_path, &workspace_path_buf);
     let mut child: Child = match command.spawn() {
         Ok(c) => c,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
@@ -84,12 +85,26 @@ pub async fn start_session(
     }
 
     // 7. Take stdout/stderr before inserting child into map
-    let stdout = child.stdout.take().ok_or_else(|| {
-        AppError::Internal(anyhow::anyhow!("Failed to capture stdout from subprocess"))
-    })?;
-    let stderr = child.stderr.take().ok_or_else(|| {
-        AppError::Internal(anyhow::anyhow!("Failed to capture stderr from subprocess"))
-    })?;
+    let stdout = match child.stdout.take() {
+        Some(stdout) => stdout,
+        None => {
+            let _ = child.start_kill();
+            tasks::revert_to_assigned(pool, task_id).await.ok();
+            return Err(AppError::Internal(anyhow::anyhow!(
+                "Failed to capture stdout from subprocess"
+            )));
+        }
+    };
+    let stderr = match child.stderr.take() {
+        Some(stderr) => stderr,
+        None => {
+            let _ = child.start_kill();
+            tasks::revert_to_assigned(pool, task_id).await.ok();
+            return Err(AppError::Internal(anyhow::anyhow!(
+                "Failed to capture stderr from subprocess"
+            )));
+        }
+    };
 
     // 8. Insert into subprocess_map (defensive collision check)
     let insert_result: Result<(), AppError> = async {
@@ -151,7 +166,7 @@ pub async fn start_session(
     let log_path_clone = log_path.clone();
     let task_id_clone = task_id.to_string();
     let subprocess_map_clone = subprocess_map.clone();
-    let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    let cwd = workspace_path_buf;
     let started_at_utc = Utc::now();
 
     tokio::spawn(async move {

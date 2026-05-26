@@ -17,8 +17,10 @@ export default function CreateProjectModal({ open, onClose }: CreateProjectModal
 
   const [name, setName] = useState("");
   const [key, setKey] = useState("");
+  const [workspacePath, setWorkspacePath] = useState("");
   const [nameError, setNameError] = useState<string | null>(null);
   const [keyError, setKeyError] = useState<string | null>(null);
+  const [workspacePathError, setWorkspacePathError] = useState<string | null>(null);
 
   const mutation = useCreateProjectMutation();
 
@@ -38,8 +40,10 @@ export default function CreateProjectModal({ open, onClose }: CreateProjectModal
       // Reset form state
       setName("");
       setKey("");
+      setWorkspacePath("");
       setNameError(null);
       setKeyError(null);
+      setWorkspacePathError(null);
       // Focus heading
       setTimeout(() => headingRef.current?.focus(), 10);
     } else if (!open && dialog.open) {
@@ -74,9 +78,16 @@ export default function CreateProjectModal({ open, onClose }: CreateProjectModal
     }
     return null;
   };
+  const validateWorkspacePath = (value: string): string | null => {
+    if (!value.trim()) return "Workspace path is required";
+    if (!value.trim().startsWith("/")) return "Workspace path must be absolute";
+    return null;
+  };
 
   const handleNameBlur = () => setNameError(validateName(name));
   const handleKeyBlur = () => setKeyError(validateKey(key));
+  const handleWorkspacePathBlur = () =>
+    setWorkspacePathError(validateWorkspacePath(workspacePath));
 
   const handleKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const upper = e.target.value.toUpperCase();
@@ -85,8 +96,8 @@ export default function CreateProjectModal({ open, onClose }: CreateProjectModal
     if (keyError) setKeyError(null);
   };
 
-  const hasErrors = !!nameError || !!keyError;
-  const isEmpty = !name.trim() || !key;
+  const hasErrors = !!nameError || !!keyError || !!workspacePathError;
+  const isEmpty = !name.trim() || !key || !workspacePath.trim();
   const isSubmitDisabled = hasErrors || isEmpty || mutation.isPending;
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -95,12 +106,14 @@ export default function CreateProjectModal({ open, onClose }: CreateProjectModal
     // Final validation before submit
     const ne = validateName(name);
     const ke = validateKey(key);
+    const we = validateWorkspacePath(workspacePath);
     setNameError(ne);
     setKeyError(ke);
-    if (ne || ke) return;
+    setWorkspacePathError(we);
+    if (ne || ke || we) return;
 
     mutation.mutate(
-      { name: name.trim(), key },
+      { name: name.trim(), key, workspacePath: workspacePath.trim() },
       {
         onSuccess: () => {
           dialogRef.current?.close();
@@ -113,6 +126,8 @@ export default function CreateProjectModal({ open, onClose }: CreateProjectModal
               setKeyError(error.message);
             } else if (error.code === "invalid_project_name") {
               setNameError(error.message);
+            } else if (error.code === "invalid_workspace_path") {
+              setWorkspacePathError(error.message);
             }
           }
         },
@@ -172,6 +187,41 @@ export default function CreateProjectModal({ open, onClose }: CreateProjectModal
           {nameError && (
             <span id="project-name-error" className="create-project-modal__error" role="alert">
               {nameError}
+            </span>
+          )}
+        </div>
+
+        <div className="create-project-modal__field">
+          <label className="create-project-modal__label" htmlFor="project-workspace-path">
+            Workspace path
+          </label>
+          <input
+            id="project-workspace-path"
+            type="text"
+            className={
+              "create-project-modal__input" +
+              (workspacePathError ? " create-project-modal__input--error" : "")
+            }
+            placeholder="/home/locdt/omni-agent"
+            value={workspacePath}
+            onChange={(e) => {
+              setWorkspacePath(e.target.value);
+              if (workspacePathError) setWorkspacePathError(null);
+            }}
+            onBlur={handleWorkspacePathBlur}
+            aria-describedby={
+              workspacePathError ? "project-workspace-path-error" : "project-workspace-path-hint"
+            }
+            aria-invalid={workspacePathError ? "true" : undefined}
+            required
+          />
+          {workspacePathError ? (
+            <span id="project-workspace-path-error" className="create-project-modal__error" role="alert">
+              {workspacePathError}
+            </span>
+          ) : (
+            <span id="project-workspace-path-hint" className="create-project-modal__hint">
+              Absolute path on this machine
             </span>
           )}
         </div>

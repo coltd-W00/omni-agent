@@ -103,6 +103,12 @@
   color: var(--text-secondary);
 }
 
+.task-detail-panel__workspace-missing,
+.task-detail-panel__action-note {
+  font-size: var(--font-size-caption);
+  color: var(--status-failed-text);
+}
+
 .task-detail-panel__agent-info {
   display: flex;
   align-items: center;
@@ -116,6 +122,7 @@
   padding: var(--space-3) var(--space-6);
   border-bottom: 1px solid var(--border);
   display: flex;
+  align-items: center;
   gap: var(--space-2);
   flex-shrink: 0;
   background: var(--bg-card);

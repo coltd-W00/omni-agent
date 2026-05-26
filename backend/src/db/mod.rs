@@ -39,6 +39,25 @@ mod tests {
         .unwrap();
         assert_eq!(table_count, 5);
 
+        let project_columns: Vec<String> = sqlx::query("PRAGMA table_info(projects)")
+            .fetch_all(&pool)
+            .await
+            .unwrap()
+            .into_iter()
+            .map(|row| row.get("name"))
+            .collect();
+        assert_eq!(
+            project_columns,
+            [
+                "id",
+                "name",
+                "key",
+                "created_at",
+                "updated_at",
+                "workspace_path"
+            ]
+        );
+
         let task_columns: Vec<String> = sqlx::query("PRAGMA table_info(tasks)")
             .fetch_all(&pool)
             .await

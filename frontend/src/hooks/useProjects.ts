@@ -28,7 +28,12 @@ export function useCreateProjectMutation() {
     onError: (error: unknown) => {
       if (
         error instanceof ApiError &&
-        ["project_key_taken", "invalid_project_key", "invalid_project_name"].includes(error.code)
+        [
+          "project_key_taken",
+          "invalid_project_key",
+          "invalid_project_name",
+          "invalid_workspace_path",
+        ].includes(error.code)
       ) {
         // Let caller handle field-level errors (project_key_taken, invalid_project_key)
         return;

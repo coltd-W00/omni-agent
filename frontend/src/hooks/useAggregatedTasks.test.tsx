@@ -41,8 +41,8 @@ describe("useAggregatedTasks", () => {
 
   it("should aggregate tasks across multiple projects successfully", async () => {
     const projects = [
-      { id: "p1", name: "Project 1", key: "P1", createdAt: "", updatedAt: "" },
-      { id: "p2", name: "Project 2", key: "P2", createdAt: "", updatedAt: "" },
+      { id: "p1", name: "Project 1", key: "P1", workspacePath: "/tmp", createdAt: "", updatedAt: "" },
+      { id: "p2", name: "Project 2", key: "P2", workspacePath: "/tmp", createdAt: "", updatedAt: "" },
     ];
     const tasksP1 = [
       { id: "t1", projectId: "p1", seq: 1, title: "T1", description: "", acceptanceCriteria: null, agent: null, role: null, status: "ready" as const, createdAt: "", updatedAt: "" },
@@ -75,8 +75,8 @@ describe("useAggregatedTasks", () => {
 
   it("should report partial error when some projects fail to fetch tasks", async () => {
     const projects = [
-      { id: "p1", name: "Project 1", key: "P1", createdAt: "", updatedAt: "" },
-      { id: "p2", name: "Project 2", key: "P2", createdAt: "", updatedAt: "" },
+      { id: "p1", name: "Project 1", key: "P1", workspacePath: "/tmp", createdAt: "", updatedAt: "" },
+      { id: "p2", name: "Project 2", key: "P2", workspacePath: "/tmp", createdAt: "", updatedAt: "" },
     ];
     const tasksP1 = [
       { id: "t1", projectId: "p1", seq: 1, title: "T1", description: "", acceptanceCriteria: null, agent: null, role: null, status: "ready" as const, createdAt: "", updatedAt: "" },

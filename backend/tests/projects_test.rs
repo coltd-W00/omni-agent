@@ -77,7 +77,9 @@ async fn post_projects_happy_path() {
         .method("POST")
         .uri("/api/projects")
         .header("content-type", "application/json")
-        .body(Body::from(r#"{"name":"OmniAgent Core","key":"OMNI"}"#))
+        .body(Body::from(
+            r#"{"name": "OmniAgent Core", "key": "OMNI", "workspacePath": "/tmp"}"#,
+        ))
         .unwrap();
 
     let response = app.oneshot(req).await.unwrap();
@@ -100,7 +102,9 @@ async fn post_projects_duplicate_key() {
         .method("POST")
         .uri("/api/projects")
         .header("content-type", "application/json")
-        .body(Body::from(r#"{"name":"First","key":"OMNI"}"#))
+        .body(Body::from(
+            r#"{"name": "First", "key": "OMNI", "workspacePath": "/tmp"}"#,
+        ))
         .unwrap();
     app.clone().oneshot(req1).await.unwrap();
 
@@ -109,7 +113,9 @@ async fn post_projects_duplicate_key() {
         .method("POST")
         .uri("/api/projects")
         .header("content-type", "application/json")
-        .body(Body::from(r#"{"name":"Second","key":"OMNI"}"#))
+        .body(Body::from(
+            r#"{"name": "Second", "key": "OMNI", "workspacePath": "/tmp"}"#,
+        ))
         .unwrap();
 
     let response = app.oneshot(req2).await.unwrap();
@@ -125,13 +131,33 @@ async fn post_projects_invalid_key() {
         .method("POST")
         .uri("/api/projects")
         .header("content-type", "application/json")
-        .body(Body::from(r#"{"name":"Test","key":"bad-key"}"#))
+        .body(Body::from(
+            r#"{"name": "Test", "key": "bad-key", "workspacePath": "/tmp"}"#,
+        ))
         .unwrap();
 
     let response = app.oneshot(req).await.unwrap();
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
     let json = body_json(response.into_body()).await;
     assert_eq!(json["error"], "invalid_project_key");
+}
+
+#[tokio::test]
+async fn post_projects_invalid_workspace_path() {
+    let app = build_test_app().await;
+    let req = Request::builder()
+        .method("POST")
+        .uri("/api/projects")
+        .header("content-type", "application/json")
+        .body(Body::from(
+            r#"{"name":"Test","key":"TEST","workspacePath":"relative"}"#,
+        ))
+        .unwrap();
+
+    let response = app.oneshot(req).await.unwrap();
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let json = body_json(response.into_body()).await;
+    assert_eq!(json["error"], "invalid_workspace_path");
 }
 
 #[tokio::test]
@@ -143,7 +169,9 @@ async fn delete_project_empty_succeeds() {
         .method("POST")
         .uri("/api/projects")
         .header("content-type", "application/json")
-        .body(Body::from(r#"{"name":"Test","key":"TSTS"}"#))
+        .body(Body::from(
+            r#"{"name": "Test", "key": "TSTS", "workspacePath": "/tmp"}"#,
+        ))
         .unwrap();
     let create_resp = app.clone().oneshot(create_req).await.unwrap();
     let json = body_json(create_resp.into_body()).await;

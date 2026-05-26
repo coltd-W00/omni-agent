@@ -9,6 +9,12 @@ import { ApiError } from "../api/client";
 import { ActiveProjectProvider } from "../features/project/ActiveProjectContext";
 
 vi.mock("../api/tasks", () => ({ createTask: vi.fn(), listTasks: vi.fn() }));
+vi.mock("../hooks/useAgents", () => ({
+  useAgents: () => ({
+    data: [{ name: "claude", enabled: true }],
+    isLoading: false,
+  }),
+}));
 
 // JSDOM polyfill for HTMLDialogElement
 beforeAll(() => {
@@ -94,9 +100,9 @@ describe("CreateTaskModal", () => {
       title: "Test task",
       description: "Some description",
       acceptanceCriteria: null,
-      agent: null,
-      role: null,
-      status: "draft",
+      agent: "claude",
+      role: "coder",
+      status: "assigned",
       createdAt: "2026-01-01T00:00:00Z",
       updatedAt: "2026-01-01T00:00:00Z",
     });
@@ -104,6 +110,7 @@ describe("CreateTaskModal", () => {
 
     await user.type(screen.getByLabelText("Title"), "Test task");
     await user.type(screen.getByLabelText("Description"), "Some description");
+    await user.selectOptions(screen.getByLabelText("Agent"), "claude");
     await user.click(screen.getByRole("button", { name: "Create Task" }));
 
     await waitFor(() => {
@@ -111,6 +118,8 @@ describe("CreateTaskModal", () => {
         title: "Test task",
         description: "Some description",
         acceptanceCriteria: undefined,
+        agent: "claude",
+        role: "coder",
       });
     });
     await waitFor(() => {
@@ -128,6 +137,7 @@ describe("CreateTaskModal", () => {
 
     await user.type(screen.getByLabelText("Title"), "Hi");
     await user.type(screen.getByLabelText("Description"), "A description");
+    await user.selectOptions(screen.getByLabelText("Agent"), "claude");
     await user.click(screen.getByRole("button", { name: "Create Task" }));
 
     await waitFor(() => {

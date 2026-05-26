@@ -7,6 +7,7 @@ pub struct Project {
     pub id: String,
     pub name: String,
     pub key: String,
+    pub workspace_path: Option<String>,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -16,4 +17,5 @@ pub struct Project {
 pub struct CreateProjectRequest {
     pub name: String,
     pub key: String,
+    pub workspace_path: Option<String>,
 }

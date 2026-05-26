@@ -46,6 +46,8 @@ pub struct CreateTaskRequest {
     pub title: Option<String>,
     pub description: Option<String>,
     pub acceptance_criteria: Option<String>,
+    pub agent: Option<String>,
+    pub role: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Default)]

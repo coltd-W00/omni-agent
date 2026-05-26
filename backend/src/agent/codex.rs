@@ -25,8 +25,9 @@ impl AgentStrategy for CodexStrategy {
         "codex"
     }
 
-    fn spawn_command(&self, _task: &Task, _log_path: &Path) -> Command {
+    fn spawn_command(&self, _task: &Task, _log_path: &Path, workspace_path: &Path) -> Command {
         let mut cmd = Command::new(self.binary());
+        cmd.current_dir(workspace_path);
         cmd.kill_on_drop(true);
         cmd.stdin(Stdio::piped());
         cmd.stdout(Stdio::piped());

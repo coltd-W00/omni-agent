@@ -15,6 +15,7 @@ const mockProject = {
   id: "p1",
   name: "OmniProject",
   key: "OMNI",
+  workspacePath: "/tmp",
   createdAt: "",
   updatedAt: "",
 };

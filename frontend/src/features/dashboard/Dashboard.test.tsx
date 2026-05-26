@@ -24,6 +24,7 @@ const MOCK_PROJECT: Project = {
   id: "p1",
   name: "Project One",
   key: "PROJ1",
+  workspacePath: "/tmp",
   createdAt: "2026-05-26T00:00:00",
   updatedAt: "2026-05-26T00:00:00",
 };

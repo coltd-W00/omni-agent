@@ -100,7 +100,7 @@ async fn setup_app_with_project(key: &str, name: &str) -> (Router, String) {
         .uri("/api/projects")
         .header("content-type", "application/json")
         .body(Body::from(
-            serde_json::json!({"name": name, "key": key}).to_string(),
+            serde_json::json!({"name": name, "key": key, "workspacePath": "/tmp"}).to_string(),
         ))
         .unwrap();
 
@@ -121,7 +121,7 @@ async fn setup_app_with_project_and_pool(key: &str, name: &str) -> (Router, Sqli
         .uri("/api/projects")
         .header("content-type", "application/json")
         .body(Body::from(
-            serde_json::json!({"name": name, "key": key}).to_string(),
+            serde_json::json!({"name": name, "key": key, "workspacePath": "/tmp"}).to_string(),
         ))
         .unwrap();
 
@@ -144,7 +144,7 @@ async fn post_task_happy_path() {
         .uri(format!("/api/projects/{}/tasks", project_id))
         .header("content-type", "application/json")
         .body(Body::from(
-            r#"{"title":"Fix login redirect","description":"Token refresh broken"}"#,
+            r#"{"title": "Fix login redirect", "description": "Token refresh broken", "agent": "claude", "role": "coder"}"#,
         ))
         .unwrap();
 
@@ -153,10 +153,10 @@ async fn post_task_happy_path() {
 
     let body = body_json(res.into_body()).await;
     assert_eq!(body["id"], "OMNI-001");
-    assert_eq!(body["status"], "draft");
+    assert_eq!(body["status"], "assigned");
     assert_eq!(body["seq"], 1);
-    assert!(body["agent"].is_null());
-    assert!(body["role"].is_null());
+    assert_eq!(body["agent"], "claude");
+    assert_eq!(body["role"], "coder");
     assert!(body["acceptanceCriteria"].is_null());
     assert!(!body["createdAt"].as_str().unwrap_or("").is_empty());
 }
@@ -169,7 +169,9 @@ async fn post_task_validates_title() {
         .method("POST")
         .uri(format!("/api/projects/{}/tasks", project_id))
         .header("content-type", "application/json")
-        .body(Body::from(r#"{"title":"","description":"desc"}"#))
+        .body(Body::from(
+            r#"{"title": "", "description": "desc", "agent": "claude", "role": "coder"}"#,
+        ))
         .unwrap();
 
     let res = app.oneshot(req).await.unwrap();
@@ -186,7 +188,9 @@ async fn post_task_validates_description() {
         .method("POST")
         .uri(format!("/api/projects/{}/tasks", project_id))
         .header("content-type", "application/json")
-        .body(Body::from(r#"{"title":"A title","description":""}"#))
+        .body(Body::from(
+            r#"{"title": "A title", "description": "", "agent": "claude", "role": "coder"}"#,
+        ))
         .unwrap();
 
     let res = app.oneshot(req).await.unwrap();
@@ -204,7 +208,9 @@ async fn post_task_project_not_found() {
         .method("POST")
         .uri(format!("/api/projects/{}/tasks", fake_id))
         .header("content-type", "application/json")
-        .body(Body::from(r#"{"title":"T","description":"D"}"#))
+        .body(Body::from(
+            r#"{"title": "T", "description": "D", "agent": "claude", "role": "coder"}"#,
+        ))
         .unwrap();
 
     let res = app.oneshot(req).await.unwrap();
@@ -225,8 +231,13 @@ async fn get_tasks_list_ordered() {
             .uri(format!("/api/projects/{}/tasks", project_id))
             .header("content-type", "application/json")
             .body(Body::from(
-                serde_json::json!({"title": format!("Task {}", i), "description": "Desc"})
-                    .to_string(),
+                serde_json::json!({
+                    "title": format!("Task {}", i),
+                    "description": "Desc",
+                    "agent": "claude",
+                    "role": "coder"
+                })
+                .to_string(),
             ))
             .unwrap();
         app.clone().oneshot(req).await.unwrap();
@@ -274,7 +285,9 @@ async fn get_task_single() {
         .method("POST")
         .uri(format!("/api/projects/{}/tasks", project_id))
         .header("content-type", "application/json")
-        .body(Body::from(r#"{"title":"Fix login","description":"Desc"}"#))
+        .body(Body::from(
+            r#"{"title": "Fix login", "description": "Desc", "agent": "claude", "role": "coder"}"#,
+        ))
         .unwrap();
     app.clone().oneshot(create_req).await.unwrap();
 
@@ -316,7 +329,9 @@ async fn get_task_wrong_project() {
         .method("POST")
         .uri(format!("/api/projects/{}/tasks", omni_id))
         .header("content-type", "application/json")
-        .body(Body::from(r#"{"title":"T","description":"D"}"#))
+        .body(Body::from(
+            r#"{"title": "T", "description": "D", "agent": "claude", "role": "coder"}"#,
+        ))
         .unwrap();
     app.clone().oneshot(create_req).await.unwrap();
 
@@ -325,7 +340,9 @@ async fn get_task_wrong_project() {
         .method("POST")
         .uri("/api/projects")
         .header("content-type", "application/json")
-        .body(Body::from(r#"{"name":"ERP Project","key":"ERP"}"#))
+        .body(Body::from(
+            r#"{"name": "ERP Project", "key": "ERP", "workspacePath": "/tmp"}"#,
+        ))
         .unwrap();
     let erp_res = app.clone().oneshot(erp_req).await.unwrap();
     let erp_body = body_json(erp_res.into_body()).await;
@@ -355,7 +372,7 @@ async fn put_task_partial_update() {
         .uri(format!("/api/projects/{}/tasks", project_id))
         .header("content-type", "application/json")
         .body(Body::from(
-            r#"{"title":"Old Title","description":"Old Desc"}"#,
+            r#"{"title": "Old Title", "description": "Old Desc", "agent": "claude", "role": "coder"}"#,
         ))
         .unwrap();
     app.clone().oneshot(create_req).await.unwrap();
@@ -419,7 +436,9 @@ async fn assign_agent_happy_path() {
         .method("POST")
         .uri(format!("/api/projects/{}/tasks", project_id))
         .header("content-type", "application/json")
-        .body(Body::from(r#"{"title":"T","description":"D"}"#))
+        .body(Body::from(
+            r#"{"title": "T", "description": "D", "agent": "claude", "role": "coder"}"#,
+        ))
         .unwrap();
     app.clone().oneshot(create_req).await.unwrap();
 
@@ -449,7 +468,9 @@ async fn assign_agent_invalid_agent() {
         .method("POST")
         .uri(format!("/api/projects/{}/tasks", project_id))
         .header("content-type", "application/json")
-        .body(Body::from(r#"{"title":"T","description":"D"}"#))
+        .body(Body::from(
+            r#"{"title": "T", "description": "D", "agent": "claude", "role": "coder"}"#,
+        ))
         .unwrap();
     app.clone().oneshot(create_req).await.unwrap();
 
@@ -471,7 +492,7 @@ async fn assign_agent_invalid_agent() {
 
 #[tokio::test]
 async fn assign_agent_when_running() {
-    let (app, project_id) = setup_app_with_project("OMNI", "OmniAgent").await;
+    let (app, pool, project_id) = setup_app_with_project_and_pool("OMNI", "OmniAgent").await;
 
     // Create task then assign to get it to Assigned, then we need Running
     // For this integration test, let's test assign_agent when task is already Assigned
@@ -480,23 +501,17 @@ async fn assign_agent_when_running() {
         .method("POST")
         .uri(format!("/api/projects/{}/tasks", project_id))
         .header("content-type", "application/json")
-        .body(Body::from(r#"{"title":"T","description":"D"}"#))
+        .body(Body::from(
+            r#"{"title": "T", "description": "D", "agent": "claude", "role": "coder"}"#,
+        ))
         .unwrap();
     app.clone().oneshot(create_req).await.unwrap();
 
-    // First assign (Draft → Assigned)
-    let assign_req = Request::builder()
-        .method("POST")
-        .uri(format!(
-            "/api/projects/{}/tasks/OMNI-001/assign",
-            project_id
-        ))
-        .header("content-type", "application/json")
-        .body(Body::from(r#"{"agent":"claude","role":"coder"}"#))
+    sqlx::query("UPDATE tasks SET status = 'Running' WHERE id = 'OMNI-001'")
+        .execute(&pool)
+        .await
         .unwrap();
-    app.clone().oneshot(assign_req).await.unwrap();
 
-    // Second assign attempt (Assigned → not assignable)
     let req = Request::builder()
         .method("POST")
         .uri(format!(
@@ -517,15 +532,21 @@ async fn assign_agent_when_running() {
 
 #[tokio::test]
 async fn delete_task_draft() {
-    let (app, project_id) = setup_app_with_project("OMNI", "OmniAgent").await;
+    let (app, pool, project_id) = setup_app_with_project_and_pool("OMNI", "OmniAgent").await;
 
     let create_req = Request::builder()
         .method("POST")
         .uri(format!("/api/projects/{}/tasks", project_id))
         .header("content-type", "application/json")
-        .body(Body::from(r#"{"title":"T","description":"D"}"#))
+        .body(Body::from(
+            r#"{"title": "T", "description": "D", "agent": "claude", "role": "coder"}"#,
+        ))
         .unwrap();
     app.clone().oneshot(create_req).await.unwrap();
+    sqlx::query("UPDATE tasks SET status = 'Draft' WHERE id = 'OMNI-001'")
+        .execute(&pool)
+        .await
+        .unwrap();
 
     let req = Request::builder()
         .method("DELETE")
@@ -545,7 +566,9 @@ async fn delete_task_non_draft_blocked() {
         .method("POST")
         .uri(format!("/api/projects/{}/tasks", project_id))
         .header("content-type", "application/json")
-        .body(Body::from(r#"{"title":"T","description":"D"}"#))
+        .body(Body::from(
+            r#"{"title": "T", "description": "D", "agent": "claude", "role": "coder"}"#,
+        ))
         .unwrap();
     app.clone().oneshot(create_req).await.unwrap();
 

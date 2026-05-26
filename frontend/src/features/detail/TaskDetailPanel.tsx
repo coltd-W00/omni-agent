@@ -16,6 +16,7 @@ import LogsTabPanel from "./LogsTabPanel";
 import RunsTabPanel from "./RunsTabPanel";
 import SummaryTab from "./SummaryTab";
 import type { Task, TaskStatus } from "../../types/task";
+import type { Project } from "../../types/project";
 
 type PanelTab = "summary" | "comments" | "runs" | "logs" | "settings";
 
@@ -38,13 +39,15 @@ const HAS_SESSION_STATUSES = new Set<TaskStatus>([
 ]);
 
 interface ActionBarProps {
-  projectId: string;
+  project: Project;
   task: Task;
 }
 
-function ActionBar({ projectId, task }: ActionBarProps) {
+function ActionBar({ project, task }: ActionBarProps) {
   const { showToast } = useToast();
-  const startMut = useStartSession(projectId, task.id);
+  const startMut = useStartSession(project.id, task.id);
+  const workspaceMissing = !project.workspacePath;
+  const agentMissing = !task.agent;
 
   const handleStart = () => {
     startMut.mutate(undefined, {
@@ -61,11 +64,14 @@ function ActionBar({ projectId, task }: ActionBarProps) {
   if (task.status === "assigned") {
     return (
       <div className="task-detail-panel__action-bar">
+        {workspaceMissing && (
+          <span className="task-detail-panel__action-note">Workspace missing</span>
+        )}
         <Button
           variant="primary"
           size="md"
           onClick={handleStart}
-          disabled={startMut.isPending}
+          disabled={startMut.isPending || workspaceMissing || agentMissing}
         >
           Start Session
         </Button>
@@ -233,6 +239,9 @@ export default function TaskDetailPanel() {
           <div className="task-detail-panel__header-meta">
             <StatusBadge status={task.status} size="lg" />
             <span className="task-detail-panel__project-info">{project.name}</span>
+            {!project.workspacePath && (
+              <span className="task-detail-panel__workspace-missing">Workspace missing</span>
+            )}
           </div>
           <div className="task-detail-panel__agent-info">
             <AgentAvatar name={agentName} runtime={agentRuntime} size="sm" />
@@ -241,7 +250,7 @@ export default function TaskDetailPanel() {
         </div>
 
         {/* Action Bar (AC-3 to AC-6) */}
-        <ActionBar projectId={project.id} task={task} />
+        <ActionBar project={project} task={task} />
 
         {/* Session Panel (AC-7, AC-8) */}
         <SessionPanel task={task} />

@@ -159,7 +159,8 @@ async fn setup_assigned_task(app: &Router, agent: &str) -> (String, String) {
         .uri("/api/projects")
         .header("content-type", "application/json")
         .body(Body::from(
-            serde_json::json!({"name": "OmniAgent", "key": "OMNI"}).to_string(),
+            serde_json::json!({"name": "OmniAgent", "key": "OMNI", "workspacePath": "/tmp"})
+                .to_string(),
         ))
         .unwrap();
     let res = app.clone().oneshot(req).await.unwrap();
@@ -171,7 +172,7 @@ async fn setup_assigned_task(app: &Router, agent: &str) -> (String, String) {
         .uri(format!("/api/projects/{}/tasks", project_id))
         .header("content-type", "application/json")
         .body(Body::from(
-            r#"{"title":"Fix login","description":"Token broken"}"#,
+            r#"{"title": "Fix login", "description": "Token broken", "agent": "claude", "role": "coder"}"#,
         ))
         .unwrap();
     let res = app.clone().oneshot(req).await.unwrap();

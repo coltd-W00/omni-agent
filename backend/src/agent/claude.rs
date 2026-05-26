@@ -25,8 +25,9 @@ impl AgentStrategy for ClaudeStrategy {
         "claude"
     }
 
-    fn spawn_command(&self, _task: &Task, _log_path: &Path) -> Command {
+    fn spawn_command(&self, _task: &Task, _log_path: &Path, workspace_path: &Path) -> Command {
         let mut cmd = Command::new(self.binary());
+        cmd.current_dir(workspace_path);
         cmd.kill_on_drop(true);
         cmd.stdin(Stdio::piped());
         cmd.stdout(Stdio::piped());
@@ -144,6 +145,7 @@ mod tests {
                 updated_at: "2026-01-01T00:00:00Z".to_string(),
             },
             std::path::Path::new("/tmp/log.log"),
+            std::path::Path::new("/tmp"),
         );
         let std_cmd = cmd.as_std();
         assert_eq!(std_cmd.get_program(), "/tmp/mock-claude-test");

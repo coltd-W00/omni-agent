@@ -6,7 +6,6 @@ import Button from "./Button";
 import { useToast } from "./Toast";
 import { useCreateTask } from "../hooks/useTasks";
 import { useAgents } from "../hooks/useAgents";
-import { assignAgent } from "../api/tasks";
 import { ApiError } from "../api/client";
 import { useSetActiveProject } from "../features/project/ActiveProjectContext";
 import { TaskRole } from "../types/task";
@@ -32,6 +31,7 @@ export default function CreateTaskModal({
     title?: string;
     description?: string;
     acceptanceCriteria?: string;
+    agent?: string;
   }>({});
 
   const createMutation = useCreateTask(projectId);
@@ -101,6 +101,7 @@ export default function CreateTaskModal({
   const submitDisabled =
     title.trim() === "" ||
     description.trim() === "" ||
+    selectedAgent === "" ||
     createMutation.isPending;
 
   async function handleSubmit(e: React.FormEvent) {
@@ -109,19 +110,18 @@ export default function CreateTaskModal({
     setErrors({});
 
     try {
+      if (!selectedAgent) {
+        setErrors((prev) => ({ ...prev, agent: "Agent is required" }));
+        return;
+      }
       const task = await createMutation.mutateAsync({
         title: title.trim(),
         description: description.trim(),
         acceptanceCriteria:
           ac.trim() === "" ? undefined : ac.trim(),
+        agent: selectedAgent,
+        role: selectedRole,
       });
-      if (selectedAgent && projectId) {
-        await assignAgent(projectId, task.id, {
-          agent: selectedAgent,
-          role: selectedRole,
-        });
-        void queryClient.invalidateQueries({ queryKey: ["tasks", projectId] });
-      }
       showToast({ tone: "success", message: `Task ${task.id} created` });
       onClose();
     } catch (err) {
@@ -135,6 +135,8 @@ export default function CreateTaskModal({
             ...prev,
             acceptanceCriteria: err.message,
           }));
+        } else if (err.code === "invalid_agent") {
+          setErrors((prev) => ({ ...prev, agent: err.message }));
         } else if (err.code === "project_not_found") {
           showToast({
             tone: "error",
@@ -291,18 +293,28 @@ export default function CreateTaskModal({
             id="create-task-agent"
             className="app-create-task-modal__select"
             value={selectedAgent}
-            onChange={(e) => setSelectedAgent(e.target.value)}
+            onChange={(e) => {
+              setSelectedAgent(e.target.value);
+              if (errors.agent) setErrors((prev) => ({ ...prev, agent: undefined }));
+            }}
+            required
           >
-            <option value="">Create as draft</option>
+            <option value="">Select agent</option>
             {enabledAgents.map((agent) => (
               <option key={agent.name} value={agent.name}>
                 {agent.name}
               </option>
             ))}
           </select>
-          <span className="app-create-task-modal__hint">
-            Disabled agents are hidden from this list.
-          </span>
+          {errors.agent ? (
+            <span className="app-create-task-modal__error" role="alert">
+              {errors.agent}
+            </span>
+          ) : (
+            <span className="app-create-task-modal__hint">
+              Disabled agents are hidden from this list.
+            </span>
+          )}
         </div>
 
         {selectedAgent && (

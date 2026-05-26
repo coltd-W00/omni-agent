@@ -5,6 +5,8 @@ export interface CreateTaskInput {
   title: string;
   description: string;
   acceptanceCriteria?: string;
+  agent: TaskAgent;
+  role: TaskRole;
 }
 
 export interface UpdateTaskInput {
