@@ -158,7 +158,7 @@ Tác vụ chỉ được phép bỏ qua cổng kiểm soát project notes nếu 
 2. **Đánh giá mục tiêu:** Đối chiếu mã nguồn mới với Handoff/Task Intent ban đầu.
 3. **Cô đọng tri thức:** Chắt lọc các giá trị tái sử dụng: *decisions, invariants, risks, tests, missing_tests, deviations, traps, dead_ends, validation_delta, next_agent_hint*.
 4. **Tạo Note:** Khởi tạo continuity note thông qua CLI hoặc chỉnh sửa thủ công theo đúng Schema.
-5. **Đảm bảo chất lượng:** Tự kiểm tra lại file vừa tạo (xem như một kiến trúc lưu trữ tri thức bền vững, bắt buộc có tính tái sử dụng cho agent sau, không phải check cho có).
+5. **Inspect cục bộ (Quality Gate):** Tự kiểm tra lại file vừa tạo dựa trên các tiêu chí nhanh ở Section 7 (Frontmatter đầy đủ, ID slug-safe, không chứa changelog rác). *Lưu ý nghiêm ngặt:* Bước này chỉ để đảm bảo tính hợp lệ cục bộ của chính ghi chú vừa tạo. Tuyệt đối **KHÔNG** chạy các lệnh chấm điểm diện rộng (`pnotes quality status/record`) tại đây để tránh gây nhiễu pattern và phá vỡ tính surgical của task code.
 6. **Chuẩn hóa:** Tối ưu hóa cấu trúc/reformat file để phục vụ tốt cho cơ chế `pnotes brief` tương lai.
 7. **Giới hạn nội dung:** Tuyệt đối không biến ghi chú thành một file changelog trùng lặp.
 8. **Phản hồi:** Trả về trạng thái ghi chú bắt buộc trong final response.
@@ -418,17 +418,45 @@ Khi có sự thay đổi về tiêu chí đánh giá, Agent phải thực hiện
 
 ### 12.3 Kích hoạt Chấm điểm Chất lượng (Scoring Trigger)
 
-Agent **bắt buộc** phải thực hiện chấm điểm toàn diện các ghi chú bằng ma trận `note-quality-matrix.md` khi rơi vào một trong các trường hợp sau:
+Agent không tự nhẩm đếm số lượng file hoặc mốc ngày giờ thủ công. Quy trình chấm điểm chất lượng và tự đánh giá hiệu quả thực nghiệm bắt buộc phải kích hoạt trong luồng Tự cải tiến khi câu lệnh `./bin/pnotes quality status` trả về trạng thái `review_required: yes`.
 
-1. Hệ thống ghi nhận thêm từ 5 đến 10 continuity notes mới kể từ lần điều chỉnh skill gần nhất.
-2. Trước khi đưa ra quyết định chuyển đổi trạng thái thử nghiệm (`keep`, `amend`, hoặc `rollback`).
-3. Trước khi tiến hành bất kỳ sửa đổi nào tác động vào `SKILL.md`, note schema, completion gate, hoặc logic xử lý của `pnotes brief/recall`.
-4. Phát hiện tối thiểu 2 ghi chú gần nhất mắc cùng một lỗi hệ thống (ví dụ: area quá rộng, covers trống, dùng hint lười biếng dạng "See Handoff").
-5. Đầu ra của `pnotes brief` trả về kết quả nhiễu, mâu thuẫn, trống rỗng hoặc mất khả năng định hướng hành vi cho Agent.
-6. Agent tìm cách vượt qua cổng kiểm soát hoàn thành hoặc sử dụng lý do skip không hợp lệ.
-7. Nhận được yêu cầu hoặc nghi ngờ về việc sụt giảm chất lượng ghi chú từ phía User hoặc Reviewer.
+Quy trình thực thi chấm điểm chu kỳ của Agent:
 
-> **Lưu ý kỷ luật:** Không chạy chấm điểm cho từng ghi chú đơn lẻ sau mỗi task. Quy trình này chỉ kích hoạt để đánh giá xu hướng hệ thống (pattern review). Mỗi lượt đánh giá phải lưu vết vào tệp `<skill-root>/self-improvement/note-quality-review-log.md`.
+1. Thực thi câu lệnh `./bin/pnotes quality status` để quét và lấy danh sách các tệp ghi chú chưa đánh giá (pending notes).
+
+2. Nếu CLI trả về `review_required: no` (chưa đạt ngưỡng hoặc thuộc trigger below_threshold), bỏ qua bước chấm điểm, giữ nguyên trạng hệ thống.
+
+3. Nếu CLI trả về `review_required: yes`, Agent tiến hành đọc nội dung toàn bộ các file ghi chú nằm trong danh sách pending.
+
+4. Đối chiếu các file đó với Ma trận chất lượng ghi chú (Section 12.2) để đánh giá chấm điểm từ 0 đến 2 cho từng trục.
+
+5. Kết xuất một file JSON tạm thời `review-result.json` chứa cấu trúc bắt buộc:
+
+```JSON
+{
+  "id": "YYYY-MM-DD-review-wave-x",
+  "reviewed_at": "YYYY-MM-DD HH:MM:SS.mmm",
+  "reviewed_until": "[Mốc thời gian tạo của file note mới nhất được duyệt]",
+  "notes_reviewed": ["path/to/note1.md", "path/to/note2.md"],
+  "average_score": 1.75,
+  "decision": "keep"
+}
+```
+*(Thuộc tính decision bắt buộc phải thuộc một trong các giá trị: keep, amend, rollback, inconclusive).*
+
+6. Thực thi lệnh ghi nhận: `./bin/pnotes quality record --from review-result.json` để CLI cập nhật tự động duy nhất phần YAML frontmatter của file `note-quality-review-log.md`.
+
+7. Tiến hành ghi nhận (append) phần nội dung nhận xét chi tiết, các lỗi hệ thống lặp lại (regressions) hoặc điểm tiến bộ vào ngay phía dưới phần nội dung Markdown của file `note-quality-review-log.md` để làm dữ liệu nền tảng cho các đợt improve tiếp theo.
+
+Các trigger khẩn cấp khác (Bắt buộc chạy không phụ thuộc bộ đếm CLI):
+
+- Trước khi đưa ra quyết định chuyển đổi trạng thái thử nghiệm (`keep`, `amend`, hoặc `rollback`) của một quy tắc thực nghiệm.
+
+- Trước khi tiến hành bất kỳ sửa đổi nào tác động trực tiếp vào tệp cấu hình `SKILL.md`, note schema, completion gate, hoặc logic xử lý tổng hợp của `pnotes brief/recall`.
+
+- Khi phát hiện tối thiểu 2 ghi chú gần nhất được tạo liên tiếp mắc cùng một lỗi hệ thống nặng.
+
+- Khi đầu ra của `pnotes brief` trả về kết quả nhiễu, mâu thuẫn trực tiếp hoặc rỗng hoàn toàn.
 
 ---
 
@@ -447,8 +475,9 @@ Project notes: skipped — <lý_do_bỏ_qua_hợp_lệ>
 ### 13.2 Đối với Tác vụ Tự cải tiến Skill (Self-improvement Task Completion)
 
 Self-improvement decision: keep / amend / rollback / inconclusive / not-reviewed
-Backup: created <path> / skipped — <reason>
-Improvement log: updated <path>
-Score matrix backup: created <path> / skipped — <reason>
-Score matrix: created-or-updated <path> / unchanged — <reason>
-Note quality review: updated <path> / skipped — <reason>
+Quality Status Check: review_required: yes (processed via CLI) / no (below_threshold)
+Backup: created  / skipped — 
+Improvement log: updated 
+Score matrix backup: created  / skipped — 
+Score matrix: created-or-updated  / unchanged — 
+Note quality review: updated  / skipped —  (Scoring Recorded At: YYYY-MM-DD HH:MM:SS.mmm)
