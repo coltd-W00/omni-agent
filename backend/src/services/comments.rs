@@ -60,6 +60,46 @@ pub async fn create_comment(
     })
 }
 
+pub async fn list_comments_for_task(
+    pool: &SqlitePool,
+    project_id: &str,
+    task_id: &str,
+) -> Result<Vec<Comment>, AppError> {
+    let project_exists = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM projects WHERE id = ?")
+        .bind(project_id)
+        .fetch_one(pool)
+        .await?;
+    if project_exists == 0 {
+        return Err(AppError::NotFound {
+            code: "project_not_found",
+            message: format!("Project {} not found", project_id),
+        });
+    }
+
+    let task_exists =
+        sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM tasks WHERE id = ? AND project_id = ?")
+            .bind(task_id)
+            .bind(project_id)
+            .fetch_one(pool)
+            .await?;
+    if task_exists == 0 {
+        return Err(AppError::NotFound {
+            code: "task_not_found",
+            message: format!("Task {} not found", task_id),
+        });
+    }
+
+    let rows = sqlx::query_as::<_, Comment>(
+        "SELECT id, task_id, content, sent, created_at \
+         FROM comments WHERE task_id = ? ORDER BY created_at ASC",
+    )
+    .bind(task_id)
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows)
+}
+
 /// Helper variant cho dùng trong tx (resume flow) — không re-fetch task, không acquire pool.
 pub async fn insert_comment_in_tx<'c>(
     tx: &mut sqlx::Transaction<'c, sqlx::Sqlite>,

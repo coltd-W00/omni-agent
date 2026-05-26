@@ -97,7 +97,7 @@ async fn main() -> anyhow::Result<()> {
         )
         .route(
             "/projects/{project_id}/tasks/{task_id}/comments",
-            axum::routing::post(handlers::comments::add_comment),
+            get(handlers::comments::list_comments).post(handlers::comments::add_comment),
         );
 
     let state = Arc::new(state);

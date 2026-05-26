@@ -1,0 +1,123 @@
+.runs-tab-panel__placeholder,
+.runs-tab-panel__error {
+  font-size: var(--font-size-body-s);
+  color: var(--text-secondary);
+}
+
+.runs-tab-panel__error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.run-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.run-list-row {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: var(--space-2);
+}
+
+.run-list-row-button {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.run-list-row-button:hover,
+.run-list-row-button:focus-visible {
+  background: var(--bg-hover);
+  outline: none;
+}
+
+.run-list-row-number {
+  font-weight: 600;
+}
+
+.run-list-row-agent {
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.run-list-row-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--font-size-body-s);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.run-list-row-status--running {
+  color: var(--brand-primary);
+}
+
+.run-list-row-status--completed {
+  color: var(--status-completed-text);
+}
+
+.run-list-row-status--failed {
+  color: var(--status-failed-text);
+}
+
+.run-list-row-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: 0 var(--space-3) var(--space-3);
+}
+
+.run-list-row-field {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: var(--space-2);
+  font-size: var(--font-size-body-s);
+}
+
+.run-list-row-field > span:first-child {
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.run-list-row-field--stacked {
+  display: flex;
+  flex-direction: column;
+}
+
+.run-list-row-field pre {
+  margin: 0;
+  max-height: 8em;
+  overflow: hidden;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-app);
+  color: var(--text-primary);
+  font-family: var(--font-family-mono);
+  font-size: 13px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+}
+
+.run-list-row-actions {
+  display: flex;
+  gap: var(--space-2);
+}

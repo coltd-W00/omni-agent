@@ -8,6 +8,7 @@ use axum::{
     Json,
     extract::{Path, State},
     http::StatusCode,
+    response::IntoResponse,
 };
 use std::sync::Arc;
 
@@ -39,4 +40,13 @@ pub async fn add_comment(
     )
     .await?;
     Ok((StatusCode::CREATED, Json(comment)))
+}
+
+pub async fn list_comments(
+    State(state): State<Arc<AppState>>,
+    Path((project_id, task_id)): Path<(String, String)>,
+) -> Result<impl IntoResponse, AppError> {
+    let comments =
+        services::comments::list_comments_for_task(&state.db, &project_id, &task_id).await?;
+    Ok(Json(comments))
 }

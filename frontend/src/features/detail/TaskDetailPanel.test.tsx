@@ -28,9 +28,17 @@ vi.mock("../../api/runs", () => ({
   getRun: vi.fn(),
 }));
 
+vi.mock("../../api/comments", () => ({
+  listComments: vi.fn(),
+  addComment: vi.fn(),
+}));
+
 import { startSession, resumeSession } from "../../api/sessions";
 import { getTask } from "../../api/tasks";
 import { listRuns } from "../../api/runs";
+import { addComment, listComments } from "../../api/comments";
+import type { Comment } from "../../types/comment";
+import type { Run } from "../../types/run";
 
 const MOCK_PROJECT: Project = {
   id: "proj-1",
@@ -53,6 +61,31 @@ function makeTask(overrides: Partial<Task> = {}): Task {
     status: "draft",
     createdAt: "2026-01-01T00:00:00Z",
     updatedAt: "2026-01-01T00:00:00Z",
+    ...overrides,
+  };
+}
+
+function makeComment(overrides: Partial<Comment> = {}): Comment {
+  return {
+    id: "comment-1",
+    taskId: "OMNI-001",
+    content: "Check edge case",
+    sent: true,
+    createdAt: "2026-05-25T10:00:00+00:00",
+    ...overrides,
+  };
+}
+
+function makeRun(overrides: Partial<Run> = {}): Run {
+  return {
+    id: "run-1",
+    runNumber: 1,
+    input: "retry",
+    exitCode: 0,
+    logPath: "/tmp/run.log",
+    logTail: "Line 1\nLine 2",
+    startedAt: "2026-05-25T10:00:00+00:00",
+    endedAt: "2026-05-25T10:05:00+00:00",
     ...overrides,
   };
 }
@@ -99,6 +132,7 @@ describe("TaskDetailPanel", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.mocked(listRuns).mockResolvedValue([]);
+    vi.mocked(listComments).mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -225,11 +259,11 @@ describe("TaskDetailPanel", () => {
   });
 
   // D.1.10 — click Comments tab → "No comments yet" empty state
-  it("clicking Comments tab shows No comments yet empty state", () => {
+  it("clicking Comments tab shows No comments yet empty state", async () => {
     renderWithTask(makeTask());
     fireEvent.click(screen.getByTestId("open-trigger"));
     fireEvent.click(screen.getByRole("tab", { name: "Comments" }));
-    expect(screen.getByText("No comments yet")).toBeInTheDocument();
+    expect(await screen.findByText("No comments yet")).toBeInTheDocument();
   });
 
   // D.1.11 — Esc key closes panel
@@ -693,5 +727,169 @@ describe("TaskDetailPanel", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Summary" }));
     const retextarea = await screen.findByPlaceholderText("Add instructions for next run…");
     expect(retextarea).toHaveValue("");
+  });
+
+  it("TC1: Comments tab renders sent and pending comment labels", async () => {
+    vi.mocked(listComments).mockResolvedValue([
+      makeComment({ id: "c1", content: "First", sent: true }),
+      makeComment({ id: "c2", content: "Second", sent: false }),
+    ]);
+
+    renderWithTask(makeTask({ status: "paused" }));
+    fireEvent.click(screen.getByTestId("open-trigger"));
+    fireEvent.click(screen.getByRole("tab", { name: "Comments" }));
+
+    expect(await screen.findByText("First")).toBeInTheDocument();
+    expect(screen.getByText("Second")).toBeInTheDocument();
+    expect(screen.getByText("Sent to agent ✓")).toBeInTheDocument();
+    expect(screen.getByText("Pending · will be sent on next Resume")).toBeInTheDocument();
+  });
+
+  it("TC2: Comments empty state still renders input section", async () => {
+    renderWithTask(makeTask({ status: "paused" }));
+    fireEvent.click(screen.getByTestId("open-trigger"));
+    fireEvent.click(screen.getByRole("tab", { name: "Comments" }));
+
+    expect(await screen.findByText("No comments yet")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Add a comment or instruction for the agent...")).toBeInTheDocument();
+  });
+
+  it("TC3: submitting comment calls addComment and clears textarea", async () => {
+    vi.mocked(addComment).mockResolvedValue(makeComment({ content: "hello", sent: false }));
+
+    renderWithTask(makeTask({ status: "paused" }));
+    fireEvent.click(screen.getByTestId("open-trigger"));
+    fireEvent.click(screen.getByRole("tab", { name: "Comments" }));
+
+    const textarea = await screen.findByLabelText("New comment");
+    fireEvent.change(textarea, { target: { value: "hello" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add Comment" }));
+
+    await waitFor(() => {
+      expect(addComment).toHaveBeenCalledWith("proj-1", "OMNI-001", "hello");
+      expect(textarea).toHaveValue("");
+    });
+  });
+
+  it("TC4: empty comment keeps mutation from firing", async () => {
+    renderWithTask(makeTask({ status: "paused" }));
+    fireEvent.click(screen.getByTestId("open-trigger"));
+    fireEvent.click(screen.getByRole("tab", { name: "Comments" }));
+
+    expect(await screen.findByRole("button", { name: "Add Comment" })).toBeDisabled();
+    expect(addComment).not.toHaveBeenCalled();
+  });
+
+  it("TC5: task_terminal add comment error shows API message", async () => {
+    vi.mocked(addComment).mockRejectedValue(
+      new ApiError(409, "task_terminal", "Comment cannot be added to terminal task"),
+    );
+
+    renderWithTask(makeTask({ status: "paused" }));
+    fireEvent.click(screen.getByTestId("open-trigger"));
+    fireEvent.click(screen.getByRole("tab", { name: "Comments" }));
+
+    fireEvent.change(await screen.findByLabelText("New comment"), { target: { value: "hello" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add Comment" }));
+
+    expect(await screen.findByText("Comment cannot be added to terminal task")).toBeInTheDocument();
+  });
+
+  it("TC6: terminal task disables comment input", async () => {
+    renderWithTask(makeTask({ status: "completed" }));
+    fireEvent.click(screen.getByTestId("open-trigger"));
+    fireEvent.click(screen.getByRole("tab", { name: "Comments" }));
+
+    const textarea = await screen.findByPlaceholderText(/Comments disabled/);
+    expect(textarea).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Add Comment" })).toBeDisabled();
+  });
+
+  it("TR1: Runs tab renders runs in backend order", async () => {
+    vi.mocked(listRuns).mockResolvedValue([
+      makeRun({ id: "run-3", runNumber: 3, exitCode: null, endedAt: null }),
+      makeRun({ id: "run-2", runNumber: 2 }),
+      makeRun({ id: "run-1", runNumber: 1 }),
+    ]);
+
+    renderWithTask(makeTask({ status: "running" }));
+    fireEvent.click(screen.getByTestId("open-trigger"));
+    fireEvent.click(screen.getByRole("tab", { name: "Runs" }));
+
+    const rows = await screen.findAllByRole("button", { name: /Run #/ });
+    expect(rows[0]).toHaveTextContent("Run #3");
+    expect(screen.getByText(/Running ·/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Completed ·/).length).toBeGreaterThan(0);
+  });
+
+  it("TR2: expanding a run shows detail fields", async () => {
+    vi.mocked(listRuns).mockResolvedValue([makeRun({ input: "Add handling" })]);
+
+    renderWithTask(makeTask({ status: "paused" }));
+    fireEvent.click(screen.getByTestId("open-trigger"));
+    fireEvent.click(screen.getByRole("tab", { name: "Runs" }));
+    fireEvent.click(await screen.findByRole("button", { name: /Run #1/ }));
+
+    expect(screen.getByText("Input:")).toBeInTheDocument();
+    expect(screen.getByText("Output:")).toBeInTheDocument();
+    expect(screen.getByText("Duration:")).toBeInTheDocument();
+    expect(screen.getByText("Exit:")).toBeInTheDocument();
+  });
+
+  it("TR3: expanding a second row collapses the first row", async () => {
+    vi.mocked(listRuns).mockResolvedValue([
+      makeRun({ id: "run-2", runNumber: 2, input: "second" }),
+      makeRun({ id: "run-1", runNumber: 1, input: "first" }),
+    ]);
+
+    renderWithTask(makeTask({ status: "paused" }));
+    fireEvent.click(screen.getByTestId("open-trigger"));
+    fireEvent.click(screen.getByRole("tab", { name: "Runs" }));
+    const run2 = await screen.findByRole("button", { name: /Run #2/ });
+    const run1 = screen.getByRole("button", { name: /Run #1/ });
+
+    fireEvent.click(run2);
+    expect(screen.getByText("second")).toBeInTheDocument();
+    fireEvent.click(run1);
+    expect(screen.queryByText("second")).not.toBeInTheDocument();
+    expect(screen.getByText("first")).toBeInTheDocument();
+  });
+
+  it("TR4: empty runs shows empty state", async () => {
+    renderWithTask(makeTask({ status: "paused" }));
+    fireEvent.click(screen.getByTestId("open-trigger"));
+    fireEvent.click(screen.getByRole("tab", { name: "Runs" }));
+
+    expect(await screen.findByText("No runs yet")).toBeInTheDocument();
+  });
+
+  it("TR5: View Logs switches to Logs tab and focuses selected run", async () => {
+    vi.mocked(listRuns).mockResolvedValue([
+      makeRun({ id: "run-2", runNumber: 2, logTail: "selected log" }),
+      makeRun({ id: "run-1", runNumber: 1, logTail: "other log" }),
+    ]);
+
+    renderWithTask(makeTask({ status: "paused" }));
+    fireEvent.click(screen.getByTestId("open-trigger"));
+    fireEvent.click(screen.getByRole("tab", { name: "Runs" }));
+    fireEvent.click(await screen.findByRole("button", { name: /Run #2/ }));
+    fireEvent.click(screen.getByRole("button", { name: "View logs for Run #2" }));
+
+    expect(await screen.findByText(/This tab contains raw technical output/)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByLabelText("Filter by run")).toHaveValue("run-2");
+    });
+  });
+
+  it("TR6: View Timeline mounts RunTimeline", async () => {
+    vi.mocked(listRuns).mockResolvedValue([makeRun()]);
+
+    renderWithTask(makeTask({ status: "paused" }));
+    fireEvent.click(screen.getByTestId("open-trigger"));
+    fireEvent.click(screen.getByRole("tab", { name: "Runs" }));
+    fireEvent.click(await screen.findByRole("button", { name: /Run #1/ }));
+    fireEvent.click(screen.getByRole("button", { name: "View timeline for Run #1" }));
+
+    expect(screen.getByRole("list", { name: /Timeline for Run #1/ })).toBeInTheDocument();
   });
 });

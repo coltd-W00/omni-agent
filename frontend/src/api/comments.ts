@@ -1,12 +1,10 @@
 import { apiFetch } from "./client";
+import type { Comment } from "../types/comment";
 
-export interface Comment {
-  id: string;
-  taskId: string;
-  content: string;
-  sent: boolean;
-  createdAt: string;
-}
+export const listComments = (projectId: string, taskId: string) =>
+  apiFetch<Comment[]>(
+    `/projects/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(taskId)}/comments`,
+  );
 
 export async function addComment(
   projectId: string,
@@ -14,7 +12,7 @@ export async function addComment(
   content: string,
 ): Promise<Comment> {
   return apiFetch<Comment>(
-    `/projects/${projectId}/tasks/${taskId}/comments`,
+    `/projects/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(taskId)}/comments`,
     {
       method: "POST",
       body: JSON.stringify({ content }),

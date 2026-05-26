@@ -1,0 +1,114 @@
+.comments-tab-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.comments-tab-panel__placeholder,
+.comments-tab-panel__error {
+  font-size: var(--font-size-body-s);
+  color: var(--text-secondary);
+}
+
+.comments-tab-panel__error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.comment-thread-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.comment-thread-item {
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border);
+}
+
+.comment-thread-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.comment-thread-author {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.comment-thread-timestamp {
+  margin-left: auto;
+  font-size: var(--font-size-caption);
+  color: var(--text-secondary);
+}
+
+.comment-thread-content {
+  margin-left: 28px;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  line-height: var(--line-height-body);
+}
+
+.comment-thread-status {
+  margin: var(--space-2) 0 0 28px;
+  font-size: var(--font-size-caption);
+  font-weight: 600;
+}
+
+.comment-thread-status--sent {
+  color: var(--status-completed-text);
+}
+
+.comment-thread-status--pending {
+  color: var(--text-secondary);
+}
+
+.comment-input-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-top: var(--space-2);
+}
+
+.comment-input-label {
+  font-size: var(--font-size-body-s);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.comment-input-textarea {
+  width: 100%;
+  min-height: 96px;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  background: var(--bg-card);
+  font: inherit;
+  resize: vertical;
+}
+
+.comment-input-textarea:focus {
+  outline: none;
+  border-color: var(--brand-primary);
+  box-shadow: var(--shadow-focus);
+}
+
+.comment-input-textarea:disabled {
+  color: var(--text-disabled);
+  background: var(--bg-app);
+  cursor: not-allowed;
+}
+
+.comment-input-hint {
+  margin: 0;
+  font-size: var(--font-size-caption);
+  color: var(--text-secondary);
+}

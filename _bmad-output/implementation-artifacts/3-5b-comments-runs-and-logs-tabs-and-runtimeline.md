@@ -1,6 +1,7 @@
 # Story 3.5b: Comments, Runs & Logs Tabs + RunTimeline
 
-Status: ready-for-dev
+Status: in-review
+Baseline Commit: 5005506a8504b7439b968019f2d0dd3e9faefa0d
 
 <!-- Validation tùy chọn — chạy validate-create-story trước khi dev-story nếu muốn double-check. -->
 
@@ -511,12 +512,11 @@ Common cause: session terminated unexpectedly or agent error.
 
 ---
 
-## Tasks / Subtasks
 
 ### A. Backend: GET comments endpoint
 
-- [ ] **Task A.1 — Mở rộng `backend/src/services/comments.rs`** (AC: 1)
-  - [ ] A.1.1 Thêm function `list_comments_for_task` vào file đã tạo từ Story 3.3 Task A.2:
+- [x] **Task A.1 — Mở rộng `backend/src/services/comments.rs`** (AC: 1)
+  - [x] A.1.1 Thêm function `list_comments_for_task` vào file đã tạo từ Story 3.3 Task A.2:
     ```rust
     pub async fn list_comments_for_task(
         pool: &SqlitePool,
@@ -564,11 +564,11 @@ Common cause: session terminated unexpectedly or agent error.
         Ok(rows)
     }
     ```
-  - [ ] A.1.2 KHÔNG đổi `validate_content_non_empty`, `create_comment`, `insert_comment_in_tx` (Story 3.3 sở hữu — không invasion).
-  - [ ] A.1.3 Verify `Comment` struct + `Serialize` impl của Story 3.3 đã đúng — KHÔNG sửa.
+  - [x] A.1.2 KHÔNG đổi `validate_content_non_empty`, `create_comment`, `insert_comment_in_tx` (Story 3.3 sở hữu — không invasion).
+  - [x] A.1.3 Verify `Comment` struct + `Serialize` impl của Story 3.3 đã đúng — KHÔNG sửa.
 
-- [ ] **Task A.2 — Mở rộng `backend/src/handlers/comments.rs`** (AC: 1)
-  - [ ] A.2.1 Thêm handler `list_comments` vào file của Story 3.3 Task A.3:
+- [x] **Task A.2 — Mở rộng `backend/src/handlers/comments.rs`** (AC: 1)
+  - [x] A.2.1 Thêm handler `list_comments` vào file của Story 3.3 Task A.3:
     ```rust
     pub async fn list_comments(
         State(state): State<Arc<AppState>>,
@@ -582,52 +582,52 @@ Common cause: session terminated unexpectedly or agent error.
         Ok(Json(comments))
     }
     ```
-  - [ ] A.2.2 KHÔNG đổi `add_comment` handler (Story 3.3 sở hữu).
+  - [x] A.2.2 KHÔNG đổi `add_comment` handler (Story 3.3 sở hữu).
 
-- [ ] **Task A.3 — Mount route trong `backend/src/main.rs`** (AC: 1)
-  - [ ] A.3.1 Trong `api_router` chain, thêm route MỚI:
+- [x] **Task A.3 — Mount route trong `backend/src/main.rs`** (AC: 1)
+  - [x] A.3.1 Trong `api_router` chain, thêm route MỚI:
     ```rust
     .route(
         "/projects/{project_id}/tasks/{task_id}/comments",
         get(handlers::comments::list_comments).post(handlers::comments::add_comment),
     )
     ```
-  - [ ] A.3.2 **Lưu ý:** Story 3.3 đã mount `POST .../comments` riêng (chỉ POST). 3.5b refactor thành combined `get(...).post(...)` — Axum routing pattern chuẩn (cùng path, multiple methods). **KHÔNG được xóa** POST behavior — verify bằng cách chạy Story 3.3's `comments_test.rs` sau refactor.
-  - [ ] A.3.3 Verify `use axum::routing::get;` đã import (main.rs hiện đã có từ Story 1.x).
+  - [x] A.3.2 **Lưu ý:** Story 3.3 đã mount `POST .../comments` riêng (chỉ POST). 3.5b refactor thành combined `get(...).post(...)` — Axum routing pattern chuẩn (cùng path, multiple methods). **KHÔNG được xóa** POST behavior — verify bằng cách chạy Story 3.3's `comments_test.rs` sau refactor.
+  - [x] A.3.3 Verify `use axum::routing::get;` đã import (main.rs hiện đã có từ Story 1.x).
 
 ### B. Backend: Integration tests cho GET comments
 
-- [ ] **Task B.1 — Mở rộng `backend/tests/comments_test.rs`** (AC: 1, BC1–BC5)
-  - [ ] B.1.1 Pattern theo `backend/tests/runs_test.rs` (Story 3.4 Task D.1) hoặc `comments_test.rs` của Story 3.3:
+- [x] **Task B.1 — Mở rộng `backend/tests/comments_test.rs`** (AC: 1, BC1–BC5)
+  - [x] B.1.1 Pattern theo `backend/tests/runs_test.rs` (Story 3.4 Task D.1) hoặc `comments_test.rs` của Story 3.3:
     - Helper `build_test_app_with_pool` (đã có từ Story 1.x).
     - Serial test execution với env isolation.
-  - [ ] B.1.2 Test `list_comments_returns_200_with_chronological_order` (BC1):
+  - [x] B.1.2 Test `list_comments_returns_200_with_chronological_order` (BC1):
     - Seed project + task + 3 comments (`created_at` ascending: T1, T2, T3).
     - HTTP `GET /api/projects/{id}/tasks/{id}/comments` → status 200.
     - Body parse thành `Vec<serde_json::Value>`, assert length 3, assert `createdAt` field ascending.
     - Verify keys: `id`, `taskId`, `content`, `sent`, `createdAt` (camelCase).
     - Verify `sent` là JSON boolean (`true` / `false`, KHÔNG phải `0` / `1`).
-  - [ ] B.1.3 Test `list_comments_returns_empty_array_when_no_comments` (BC2):
+  - [x] B.1.3 Test `list_comments_returns_empty_array_when_no_comments` (BC2):
     - Seed project + task + NO comments.
     - GET → 200 với body `[]` (assert exact length 0; KHÔNG 404).
-  - [ ] B.1.4 Test `list_comments_returns_404_when_project_not_found` (BC3).
-  - [ ] B.1.5 Test `list_comments_returns_404_when_task_not_found` (BC4).
-  - [ ] B.1.6 Test `list_comments_returns_correct_sent_boolean_serialization` (BC5):
+  - [x] B.1.4 Test `list_comments_returns_404_when_project_not_found` (BC3).
+  - [x] B.1.5 Test `list_comments_returns_404_when_task_not_found` (BC4).
+  - [x] B.1.6 Test `list_comments_returns_correct_sent_boolean_serialization` (BC5):
     - Seed 2 comments: one with `sent = 1` (DB INTEGER), one with `sent = 0`.
     - GET → parse first element's `sent` field → must be JSON `true`. Second element's `sent` → JSON `false`.
     - Assert type với `serde_json::Value::Bool` (KHÔNG `Number`).
-  - [ ] B.1.7 Test regression `add_comment_still_works_after_route_refactor`:
+  - [x] B.1.7 Test regression `add_comment_still_works_after_route_refactor`:
     - POST `/api/projects/{id}/tasks/{id}/comments` body `{"content":"test"}` → 201.
     - Verify Story 3.3's `comments_test.rs` add_comment tests vẫn pass (no regression).
-  - [ ] B.1.8 Test `list_comments_excludes_other_tasks`:
+  - [x] B.1.8 Test `list_comments_excludes_other_tasks`:
     - Seed 2 tasks trong cùng project, mỗi task có 1 comment.
     - GET task1's comments → response array length 1, content khớp task1.
 
 ### C. Frontend types: extend Comment + Run types
 
-- [ ] **Task C.1 — Verify `frontend/src/types/comment.ts`** (AC: 2, 3)
-  - [ ] C.1.1 File này đã được Story 3.3 Task E.1 dự kiến tạo. **Verify:** trước khi implement 3.5b, check file tồn tại. Nếu chưa có (3.3 chưa merge) → escalate.
-  - [ ] C.1.2 Expected shape:
+- [x] **Task C.1 — Verify `frontend/src/types/comment.ts`** (AC: 2, 3)
+  - [x] C.1.1 File này đã được Story 3.3 Task E.1 dự kiến tạo. **Verify:** trước khi implement 3.5b, check file tồn tại. Nếu chưa có (3.3 chưa merge) → escalate.
+  - [x] C.1.2 Expected shape:
     ```ts
     export interface Comment {
       id: string;
@@ -637,11 +637,11 @@ Common cause: session terminated unexpectedly or agent error.
       createdAt: string;
     }
     ```
-  - [ ] C.1.3 KHÔNG sửa file (3.3 owner). 3.5b chỉ consume.
+  - [x] C.1.3 KHÔNG sửa file (3.3 owner). 3.5b chỉ consume.
 
-- [ ] **Task C.2 — Verify `frontend/src/types/run.ts`** (AC: 4, 5, 6)
-  - [ ] C.2.1 File này đã được Story 3.4 Task E.1 dự kiến tạo. **Verify:** check file tồn tại.
-  - [ ] C.2.2 Expected shape (từ 3.4 spec):
+- [x] **Task C.2 — Verify `frontend/src/types/run.ts`** (AC: 4, 5, 6)
+  - [x] C.2.1 File này đã được Story 3.4 Task E.1 dự kiến tạo. **Verify:** check file tồn tại.
+  - [x] C.2.2 Expected shape (từ 3.4 spec):
     ```ts
     export interface Run {
       id: string;
@@ -654,12 +654,12 @@ Common cause: session terminated unexpectedly or agent error.
       endedAt: string | null;
     }
     ```
-  - [ ] C.2.3 KHÔNG sửa file (3.4 owner).
+  - [x] C.2.3 KHÔNG sửa file (3.4 owner).
 
 ### D. Frontend API clients: extend comments.ts
 
-- [ ] **Task D.1 — Mở rộng `frontend/src/api/comments.ts`** (AC: 1, 3)
-  - [ ] D.1.1 File này đã được Story 3.3 Task E.1 tạo với function `addComment`. **Thêm** function `listComments`:
+- [x] **Task D.1 — Mở rộng `frontend/src/api/comments.ts`** (AC: 1, 3)
+  - [x] D.1.1 File này đã được Story 3.3 Task E.1 tạo với function `addComment`. **Thêm** function `listComments`:
     ```ts
     import { apiFetch } from "./client";
     import type { Comment } from "../types/comment";
@@ -680,20 +680,20 @@ Common cause: session terminated unexpectedly or agent error.
         { method: "POST", body: JSON.stringify({ content }) },
       );
     ```
-  - [ ] D.1.2 KHÔNG đổi `addComment` signature (3.3 owner).
+  - [x] D.1.2 KHÔNG đổi `addComment` signature (3.3 owner).
 
-- [ ] **Task D.2 — Verify `frontend/src/api/runs.ts`** (AC: 4, 5)
-  - [ ] D.2.1 File này đã được Story 3.4 Task E.2 dự kiến tạo. **Verify** function signatures:
+- [x] **Task D.2 — Verify `frontend/src/api/runs.ts`** (AC: 4, 5)
+  - [x] D.2.1 File này đã được Story 3.4 Task E.2 dự kiến tạo. **Verify** function signatures:
     ```ts
     export const listRuns = (projectId: string, taskId: string) => Promise<Run[]>;
     export const getRun = (projectId: string, taskId: string, runId: string) => Promise<Run>;
     ```
-  - [ ] D.2.2 KHÔNG sửa (3.4 owner).
+  - [x] D.2.2 KHÔNG sửa (3.4 owner).
 
 ### E. Frontend hooks: useCommentList, useAddComment, useRunList
 
-- [ ] **Task E.1 — Tạo `frontend/src/hooks/useCommentList.ts`** (AC: 2, 7)
-  - [ ] E.1.1 Pattern theo `frontend/src/hooks/useTasks.ts` (existing):
+- [x] **Task E.1 — Tạo `frontend/src/hooks/useCommentList.ts`** (AC: 2, 7)
+  - [x] E.1.1 Pattern theo `frontend/src/hooks/useTasks.ts` (existing):
     ```ts
     import { useQuery } from "@tanstack/react-query";
     import { listComments } from "../api/comments";
@@ -707,10 +707,10 @@ Common cause: session terminated unexpectedly or agent error.
       });
     }
     ```
-  - [ ] E.1.2 KHÔNG thêm `refetchInterval` (theo AC-7 quyết định không polling).
+  - [x] E.1.2 KHÔNG thêm `refetchInterval` (theo AC-7 quyết định không polling).
 
-- [ ] **Task E.2 — Tạo `frontend/src/hooks/useAddComment.ts`** (AC: 3)
-  - [ ] E.2.1 Pattern theo `frontend/src/hooks/useStartSession.ts` (existing) với invalidation:
+- [x] **Task E.2 — Tạo `frontend/src/hooks/useAddComment.ts`** (AC: 3)
+  - [x] E.2.1 Pattern theo `frontend/src/hooks/useStartSession.ts` (existing) với invalidation:
     ```ts
     import { useMutation, useQueryClient } from "@tanstack/react-query";
     import { addComment } from "../api/comments";
@@ -726,10 +726,10 @@ Common cause: session terminated unexpectedly or agent error.
       });
     }
     ```
-  - [ ] E.2.2 KHÔNG handle toast trong hook — toast là UI concern, handle ở component level (giống pattern `useStartSession` của Story 3.1 + `useResumeSession` của 3.3).
+  - [x] E.2.2 KHÔNG handle toast trong hook — toast là UI concern, handle ở component level (giống pattern `useStartSession` của Story 3.1 + `useResumeSession` của 3.3).
 
-- [ ] **Task E.3 — Tạo `frontend/src/hooks/useRunList.ts`** (AC: 4, 5, 7)
-  - [ ] E.3.1 Pattern với polling theo architecture.md:
+- [x] **Task E.3 — Tạo `frontend/src/hooks/useRunList.ts`** (AC: 4, 5, 7)
+  - [x] E.3.1 Pattern với polling theo architecture.md:
     ```ts
     import { useQuery } from "@tanstack/react-query";
     import { listRuns } from "../api/runs";
@@ -748,13 +748,13 @@ Common cause: session terminated unexpectedly or agent error.
       });
     }
     ```
-  - [ ] E.3.2 `taskStatus` param truyền từ parent component (TaskDetailPanel đã có `task.status`).
-  - [ ] E.3.3 **Lưu ý:** `useResumeSession` của Story 3.3 đã invalidate `["runs", projectId, taskId]` trên onSuccess (xem 3.3 Task F.3.4 / 3.5a AC-4.3). 3.5b KHÔNG cần thêm invalidation chỗ này — chỉ cần tận dụng pattern đã có.
+  - [x] E.3.2 `taskStatus` param truyền từ parent component (TaskDetailPanel đã có `task.status`).
+  - [x] E.3.3 **Lưu ý:** `useResumeSession` của Story 3.3 đã invalidate `["runs", projectId, taskId]` trên onSuccess (xem 3.3 Task F.3.4 / 3.5a AC-4.3). 3.5b KHÔNG cần thêm invalidation chỗ này — chỉ cần tận dụng pattern đã có.
 
 ### F. Frontend components: RunTimeline
 
-- [ ] **Task F.1 — Tạo `frontend/src/components/RunTimeline.tsx`** (AC: 6)
-  - [ ] F.1.1 Component signature:
+- [x] **Task F.1 — Tạo `frontend/src/components/RunTimeline.tsx`** (AC: 6)
+  - [x] F.1.1 Component signature:
     ```tsx
     interface RunTimelineProps {
       run: Run;
@@ -764,7 +764,7 @@ Common cause: session terminated unexpectedly or agent error.
     }
     export default function RunTimeline(props: RunTimelineProps): JSX.Element;
     ```
-  - [ ] F.1.2 Internal: derive events từ `run` fields:
+  - [x] F.1.2 Internal: derive events từ `run` fields:
     ```ts
     type TimelineEvent = {
       type: "session_start" | "session_running" | "session_end";
@@ -813,8 +813,8 @@ Common cause: session terminated unexpectedly or agent error.
       return events;
     }
     ```
-  - [ ] F.1.3 Render header + events list + "View raw output →" link + (optional) suggested action block cho failed run.
-  - [ ] F.1.4 Suggested action block — only render khi `run.endedAt !== null AND run.exitCode > 0 AND task.status !== "cancelled"`:
+  - [x] F.1.3 Render header + events list + "View raw output →" link + (optional) suggested action block cho failed run.
+  - [x] F.1.4 Suggested action block — only render khi `run.endedAt !== null AND run.exitCode > 0 AND task.status !== "cancelled"`:
     ```tsx
     <div className="run-timeline-suggested-action" role="note">
       <p>⚠ This run failed.</p>
@@ -831,7 +831,7 @@ Common cause: session terminated unexpectedly or agent error.
       </div>
     </div>
     ```
-  - [ ] F.1.5 `handleResumeFromTimeline` reuse `useResumeSession` từ Story 3.3 Task F.2:
+  - [x] F.1.5 `handleResumeFromTimeline` reuse `useResumeSession` từ Story 3.3 Task F.2:
     ```tsx
     const resumeMut = useResumeSession(props.projectId, props.task.id);
     const handleResumeFromTimeline = () => {
@@ -841,10 +841,10 @@ Common cause: session terminated unexpectedly or agent error.
       });
     };
     ```
-  - [ ] F.1.6 Container có `aria-live="polite"` khi `run.exitCode === null` (live mode). Else KHÔNG attribute (tránh announce spam).
+  - [x] F.1.6 Container có `aria-live="polite"` khi `run.exitCode === null` (live mode). Else KHÔNG attribute (tránh announce spam).
 
-- [ ] **Task F.2 — Tạo `frontend/src/components/RunTimeline.css`** (AC: 6, 9)
-  - [ ] F.2.1 Style classes:
+- [x] **Task F.2 — Tạo `frontend/src/components/RunTimeline.css`** (AC: 6, 9)
+  - [x] F.2.1 Style classes:
     - `.run-timeline` — wrapper container.
     - `.run-timeline-header` — header với run #, agent, duration.
     - `.run-timeline-list` — `<ol>` với padding-left + border-left 2px solid `--border` (vertical line).
@@ -858,7 +858,7 @@ Common cause: session terminated unexpectedly or agent error.
     - `.run-timeline-sublabel` — text 12px italic color `--text-secondary`.
     - `.run-timeline-view-raw` — button styled as link (no border, brand color, underline on hover).
     - `.run-timeline-suggested-action` — alert/note card với background subtle.
-  - [ ] F.2.2 Pulse animation:
+  - [x] F.2.2 Pulse animation:
     ```css
     @media (prefers-reduced-motion: no-preference) {
       @keyframes run-timeline-pulse {
@@ -870,23 +870,23 @@ Common cause: session terminated unexpectedly or agent error.
       }
     }
     ```
-  - [ ] F.2.3 Dùng CSS variables từ `frontend/src/styles/tokens.css` — KHÔNG hardcode hex. Verify token names (e.g. `--bg-app`, `--text-primary`, `--brand-primary`, `--status-completed`, `--status-failed`, `--border`, `--text-secondary`). Nếu token thiếu → fallback hex (KHÔNG add token mới cho 3.5b).
+  - [x] F.2.3 Dùng CSS variables từ `frontend/src/styles/tokens.css` — KHÔNG hardcode hex. Verify token names (e.g. `--bg-app`, `--text-primary`, `--brand-primary`, `--status-completed`, `--status-failed`, `--border`, `--text-secondary`). Nếu token thiếu → fallback hex (KHÔNG add token mới cho 3.5b).
 
-- [ ] **Task F.3 — Tạo `frontend/src/components/RunTimeline.test.tsx`** (AC: 6, 10 — TT1–TT6)
-  - [ ] F.3.1 Setup: mock `useResumeSession`, `useToast` (nếu RunTimeline trực tiếp dùng).
-  - [ ] F.3.2 Implement TT1–TT6 theo bảng AC-10 RunTimeline section.
-  - [ ] F.3.3 Helper `makeRun(overrides)` + `makeTask(overrides)` để tạo fixtures linh hoạt.
-  - [ ] F.3.4 Test TT6 (cancelled task) cần task fixture `status: "cancelled"` + run `exitCode: 1, endedAt: "..."`. Assert text "Session cancelled" visible; "Session failed" KHÔNG visible.
+- [x] **Task F.3 — Tạo `frontend/src/components/RunTimeline.test.tsx`** (AC: 6, 10 — TT1–TT6)
+  - [x] F.3.1 Setup: mock `useResumeSession`, `useToast` (nếu RunTimeline trực tiếp dùng).
+  - [x] F.3.2 Implement TT1–TT6 theo bảng AC-10 RunTimeline section.
+  - [x] F.3.3 Helper `makeRun(overrides)` + `makeTask(overrides)` để tạo fixtures linh hoạt.
+  - [x] F.3.4 Test TT6 (cancelled task) cần task fixture `status: "cancelled"` + run `exitCode: 1, endedAt: "..."`. Assert text "Session cancelled" visible; "Session failed" KHÔNG visible.
 
 ### G. Frontend feature: tab content panels
 
-- [ ] **Task G.1 — Refactor `TaskDetailPanel.tsx`: tách 3 tab content thành sub-components** (AC: 2, 4, 5, 8)
-  - [ ] G.1.1 Quyết định kiến trúc:
+- [x] **Task G.1 — Refactor `TaskDetailPanel.tsx`: tách 3 tab content thành sub-components** (AC: 2, 4, 5, 8)
+  - [x] G.1.1 Quyết định kiến trúc:
     - **Option A:** Inline JSX trong TaskDetailPanel.tsx (giống current code dòng 264–289). Pros: ít file, navigation đơn giản. Cons: file lớn (>400 dòng sau 3.5b).
     - **Option B:** Tách thành 3 sub-components: `CommentsTabPanel.tsx`, `RunsTabPanel.tsx`, `LogsTabPanel.tsx` trong `frontend/src/features/detail/`. Pros: file nhỏ + dễ test isolated. Cons: thêm 3 file + tăng cognitive load.
     - **Khuyến nghị:** Option B — match pattern Story 3.5a Task D.1.1 dự kiến tách `SummaryTab.tsx` (nếu 3.5a chose Option A, 3.5b cũng giữ inline cho consistency).
     - **Verify pattern của 3.5a sau khi merge** trước khi chọn architecture 3.5b.
-  - [ ] G.1.2 Component props chung pattern:
+  - [x] G.1.2 Component props chung pattern:
     ```tsx
     interface TabPanelProps {
       task: Task;
@@ -894,7 +894,7 @@ Common cause: session terminated unexpectedly or agent error.
       onSwitchTab: (tab: PanelTab, runId?: string) => void;  // for cross-tab handoff
     }
     ```
-  - [ ] G.1.3 Thêm state `focusedRunId: string | null` vào `TaskDetailPanel` (AC-8). Bao gồm trong callback `onSwitchTab`:
+  - [x] G.1.3 Thêm state `focusedRunId: string | null` vào `TaskDetailPanel` (AC-8). Bao gồm trong callback `onSwitchTab`:
     ```tsx
     const [focusedRunId, setFocusedRunId] = useState<string | null>(null);
     const handleSwitchTab = (tab: PanelTab, runId?: string) => {
@@ -902,10 +902,10 @@ Common cause: session terminated unexpectedly or agent error.
       if (runId !== undefined) setFocusedRunId(runId);
     };
     ```
-  - [ ] G.1.4 Pass `focusedRunId` + `clearFocusedRunId` callback xuống `LogsTabPanel`.
+  - [x] G.1.4 Pass `focusedRunId` + `clearFocusedRunId` callback xuống `LogsTabPanel`.
 
-- [ ] **Task G.2 — Tạo / refactor `CommentsTabPanel.tsx`** (AC: 2, 3)
-  - [ ] G.2.1 Component render:
+- [x] **Task G.2 — Tạo / refactor `CommentsTabPanel.tsx`** (AC: 2, 3)
+  - [x] G.2.1 Component render:
     - `useCommentList(projectId, taskId)` → fetch list.
     - `useAddComment(projectId, taskId)` → mutation.
     - Loading state: render skeleton.
@@ -913,7 +913,7 @@ Common cause: session terminated unexpectedly or agent error.
     - Empty state: render `EmptyState` icon "💬" + heading "No comments yet".
     - List state: render `<ul>` với mỗi comment một `<li>`.
     - Bottom: input section với textarea + Add Comment button.
-  - [ ] G.2.2 Comment item render:
+  - [x] G.2.2 Comment item render:
     ```tsx
     <li className="comment-thread-item" aria-label={`Comment by You at ${formatted}, ${comment.sent ? "sent" : "pending"}`}>
       <div className="comment-thread-header">
@@ -927,7 +927,7 @@ Common cause: session terminated unexpectedly or agent error.
       </div>
     </li>
     ```
-  - [ ] G.2.3 Input section handler:
+  - [x] G.2.3 Input section handler:
     ```tsx
     const handleAddComment = () => {
       const trimmed = inputText.trim();
@@ -949,7 +949,7 @@ Common cause: session terminated unexpectedly or agent error.
       });
     };
     ```
-  - [ ] G.2.4 Disabled state cho terminal task:
+  - [x] G.2.4 Disabled state cho terminal task:
     ```tsx
     const isTerminal = task.status === "done" || task.status === "cancelled";
     const placeholderText = isTerminal
@@ -957,13 +957,13 @@ Common cause: session terminated unexpectedly or agent error.
       : "Add a comment or instruction for the agent...";
     ```
 
-- [ ] **Task G.3 — Tạo / refactor `RunsTabPanel.tsx`** (AC: 4, 6, 7, 8)
-  - [ ] G.3.1 Component:
+- [x] **Task G.3 — Tạo / refactor `RunsTabPanel.tsx`** (AC: 4, 6, 7, 8)
+  - [x] G.3.1 Component:
     - `useRunList(projectId, taskId, task.status)` → fetch + polling.
     - State `expandedRunId: string | null` (chỉ 1 run expanded cùng lúc).
     - State `showTimelineForRunId: string | null` (toggle independent của expanded).
     - Loading / Error / Empty states tương tự CommentsTabPanel.
-  - [ ] G.3.2 Run row render:
+  - [x] G.3.2 Run row render:
     ```tsx
     <li className="run-list-row">
       <button
@@ -991,8 +991,8 @@ Common cause: session terminated unexpectedly or agent error.
       )}
     </li>
     ```
-  - [ ] G.3.3 `formatRelativeTime`, `formatDuration` helpers — đặt trong cùng file hoặc tạo `frontend/src/utils/time.ts` (nếu tái sử dụng ở các file khác). Quyết định: tạo `frontend/src/utils/time.ts` — RunTimeline + RunsTabPanel + Logs Tab có thể share.
-  - [ ] G.3.4 Output preview helper (truncate logTail to 5 lines, 80 chars/line, append `…` if long):
+  - [x] G.3.3 `formatRelativeTime`, `formatDuration` helpers — đặt trong cùng file hoặc tạo `frontend/src/utils/time.ts` (nếu tái sử dụng ở các file khác). Quyết định: tạo `frontend/src/utils/time.ts` — RunTimeline + RunsTabPanel + Logs Tab có thể share.
+  - [x] G.3.4 Output preview helper (truncate logTail to 5 lines, 80 chars/line, append `…` if long):
     ```ts
     function formatOutputPreview(logTail: string | null): string {
       if (!logTail) return "(no output captured yet)";
@@ -1001,17 +1001,17 @@ Common cause: session terminated unexpectedly or agent error.
     }
     ```
 
-- [ ] **Task G.4 — Tạo / refactor `LogsTabPanel.tsx`** (AC: 5, 8)
-  - [ ] G.4.1 Component:
+- [x] **Task G.4 — Tạo / refactor `LogsTabPanel.tsx`** (AC: 5, 8)
+  - [x] G.4.1 Component:
     - `useRunList(projectId, taskId, task.status)` → reuse cùng query (TanStack Query dedupes).
     - Props: `focusedRunId: string | null`, `clearFocusedRunId: () => void`.
     - State `selectedRunFilter: "all" | string` (initial = `focusedRunId ?? "all"`).
     - useEffect on mount: nếu `focusedRunId !== null` → setTimeout clear sau 100ms (next tick) để tránh sticky.
-  - [ ] G.4.2 Render:
+  - [x] G.4.2 Render:
     - Disclaimer banner (top).
     - Filter dropdown.
     - Filtered runs list — mỗi run là `<section>` với header + log content `<pre>` + download button.
-  - [ ] G.4.3 Disclaimer banner:
+  - [x] G.4.3 Disclaimer banner:
     ```tsx
     <div className="logs-disclaimer" role="note">
       <p>This tab contains raw technical output. For a human-readable summary, see the Summary tab.</p>
@@ -1020,7 +1020,7 @@ Common cause: session terminated unexpectedly or agent error.
       </button>
     </div>
     ```
-  - [ ] G.4.4 Download handler:
+  - [x] G.4.4 Download handler:
     ```tsx
     const handleDownload = (run: Run) => {
       const content = run.logTail ?? "";
@@ -1035,7 +1035,7 @@ Common cause: session terminated unexpectedly or agent error.
       URL.revokeObjectURL(url);
     };
     ```
-  - [ ] G.4.5 Filter logic:
+  - [x] G.4.5 Filter logic:
     ```tsx
     const filteredRuns = selectedRunFilter === "all"
       ? runs
@@ -1044,8 +1044,8 @@ Common cause: session terminated unexpectedly or agent error.
 
 ### H. Frontend wiring trong TaskDetailPanel
 
-- [ ] **Task H.1 — Refactor `TaskDetailPanel.tsx` tab content** (AC: 2, 4, 5, 8, 11)
-  - [ ] H.1.1 Replace placeholder content (dòng 264–289 hiện tại) bằng:
+- [x] **Task H.1 — Refactor `TaskDetailPanel.tsx` tab content** (AC: 2, 4, 5, 8, 11)
+  - [x] H.1.1 Replace placeholder content (dòng 264–289 hiện tại) bằng:
     ```tsx
     {activeTab === "comments" && (
       <CommentsTabPanel task={task} projectId={project.id} onSwitchTab={handleSwitchTab} />
@@ -1063,27 +1063,27 @@ Common cause: session terminated unexpectedly or agent error.
       />
     )}
     ```
-  - [ ] H.1.2 **KHÔNG đổi** Summary tab content (Story 3.5a invariant).
-  - [ ] H.1.3 **KHÔNG đổi** Settings tab (placeholder OK).
-  - [ ] H.1.4 **KHÔNG đổi** Header / ActionBar / SessionPanel / Tab bar / close behavior.
-  - [ ] H.1.5 Thêm state `const [focusedRunId, setFocusedRunId] = useState<string | null>(null);` cùng `activeTab` state.
+  - [x] H.1.2 **KHÔNG đổi** Summary tab content (Story 3.5a invariant).
+  - [x] H.1.3 **KHÔNG đổi** Settings tab (placeholder OK).
+  - [x] H.1.4 **KHÔNG đổi** Header / ActionBar / SessionPanel / Tab bar / close behavior.
+  - [x] H.1.5 Thêm state `const [focusedRunId, setFocusedRunId] = useState<string | null>(null);` cùng `activeTab` state.
 
 ### I. CSS files cho 3 tab panels
 
-- [ ] **Task I.1 — Style CSS** (AC: 2, 4, 5, 9)
-  - [ ] I.1.1 Quyết định: tạo 3 file CSS riêng (`CommentsTabPanel.css`, `RunsTabPanel.css`, `LogsTabPanel.css`) hoặc extend `TaskDetailPanel.css`.
-  - [ ] I.1.2 Class names:
+- [x] **Task I.1 — Style CSS** (AC: 2, 4, 5, 9)
+  - [x] I.1.1 Quyết định: tạo 3 file CSS riêng (`CommentsTabPanel.css`, `RunsTabPanel.css`, `LogsTabPanel.css`) hoặc extend `TaskDetailPanel.css`.
+  - [x] I.1.2 Class names:
     - **Comments:** `.comment-thread-item`, `.comment-thread-header`, `.comment-thread-author`, `.comment-thread-timestamp`, `.comment-thread-content`, `.comment-thread-status`, `.comment-thread-status--sent`, `.comment-thread-status--pending`, `.comment-input-section`, `.comment-input-textarea`, `.comment-input-hint`.
     - **Runs:** `.run-list`, `.run-list-row`, `.run-list-row-number`, `.run-list-row-agent`, `.run-list-row-status`, `.run-list-row-status--running`, `.run-list-row-status--completed`, `.run-list-row-status--failed`, `.run-list-row-dot`, `.run-list-row-detail`, `.run-list-row-field`.
     - **Logs:** `.logs-disclaimer`, `.logs-disclaimer-link`, `.logs-filter`, `.logs-section`, `.logs-section-header`, `.logs-section-pre`, `.logs-section-download`.
-  - [ ] I.1.3 Reuse CSS variables — KHÔNG hardcode.
-  - [ ] I.1.4 Specifically font-size 13px cho `.logs-section-pre` (epic AC dòng 739 mandatory).
-  - [ ] I.1.5 Specifically font-family monospace cho `.logs-section-pre` (`ui-monospace, "SF Mono", "Cascadia Code", Menlo, monospace`).
+  - [x] I.1.3 Reuse CSS variables — KHÔNG hardcode.
+  - [x] I.1.4 Specifically font-size 13px cho `.logs-section-pre` (epic AC dòng 739 mandatory).
+  - [x] I.1.5 Specifically font-family monospace cho `.logs-section-pre` (`ui-monospace, "SF Mono", "Cascadia Code", Menlo, monospace`).
 
 ### J. Tests: TaskDetailPanel.test.tsx extension
 
-- [ ] **Task J.1 — Extend `TaskDetailPanel.test.tsx` với TC1–TC6 + TR1–TR6** (AC: 2, 3, 4, 5, 8, 10, 11)
-  - [ ] J.1.1 Thêm mocks ở đầu file (extend mocks của 3.5a):
+- [x] **Task J.1 — Extend `TaskDetailPanel.test.tsx` với TC1–TC6 + TR1–TR6** (AC: 2, 3, 4, 5, 8, 10, 11)
+  - [x] J.1.1 Thêm mocks ở đầu file (extend mocks của 3.5a):
     ```ts
     vi.mock("../../api/comments", () => ({
       listComments: vi.fn(),
@@ -1094,41 +1094,41 @@ Common cause: session terminated unexpectedly or agent error.
       getRun: vi.fn(),
     }));
     ```
-  - [ ] J.1.2 Helper `makeComment(overrides)` + `makeRun(overrides)` để tạo fixtures.
-  - [ ] J.1.3 Implement TC1–TC6 (Comments Tab tests):
+  - [x] J.1.2 Helper `makeComment(overrides)` + `makeRun(overrides)` để tạo fixtures.
+  - [x] J.1.3 Implement TC1–TC6 (Comments Tab tests):
     - Default mock returns: `listComments.mockResolvedValue([])` để tránh test cũ break.
     - Setup mỗi test với specific mocks.
-  - [ ] J.1.4 Implement TR1–TR6 (Runs Tab tests):
+  - [x] J.1.4 Implement TR1–TR6 (Runs Tab tests):
     - Default mock returns: `listRuns.mockResolvedValue([])`.
     - Test TR5 (`View Logs`): assert `screen.getByText(...)` xác minh Logs Tab content visible sau click.
     - Test TR6 (`View Timeline`): assert RunTimeline visible (`screen.getByRole("list", { name: /Timeline for Run #/ })`).
-  - [ ] J.1.5 **KHÔNG sửa** test cases cũ của Story 2.4 + Story 3.1 + Story 3.5a (T1–T12 hoặc tên gì 3.5a chose).
+  - [x] J.1.5 **KHÔNG sửa** test cases cũ của Story 2.4 + Story 3.1 + Story 3.5a (T1–T12 hoặc tên gì 3.5a chose).
 
-- [ ] **Task J.2 — Implement RunTimeline.test.tsx (TT1–TT6)** đã list ở Task F.3 — KHÔNG duplicate ở đây.
+- [x] **Task J.2 — Implement RunTimeline.test.tsx (TT1–TT6)** đã list ở Task F.3 — KHÔNG duplicate ở đây.
 
 ### K. Lint, typecheck, regression verification
 
-- [ ] **Task K.1 — Backend verification** (AC: 11)
-  - [ ] K.1.1 `cd backend && cargo fmt --check && cargo clippy -- -D warnings && cargo test` — tất cả pass.
-  - [ ] K.1.2 Verify Story 3.3 + 3.4's test files (`comments_test.rs` POST tests, `runs_test.rs`) — pass without modification.
-  - [ ] K.1.3 Số test mới expected: ≥ 5 integration tests trong `comments_test.rs` (BC1–BC5 + regression test) + ≥ 1 cross-task isolation test.
+- [x] **Task K.1 — Backend verification** (AC: 11)
+  - [x] K.1.1 `cd backend && cargo fmt --check && cargo clippy -- -D warnings && cargo test` — tất cả pass.
+  - [x] K.1.2 Verify Story 3.3 + 3.4's test files (`comments_test.rs` POST tests, `runs_test.rs`) — pass without modification.
+  - [x] K.1.3 Số test mới expected: ≥ 5 integration tests trong `comments_test.rs` (BC1–BC5 + regression test) + ≥ 1 cross-task isolation test.
 
-- [ ] **Task K.2 — Frontend verification** (AC: 11)
-  - [ ] K.2.1 `cd frontend && pnpm typecheck && pnpm lint` — pass (verify command qua `package.json` "scripts"; nếu repo dùng `npm` thì dùng `npm run typecheck`).
-  - [ ] K.2.2 `cd frontend && pnpm test` — tất cả pass (existing + new).
-  - [ ] K.2.3 Số test mới expected: ≥ 12 test cases mới trong `TaskDetailPanel.test.tsx` (TC1–TC6 + TR1–TR6) + ≥ 6 test cases trong `RunTimeline.test.tsx` (TT1–TT6).
-  - [ ] K.2.4 No regression: existing test suite TaskCard, StatusBadge, Button, Toast, EmptyState, AgentAvatar, ConfirmationDialog, CreateTaskModal, AppShell, TopBar — pass.
+- [x] **Task K.2 — Frontend verification** (AC: 11)
+  - [x] K.2.1 `cd frontend && pnpm typecheck && pnpm lint` — pass (verify command qua `package.json` "scripts"; nếu repo dùng `npm` thì dùng `npm run typecheck`).
+  - [x] K.2.2 `cd frontend && pnpm test` — tất cả pass (existing + new).
+  - [x] K.2.3 Số test mới expected: ≥ 12 test cases mới trong `TaskDetailPanel.test.tsx` (TC1–TC6 + TR1–TR6) + ≥ 6 test cases trong `RunTimeline.test.tsx` (TT1–TT6).
+  - [x] K.2.4 No regression: existing test suite TaskCard, StatusBadge, Button, Toast, EmptyState, AgentAvatar, ConfirmationDialog, CreateTaskModal, AppShell, TopBar — pass.
 
 ### L. Sprint status + Documentation
 
-- [ ] **Task L.1 — Update sprint status** (workflow requirement)
-  - [ ] L.1.1 `_bmad-output/implementation-artifacts/sprint-status.yaml`: `3-5b-comments-runs-and-logs-tabs-and-runtimeline: backlog` → `ready-for-dev`. `last_updated` → current datetime.
-  - [ ] L.1.2 KHÔNG đổi status story khác trong sprint.
+- [x] **Task L.1 — Update sprint status** (workflow requirement)
+  - [x] L.1.1 `_bmad-output/implementation-artifacts/sprint-status.yaml`: `3-5b-comments-runs-and-logs-tabs-and-runtimeline: backlog` → `ready-for-dev`. `last_updated` → current datetime.
+  - [x] L.1.2 KHÔNG đổi status story khác trong sprint.
 
-- [ ] **Task L.2 — Verification gates trước khi report Done** (workflow requirement)
-  - [ ] L.2.1 Tất cả AC-1 đến AC-11 đã được satisfy bằng implementation + tests.
-  - [ ] L.2.2 PR description liệt kê các files changed/added theo bảng "File List" ở dưới.
-  - [ ] L.2.3 Project notes: nếu repo có `./bin/pnotes` available, tạo continuity note trước khi mark Done. Note nội dung tối thiểu:
+- [x] **Task L.2 — Verification gates trước khi report Done** (workflow requirement)
+  - [x] L.2.1 Tất cả AC-1 đến AC-11 đã được satisfy bằng implementation + tests.
+  - [x] L.2.2 PR description liệt kê các files changed/added theo bảng "File List" ở dưới.
+  - [x] L.2.3 Project notes: nếu repo có `./bin/pnotes` available, tạo continuity note trước khi mark Done. Note nội dung tối thiểu:
     - Decision: GET comments endpoint mới, refactor `POST .../comments` route thành combined `get().post()`.
     - Decision: RunTimeline derive events từ Run table fields only — KHÔNG parse log content (defer event parsing to future story).
     - Decision: Logs Tab download = tail blob (logTail field) — full log streaming deferred.
@@ -1136,9 +1136,6 @@ Common cause: session terminated unexpectedly or agent error.
     - Trap: Comments Tab disabled cho task.status terminal (done/cancelled) — preempt backend 409.
     - Missing tests (deferred): full log streaming, event parsing per agent (Claude JSON vs Codex), dark theme logs tab.
 
----
-
-## Dev Notes
 
 ### Architecture compliance
 

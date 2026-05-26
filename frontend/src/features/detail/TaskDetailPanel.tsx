@@ -9,6 +9,9 @@ import { useToast } from "../../components/Toast";
 import { useStartSession } from "../../hooks/useStartSession";
 import { ApiError } from "../../api/client";
 import { useTask } from "../../hooks/useTask";
+import CommentsTabPanel from "./CommentsTabPanel";
+import LogsTabPanel from "./LogsTabPanel";
+import RunsTabPanel from "./RunsTabPanel";
 import SummaryTab from "./SummaryTab";
 import type { Task, TaskStatus } from "../../types/task";
 
@@ -136,6 +139,7 @@ function SessionPanel({ task }: SessionPanelProps) {
 export default function TaskDetailPanel() {
   const { selectedTask, selectedProject, closeTask } = useTaskDetail();
   const [activeTab, setActiveTab] = useState<PanelTab>("summary");
+  const [focusedRunId, setFocusedRunId] = useState<string | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const isOpen = selectedTask !== null;
 
@@ -171,9 +175,15 @@ export default function TaskDetailPanel() {
   // Reset tab when task changes (AC-9)
   useEffect(() => {
     setActiveTab("summary");
+    setFocusedRunId(null);
   }, [selectedTask?.id]);
 
   if (!isOpen || !task || !project) return null;
+
+  const handleSwitchTab = (tab: PanelTab, runId?: string) => {
+    setActiveTab(tab);
+    if (runId !== undefined) setFocusedRunId(runId);
+  };
 
   const agentRuntime: "codex" | "claude" = task.agent ?? "codex";
   const agentName = task.role ?? task.agent ?? "unassigned";
@@ -254,34 +264,22 @@ export default function TaskDetailPanel() {
             <SummaryTab
               projectId={project.id}
               task={task}
-              onSwitchTab={setActiveTab}
+              onSwitchTab={handleSwitchTab}
             />
           )}
           {activeTab === "comments" && (
-            <div className="task-detail-panel__comments">
-              {/* AC-10: Comments empty state */}
-              <EmptyState
-                variant="inline"
-                icon="💬"
-                heading="No comments yet"
-                description="Comments and instructions sent to the agent will appear here."
-              />
-            </div>
+            <CommentsTabPanel task={task} projectId={project.id} />
           )}
           {activeTab === "runs" && (
-            <EmptyState
-              variant="inline"
-              icon=""
-              heading="No runs yet"
-              description="Session runs will appear here."
-            />
+            <RunsTabPanel task={task} projectId={project.id} onSwitchTab={handleSwitchTab} />
           )}
           {activeTab === "logs" && (
-            <EmptyState
-              variant="inline"
-              icon=""
-              heading="No logs yet"
-              description="Session logs will appear here."
+            <LogsTabPanel
+              task={task}
+              projectId={project.id}
+              focusedRunId={focusedRunId}
+              clearFocusedRunId={() => setFocusedRunId(null)}
+              onSwitchTab={handleSwitchTab}
             />
           )}
           {activeTab === "settings" && (
@@ -297,4 +295,3 @@ export default function TaskDetailPanel() {
     </>
   );
 }
-
