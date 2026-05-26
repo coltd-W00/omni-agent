@@ -38,4 +38,9 @@
 - W1: Tab arrow-key navigation chưa implement trong tablist của TaskDetailPanel — ARIA tabs pattern chuẩn yêu cầu arrow keys di chuyển giữa tabs. Cân nhắc implement trong Epic 3 khi tab content đầy đủ. [frontend/src/features/detail/TaskDetailPanel.tsx:tablist]
 - W2: Focus trap thiếu trong slide-in panel — panel dùng `role="complementary"` (không phải `role="dialog"`) nên không bắt buộc, nhưng nên thêm nếu nâng cấp lên dialog pattern. Keyboard users hiện có Esc + close button. [frontend/src/features/detail/TaskDetailPanel.tsx]
 
+## Deferred from: pnotes-logging-and-quality-signals (2026-05-26)
+
+- D1: `compute_log_signals` dùng `fs::read_to_string` đọc toàn bộ file vào memory — với log file rất lớn (>1MB sau nhiều tháng sử dụng) sẽ chậm. Cân nhắc đọc N bytes từ cuối file thay vì toàn bộ khi log vượt ~100KB. [`.agents/skills/project-notes/pnotes-cli/src/main.rs`]
+- D2: `cmd_recall` có hai early-return paths với JSON event block giống nhau (notes empty vs scored empty) — minor code duplication, có thể refactor thành helper khi có thêm logging paths. [`.agents/skills/project-notes/pnotes-cli/src/main.rs`]
+
 

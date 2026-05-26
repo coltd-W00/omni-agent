@@ -3,10 +3,28 @@ use clap::{Parser, Subcommand};
 use serde::{Deserialize, Serialize};
 use std::ffi::OsString;
 use std::fs;
+use std::io::Write;
 use std::path::PathBuf;
 use walkdir::WalkDir;
 
 const NOTES_DIR: &str = ".project-notes/notes";
+const LOG_PATH: &str = "logs/pnotes-debug.jsonl";
+
+// Append one JSON event line to LOG_PATH. Silently ignores all errors so the
+// calling command always succeeds regardless of log I/O issues.
+fn write_debug_event(event: serde_json::Value) {
+    let log_path = PathBuf::from(LOG_PATH);
+    if let Some(parent) = log_path.parent() {
+        if !parent.as_os_str().is_empty() {
+            let _ = fs::create_dir_all(parent);
+        }
+    }
+    if let Ok(mut file) = fs::OpenOptions::new().create(true).append(true).open(&log_path) {
+        let mut line = serde_json::to_string(&event).unwrap_or_default();
+        line.push('\n');
+        let _ = file.write_all(line.as_bytes());
+    }
+}
 
 // ── CLI ──────────────────────────────────────────────────────────────────────
 
@@ -479,6 +497,10 @@ fn cmd_add_continuity(
         .to_string_lossy()
         .to_string();
 
+    let has_area = !areas.is_empty();
+    let has_tag = !tags.is_empty();
+    let has_decision = !decisions.is_empty();
+
     let fm = NoteFrontmatter {
         id: id.clone(),
         note_type: "continuity".to_string(),
@@ -506,6 +528,15 @@ fn cmd_add_continuity(
 
     fs::write(&file_path, body).expect("Failed to write note file");
     println!("Created: {}", file_path.display());
+
+    write_debug_event(serde_json::json!({
+        "ts": Local::now().to_rfc3339(),
+        "cmd": "add",
+        "task_slug": task,
+        "has_area": has_area,
+        "has_tag": has_tag,
+        "has_decision": has_decision
+    }));
 }
 
 fn load_all_notes() -> Vec<(PathBuf, NoteFrontmatter)> {
@@ -543,9 +574,21 @@ fn load_all_notes() -> Vec<(PathBuf, NoteFrontmatter)> {
 }
 
 fn cmd_recall(areas: Vec<String>, tags: Vec<String>, task: Option<String>, limit: usize) {
+    let log_area = areas.first().cloned();
+    let log_tag = tags.first().cloned();
+    let log_task = task.clone();
+
     let notes = load_all_notes();
     if notes.is_empty() {
         println!("No notes found");
+        write_debug_event(serde_json::json!({
+            "ts": Local::now().to_rfc3339(),
+            "cmd": "recall",
+            "area": log_area,
+            "tag": log_tag,
+            "task": log_task,
+            "result_count": 0
+        }));
         return;
     }
 
@@ -559,9 +602,18 @@ fn cmd_recall(areas: Vec<String>, tags: Vec<String>, task: Option<String>, limit
 
     if scored.is_empty() {
         println!("No notes found");
+        write_debug_event(serde_json::json!({
+            "ts": Local::now().to_rfc3339(),
+            "cmd": "recall",
+            "area": log_area,
+            "tag": log_tag,
+            "task": log_task,
+            "result_count": 0
+        }));
         return;
     }
 
+    let result_count = scored.len().min(limit);
     for (_, _, _, fm) in scored.into_iter().take(limit) {
         let areas_str = if fm.areas.is_empty() {
             "(none)".to_string()
@@ -581,6 +633,14 @@ fn cmd_recall(areas: Vec<String>, tags: Vec<String>, task: Option<String>, limit
         println!("date:   {}", fm.created_at);
         println!();
     }
+    write_debug_event(serde_json::json!({
+        "ts": Local::now().to_rfc3339(),
+        "cmd": "recall",
+        "area": log_area,
+        "tag": log_tag,
+        "task": log_task,
+        "result_count": result_count
+    }));
 }
 
 fn build_brief(
@@ -717,9 +777,26 @@ fn build_brief(
 }
 
 fn cmd_brief(areas: Vec<String>, tags: Vec<String>, task: Option<String>, limit: usize) {
+    let log_area = areas.first().cloned();
+    let log_tag = tags.first().cloned();
+    let log_task = task.clone();
+
     let notes = load_all_notes();
+    // Score separately to obtain result_count for logging without changing build_brief signature.
+    let filter = RecallFilter { areas: areas.clone(), tags: tags.clone(), task: task.clone() };
+    let result_count = score_and_filter_notes(notes.clone(), &filter).len().min(limit);
+
     let output = build_brief(notes, areas, tags, task, limit);
     print!("{output}");
+
+    write_debug_event(serde_json::json!({
+        "ts": Local::now().to_rfc3339(),
+        "cmd": "brief",
+        "area": log_area,
+        "tag": log_tag,
+        "task": log_task,
+        "result_count": result_count
+    }));
 }
 
 fn cmd_show(id: &str) {
@@ -828,6 +905,74 @@ fn parse_datetime(s: &str, default_offset: chrono::FixedOffset) -> Result<chrono
     Err(format!("Failed to parse datetime: {s}"))
 }
 
+// Reads last 20 events from LOG_PATH and returns a formatted `log_signals` section,
+// or None if the log file does not exist.
+// Thresholds are starting points; calibrate after ~50 real events.
+fn compute_log_signals() -> Option<String> {
+    let log_path = PathBuf::from(LOG_PATH);
+    if !log_path.exists() {
+        return None;
+    }
+    let content = fs::read_to_string(&log_path).ok()?;
+    let sample: Vec<serde_json::Value> = content
+        .lines()
+        .rev()
+        .take(20)
+        .filter_map(|l| serde_json::from_str(l).ok())
+        .collect();
+    let sample_size = sample.len();
+
+    let recall_total = sample.iter()
+        .filter(|e| matches!(e["cmd"].as_str(), Some("recall") | Some("brief")))
+        .count();
+    let recall_empty = sample.iter()
+        .filter(|e| matches!(e["cmd"].as_str(), Some("recall") | Some("brief")))
+        .filter(|e| e["result_count"].as_u64().unwrap_or(1) == 0)
+        .count();
+    let recall_empty_rate = if recall_total > 0 {
+        recall_empty as f64 / recall_total as f64
+    } else {
+        0.0
+    };
+
+    let add_total = sample.iter().filter(|e| e["cmd"].as_str() == Some("add")).count();
+    let add_no_area = sample.iter()
+        .filter(|e| e["cmd"].as_str() == Some("add"))
+        .filter(|e| !e["has_area"].as_bool().unwrap_or(true))
+        .count();
+    let area_false_rate = if add_total > 0 {
+        add_no_area as f64 / add_total as f64
+    } else {
+        0.0
+    };
+
+    // Thresholds: recall_empty_result_rate > 0.25, note_has_area_false_rate > 0.20
+    let mut concern_reasons: Vec<&str> = vec![];
+    if recall_empty_rate > 0.25 {
+        concern_reasons.push("recall_empty_result_rate_exceeded");
+    }
+    if area_false_rate > 0.20 {
+        concern_reasons.push("note_has_area_false_rate_exceeded");
+    }
+    let concern = !concern_reasons.is_empty();
+
+    let mut out = String::new();
+    out.push_str("log_signals:\n");
+    out.push_str(&format!("  sample_size: {sample_size}\n"));
+    out.push_str(&format!("  recall_empty_result_rate: {recall_empty_rate:.2}\n"));
+    out.push_str(&format!("  note_has_area_false_rate: {area_false_rate:.2}\n"));
+    out.push_str(&format!("  concern: {concern}\n"));
+    if concern_reasons.is_empty() {
+        out.push_str("  concern_reasons: []\n");
+    } else {
+        out.push_str("  concern_reasons:\n");
+        for reason in &concern_reasons {
+            out.push_str(&format!("  - {reason}\n"));
+        }
+    }
+    Some(out)
+}
+
 fn cmd_quality_status() {
     if let Err(e) = ensure_review_log_exists() {
         eprintln!("Error: {e}");
@@ -911,6 +1056,11 @@ fn cmd_quality_status() {
     println!("notes:");
     for (path, _) in &pending {
         println!("- {}", path.display());
+    }
+
+    if let Some(signals) = compute_log_signals() {
+        println!();
+        print!("{signals}");
     }
 }
 
