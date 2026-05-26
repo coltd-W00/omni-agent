@@ -1,4 +1,3 @@
-// TODO(Story 4.3): collapse sidebar to icon-only at ≤1280px (UX-DR20).
 // TODO(Story 2.x): add Inbox, Review Queue, AGENTS section, Settings (UX section 2.2).
 import { NavLink } from "react-router";
 import ProjectSwitcher from "../features/project/ProjectSwitcher";
@@ -14,13 +13,19 @@ export default function Sidebar() {
       <div className="app-sidebar__nav">
         <ul>
           <li>
-            <NavLink to="/dashboard" className={itemClass}>
-              Dashboard
+            <NavLink to="/dashboard" className={itemClass} title="Dashboard">
+              <span className="app-sidebar__item-icon" aria-hidden="true">
+                📊
+              </span>
+              <span className="app-sidebar__item-label">Dashboard</span>
             </NavLink>
           </li>
           <li>
-            <NavLink to="/board" className={itemClass}>
-              All Tasks
+            <NavLink to="/board" className={itemClass} title="All Tasks">
+              <span className="app-sidebar__item-icon" aria-hidden="true">
+                📋
+              </span>
+              <span className="app-sidebar__item-label">All Tasks</span>
             </NavLink>
           </li>
         </ul>

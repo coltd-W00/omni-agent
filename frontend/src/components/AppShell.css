@@ -33,6 +33,34 @@
   padding: 0 var(--space-6);
 }
 
+.app-top-bar__leading {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.app-top-bar__hamburger {
+  display: none;
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--text-primary);
+  font-size: 20px;
+  border-radius: var(--radius-sm);
+  margin-right: var(--space-2);
+}
+
+.app-top-bar__hamburger:hover {
+  background: var(--bg-hover);
+}
+
+.app-top-bar__hamburger:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
 .app-top-bar__actions {
   display: flex;
   gap: var(--space-2);
@@ -105,6 +133,7 @@
 .app-sidebar__item {
   display: flex;
   align-items: center;
+  gap: var(--space-3);
   height: 34px;
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-sm);
@@ -140,4 +169,63 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+@media (min-width: 1024px) and (max-width: 1279px) {
+  .app-sidebar {
+    width: 48px;
+  }
+
+  .app-sidebar__header {
+    font-size: 0;
+    justify-content: center;
+    padding: 0;
+  }
+
+  .app-sidebar__header::before {
+    content: "Ω";
+    font-size: var(--font-size-heading-m);
+  }
+
+  .app-sidebar__project-switcher {
+    display: none;
+  }
+
+  .app-sidebar__nav {
+    padding: var(--space-2);
+  }
+
+  .app-sidebar__item {
+    padding: var(--space-2);
+    justify-content: center;
+  }
+
+  .app-sidebar__item-label {
+    display: none;
+  }
+
+  .app-sidebar__avatar {
+    padding: var(--space-3);
+    justify-content: center;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .app-top-bar__hamburger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 1023px) {
+  .app-sidebar {
+    display: none;
+  }
+}
+
+@media (min-width: 1440px) {
+  .app-shell--detail-open .app-shell__main {
+    padding-right: 420px;
+  }
 }

@@ -2,12 +2,12 @@
    UX-DR11: 420px slide-in panel từ phải, z-index above main content.
 */
 
-/* Backdrop — transparent overlay to capture outside clicks (AC-1) */
+/* Backdrop — visible overlay at <Desktop L breakpoints */
 .task-detail-panel__backdrop {
   position: fixed;
   inset: 0;
   z-index: 200;
-  background: transparent;
+  background: rgba(0, 0, 0, 0.30);
 }
 
 /* Panel aside — slides in from right (AC-1) */
@@ -250,4 +250,11 @@
   color: var(--text-primary);
   line-height: var(--line-height-body);
   white-space: pre-wrap;
+}
+
+@media (max-width: 1023px) {
+  .task-detail-panel {
+    width: 100%;
+    left: 0;
+  }
 }

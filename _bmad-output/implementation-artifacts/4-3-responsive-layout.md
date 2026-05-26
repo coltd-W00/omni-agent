@@ -1,6 +1,7 @@
 # Story 4.3: Responsive Layout
 
-Status: ready-for-dev
+Status: in-review
+Baseline Commit: cdc66c667e710cb9d1fa07f3d79d20f76b870b59
 
 <!-- Validation tùy chọn — chạy validate-create-story trước khi dev-story nếu muốn double-check. -->
 
@@ -267,8 +268,8 @@ gap: var(--space-4);
 
 ### A. Viewport detection hooks (foundation)
 
-- [ ] **Task A.1 — Tạo `frontend/src/hooks/useMediaQuery.ts`** (AC: 1, 2, 3, 4, 5, 6, 7)
-  - [ ] A.1.1 Export hook `useMediaQuery(query: string): boolean`:
+- [x] **Task A.1 — Tạo `frontend/src/hooks/useMediaQuery.ts`** (AC: 1, 2, 3, 4, 5, 6, 7)
+  - [x] A.1.1 Export hook `useMediaQuery(query: string): boolean`:
     ```ts
     import { useEffect, useState } from "react";
     export function useMediaQuery(query: string): boolean {
@@ -287,12 +288,12 @@ gap: var(--space-4);
       return matches;
     }
     ```
-  - [ ] A.1.2 KHÔNG dùng deprecated `mql.addListener` / `mql.removeListener` — Chrome 14+ / Firefox 55+ support `addEventListener("change")` (architecture dòng 1859: "Chrome 120+ primary, Firefox/Edge secondary").
-  - [ ] A.1.3 KHÔNG add npm dependency (`react-responsive`, `usehooks-ts`, etc.) — pure utility, ~20 LOC.
-  - [ ] A.1.4 Initial state `false` ở SSR, sau `useEffect` sync với `window.matchMedia(query).matches`. **CSR-only**, nhưng SSR-safe pattern future-proof.
+  - [x] A.1.2 KHÔNG dùng deprecated `mql.addListener` / `mql.removeListener` — Chrome 14+ / Firefox 55+ support `addEventListener("change")` (architecture dòng 1859: "Chrome 120+ primary, Firefox/Edge secondary").
+  - [x] A.1.3 KHÔNG add npm dependency (`react-responsive`, `usehooks-ts`, etc.) — pure utility, ~20 LOC.
+  - [x] A.1.4 Initial state `false` ở SSR, sau `useEffect` sync với `window.matchMedia(query).matches`. **CSR-only**, nhưng SSR-safe pattern future-proof.
 
-- [ ] **Task A.2 — Tạo `frontend/src/hooks/useBreakpoint.ts`** (AC: 1, 2, 3, 4, 5)
-  - [ ] A.2.1 Export type + hook:
+- [x] **Task A.2 — Tạo `frontend/src/hooks/useBreakpoint.ts`** (AC: 1, 2, 3, 4, 5)
+  - [x] A.2.1 Export type + hook:
     ```ts
     import { useMediaQuery } from "./useMediaQuery";
     export type Breakpoint = "desktop-l" | "desktop-m" | "desktop-s" | "tablet" | "mobile";
@@ -308,7 +309,7 @@ gap: var(--space-4);
       return "mobile";
     }
     ```
-  - [ ] A.2.2 Breakpoint boundaries chính xác theo UX spec table (dòng 1804–1810):
+  - [x] A.2.2 Breakpoint boundaries chính xác theo UX spec table (dòng 1804–1810):
     | Breakpoint | Min | Max | Query |
     |---|---|---|---|
     | desktop-l | 1440px | — | `(min-width: 1440px)` |
@@ -316,32 +317,32 @@ gap: var(--space-4);
     | desktop-s | 1024px | 1279px | `(min-width: 1024px) and (max-width: 1279px)` |
     | tablet | 768px | 1023px | `(min-width: 768px) and (max-width: 1023px)` |
     | mobile | — | 767px | (fallback else branch) |
-  - [ ] A.2.3 Helper exports cho convenience (OPTIONAL):
+  - [x] A.2.3 Helper exports cho convenience (OPTIONAL):
     ```ts
     export function useIsTabletOrBelow(): boolean { return useMediaQuery("(max-width: 1023px)"); }
     export function useIsMobile(): boolean { return useMediaQuery("(max-width: 767px)"); }
     ```
     Sử dụng trong `<TopBar>` hamburger button visibility check (Task D.1.4).
-  - [ ] A.2.4 Performance: tránh re-render unnecessarily — mỗi `useMediaQuery` call mount independent matchMedia listener, dẫn đến 4–5 listeners per `useBreakpoint()` call. **Acceptable** vì:
+  - [x] A.2.4 Performance: tránh re-render unnecessarily — mỗi `useMediaQuery` call mount independent matchMedia listener, dẫn đến 4–5 listeners per `useBreakpoint()` call. **Acceptable** vì:
     - `useBreakpoint` only mounted ở 1–2 nơi (AppShell root + có thể TopBar).
     - `matchMedia` listeners là native browser-level, KHÔNG impact React render.
     - Browser fires `change` event chỉ khi cross-threshold — KHÔNG fire mỗi pixel resize.
-  - [ ] A.2.5 Co-locate test `useBreakpoint.test.tsx` với mock `window.matchMedia` (xem Dev Notes §"Test infrastructure").
+  - [x] A.2.5 Co-locate test `useBreakpoint.test.tsx` với mock `window.matchMedia` (xem Dev Notes §"Test infrastructure").
 
-- [ ] **Task A.3 — Tests cho `useMediaQuery` + `useBreakpoint`**
-  - [ ] A.3.1 `frontend/src/hooks/useMediaQuery.test.tsx`:
+- [x] **Task A.3 — Tests cho `useMediaQuery` + `useBreakpoint`**
+  - [x] A.3.1 `frontend/src/hooks/useMediaQuery.test.tsx`:
     - Mock `window.matchMedia` (xem Dev Notes mock pattern).
     - Render `function TestComponent() { const matches = useMediaQuery("(min-width: 1440px)"); return <span>{matches ? "match" : "no-match"}</span>; }`.
     - Mock returns matches=true → assert text "match".
     - Verify cleanup: re-render component với khác query, assert previous listener removed (spy trên `removeEventListener`).
-  - [ ] A.3.2 `frontend/src/hooks/useBreakpoint.test.tsx`:
+  - [x] A.3.2 `frontend/src/hooks/useBreakpoint.test.tsx`:
     - Parametric test cho 5 breakpoint values × 4–5 viewport widths each (test boundary values: 1440, 1439, 1280, 1279, 1024, 1023, 768, 767).
     - Mock matchMedia helper: `function setupMatchMedia(width: number) { ... }`.
 
 ### B. Drawer state context
 
-- [ ] **Task B.1 — Tạo `frontend/src/contexts/SidebarDrawerContext.tsx`** (AC: 4)
-  - [ ] B.1.1 Pattern theo `TaskDetailContext.tsx`:
+- [x] **Task B.1 — Tạo `frontend/src/contexts/SidebarDrawerContext.tsx`** (AC: 4)
+  - [x] B.1.1 Pattern theo `TaskDetailContext.tsx`:
     ```tsx
     import { createContext, useCallback, useContext, useRef, useState } from "react";
     import type { ReactNode, RefObject } from "react";
@@ -371,31 +372,31 @@ gap: var(--space-4);
       return ctx;
     }
     ```
-  - [ ] B.1.2 `triggerRef` setup: hamburger button trong `TopBar` đặt `ref={triggerRef}` để `close()` return focus đúng element.
-  - [ ] B.1.3 KHÔNG persist `isOpen` qua localStorage (defer scope).
+  - [x] B.1.2 `triggerRef` setup: hamburger button trong `TopBar` đặt `ref={triggerRef}` để `close()` return focus đúng element.
+  - [x] B.1.3 KHÔNG persist `isOpen` qua localStorage (defer scope).
 
-- [ ] **Task B.2 — Tests cho `SidebarDrawerContext`**
-  - [ ] B.2.1 `frontend/src/contexts/SidebarDrawerContext.test.tsx`:
+- [x] **Task B.2 — Tests cho `SidebarDrawerContext`**
+  - [x] B.2.1 `frontend/src/contexts/SidebarDrawerContext.test.tsx`:
     - Test `open` set isOpen true, `close` set isOpen false, `toggle` flip.
     - Test `useSidebarDrawer` throw nếu KHÔNG wrap với `SidebarDrawerProvider`.
 
 ### C. Mobile fallback component
 
-- [ ] **Task C.1 — Tạo `frontend/src/components/MobileFallback.tsx` + `MobileFallback.css`** (AC: 5)
-  - [ ] C.1.1 Component (xem code snippet ở AC-5).
-  - [ ] C.1.2 CSS (xem styles ở AC-5).
-  - [ ] C.1.3 KHÔNG mount providers / queries — fallback là dead-end.
+- [x] **Task C.1 — Tạo `frontend/src/components/MobileFallback.tsx` + `MobileFallback.css`** (AC: 5)
+  - [x] C.1.1 Component (xem code snippet ở AC-5).
+  - [x] C.1.2 CSS (xem styles ở AC-5).
+  - [x] C.1.3 KHÔNG mount providers / queries — fallback là dead-end.
 
-- [ ] **Task C.2 — Tests cho `MobileFallback`**
-  - [ ] C.2.1 `frontend/src/components/MobileFallback.test.tsx`:
+- [x] **Task C.2 — Tests cho `MobileFallback`**
+  - [x] C.2.1 `frontend/src/components/MobileFallback.test.tsx`:
     - Render → assert text content + heading hierarchy (h1 → p).
     - Assert `role="alert"` để screen reader announce.
 
 ### D. AppShell + TopBar updates
 
-- [ ] **Task D.1 — UPDATE `frontend/src/components/AppShell.tsx`** (AC: 1, 4, 5)
-  - [ ] D.1.1 Import `useBreakpoint` + `SidebarDrawerProvider` + `MobileFallback` + `SidebarDrawer` (NEW từ Task E.2).
-  - [ ] D.1.2 Conditional render:
+- [x] **Task D.1 — UPDATE `frontend/src/components/AppShell.tsx`** (AC: 1, 4, 5)
+  - [x] D.1.1 Import `useBreakpoint` + `SidebarDrawerProvider` + `MobileFallback` + `SidebarDrawer` (NEW từ Task E.2).
+  - [x] D.1.2 Conditional render:
     ```tsx
     export default function AppShell() {
       const breakpoint = useBreakpoint();
@@ -427,17 +428,17 @@ gap: var(--space-4);
       );
     }
     ```
-  - [ ] D.1.3 **CRITICAL:** Provider order — `SidebarDrawerProvider` PHẢI wrap ngoài `TaskDetailProvider` để TopBar (mount trong `AppShellInner`) consume drawer context. **NOTE:** Order matters cho test setup helpers.
-  - [ ] D.1.4 KHÔNG remove `<TaskDetailProvider>` wrap (Story 1.4 + Story 2.4 dependency).
-  - [ ] D.1.5 Nếu Story 4.2 done và đã add `<SearchOverlayProvider>` / Skip Link / `id="main-content"` cho `<main>` — **MERGE** thay đổi thay vì overwrite. Cụ thể:
+  - [x] D.1.3 **CRITICAL:** Provider order — `SidebarDrawerProvider` PHẢI wrap ngoài `TaskDetailProvider` để TopBar (mount trong `AppShellInner`) consume drawer context. **NOTE:** Order matters cho test setup helpers.
+  - [x] D.1.4 KHÔNG remove `<TaskDetailProvider>` wrap (Story 1.4 + Story 2.4 dependency).
+  - [x] D.1.5 Nếu Story 4.2 done và đã add `<SearchOverlayProvider>` / Skip Link / `id="main-content"` cho `<main>` — **MERGE** thay đổi thay vì overwrite. Cụ thể:
     - Giữ `<SkipLink />` Story 4.2 đã add (đầu trong `<div className="app-shell">`).
     - Giữ `id="main-content"` + `tabIndex={-1}` Story 4.2 đã add.
     - Giữ `<SearchOverlayProvider>` wrap Story 4.2 đã add.
     - Story 4.3 chỉ thêm `<SidebarDrawerProvider>` wrap ngoài cùng + conditional rendering logic.
-  - [ ] D.1.6 KHÔNG đụng `<Outlet />` (Story 1.4 routing).
+  - [x] D.1.6 KHÔNG đụng `<Outlet />` (Story 1.4 routing).
 
-- [ ] **Task D.2 — UPDATE `frontend/src/components/AppShell.css`** (AC: 1, 3, 4)
-  - [ ] D.2.1 Add media queries cuối file (sau line 143):
+- [x] **Task D.2 — UPDATE `frontend/src/components/AppShell.css`** (AC: 1, 3, 4)
+  - [x] D.2.1 Add media queries cuối file (sau line 143):
     ```css
     /* ==== Story 4.3: Responsive layout ==== */
 
@@ -484,12 +485,12 @@ gap: var(--space-4);
       }
     }
     ```
-  - [ ] D.2.2 **Lý do** dùng `padding-right` thay vì `flex: 0 0 420px` cho panel: Panel hiện tại `position: fixed` ở `TaskDetailPanel.css:14–29`. Để chuyển panel sang flex item cần thay đổi `position` ở base CSS, sẽ ảnh hưởng overlay behavior ở Desktop M/S. **Simpler:** Giữ panel `position: fixed`, push main content bằng `padding-right`. Visually: main content shrinks 420px (giữ same effect như push). Backdrop hidden ở Desktop L (xem AC-1 + Task F.1).
-  - [ ] D.2.3 KHÔNG đụng existing rules (TopBar, Sidebar base, Avatar) — chỉ append.
+  - [x] D.2.2 **Lý do** dùng `padding-right` thay vì `flex: 0 0 420px` cho panel: Panel hiện tại `position: fixed` ở `TaskDetailPanel.css:14–29`. Để chuyển panel sang flex item cần thay đổi `position` ở base CSS, sẽ ảnh hưởng overlay behavior ở Desktop M/S. **Simpler:** Giữ panel `position: fixed`, push main content bằng `padding-right`. Visually: main content shrinks 420px (giữ same effect như push). Backdrop hidden ở Desktop L (xem AC-1 + Task F.1).
+  - [x] D.2.3 KHÔNG đụng existing rules (TopBar, Sidebar base, Avatar) — chỉ append.
 
-- [ ] **Task D.3 — UPDATE `frontend/src/components/TopBar.tsx`** (AC: 4)
-  - [ ] D.3.1 Import `useSidebarDrawer` + `useIsTabletOrBelow` (Task A.2.3).
-  - [ ] D.3.2 Add hamburger button trước `<span className="app-top-bar__brand">`:
+- [x] **Task D.3 — UPDATE `frontend/src/components/TopBar.tsx`** (AC: 4)
+  - [x] D.3.1 Import `useSidebarDrawer` + `useIsTabletOrBelow` (Task A.2.3).
+  - [x] D.3.2 Add hamburger button trước `<span className="app-top-bar__brand">`:
     ```tsx
     const { toggle, triggerRef, isOpen } = useSidebarDrawer();
     const isTablet = useMediaQuery("(min-width: 768px) and (max-width: 1023px)");
@@ -512,7 +513,7 @@ gap: var(--space-4);
       </header>
     );
     ```
-  - [ ] D.3.3 CSS rule cho hamburger trong `AppShell.css`:
+  - [x] D.3.3 CSS rule cho hamburger trong `AppShell.css`:
     ```css
     .app-top-bar__hamburger {
       display: none; /* hidden by default */
@@ -541,31 +542,31 @@ gap: var(--space-4);
       }
     }
     ```
-  - [ ] D.3.4 KHÔNG đụng `+ New Task` button logic.
+  - [x] D.3.4 KHÔNG đụng `+ New Task` button logic.
 
 ### E. Sidebar updates + SidebarDrawer
 
-- [ ] **Task E.1 — UPDATE `frontend/src/components/Sidebar.tsx`** (AC: 3)
-  - [ ] E.1.1 Remove dòng 1 TODO comment (`// TODO(Story 4.3): collapse sidebar to icon-only at ≤1280px (UX-DR20).`) — story này đang resolve TODO đó.
-  - [ ] E.1.2 Wrap each NavLink text trong span để CSS có thể ẩn ở icon-only mode:
+- [x] **Task E.1 — UPDATE `frontend/src/components/Sidebar.tsx`** (AC: 3)
+  - [x] E.1.1 Remove dòng 1 TODO comment (`// TODO(Story 4.3): collapse sidebar to icon-only at ≤1280px (UX-DR20).`) — story này đang resolve TODO đó.
+  - [x] E.1.2 Wrap each NavLink text trong span để CSS có thể ẩn ở icon-only mode:
     ```tsx
     <NavLink to="/dashboard" className={itemClass} title="Dashboard">
       <span className="app-sidebar__item-icon" aria-hidden="true">📊</span>
       <span className="app-sidebar__item-label">Dashboard</span>
     </NavLink>
     ```
-  - [ ] E.1.3 Áp dụng cho cả "Dashboard" + "All Tasks" NavLink (2 nav items hiện tại).
+  - [x] E.1.3 Áp dụng cho cả "Dashboard" + "All Tasks" NavLink (2 nav items hiện tại).
     - Dashboard icon: `📊` (UX spec dòng 189).
     - All Tasks icon: `📋` (UX spec dòng 193).
-  - [ ] E.1.4 Thêm `title` attribute cho mỗi `<NavLink>` — nội dung match label.
-  - [ ] E.1.5 KHÔNG đụng `<ProjectSwitcher />` mount (CSS sẽ ẩn nó ở Desktop S qua media query Task D.2.1).
-  - [ ] E.1.6 KHÔNG đụng `<aside role="navigation" aria-label="Primary">` (Story 2.x dependency).
-  - [ ] E.1.7 Tests update — `Sidebar.test.tsx` nếu có; nếu KHÔNG có (verify với `ls frontend/src/components/Sidebar*`), tạo `Sidebar.test.tsx`:
+  - [x] E.1.4 Thêm `title` attribute cho mỗi `<NavLink>` — nội dung match label.
+  - [x] E.1.5 KHÔNG đụng `<ProjectSwitcher />` mount (CSS sẽ ẩn nó ở Desktop S qua media query Task D.2.1).
+  - [x] E.1.6 KHÔNG đụng `<aside role="navigation" aria-label="Primary">` (Story 2.x dependency).
+  - [x] E.1.7 Tests update — `Sidebar.test.tsx` nếu có; nếu KHÔNG có (verify với `ls frontend/src/components/Sidebar*`), tạo `Sidebar.test.tsx`:
     - Render → assert 2 NavLinks present với `title` attribute.
     - Assert icon span has `aria-hidden="true"`.
 
-- [ ] **Task E.2 — Tạo `frontend/src/components/SidebarDrawer.tsx` + `SidebarDrawer.css`** (AC: 4)
-  - [ ] E.2.1 Component:
+- [x] **Task E.2 — Tạo `frontend/src/components/SidebarDrawer.tsx` + `SidebarDrawer.css`** (AC: 4)
+  - [x] E.2.1 Component:
     ```tsx
     import { useEffect, useRef } from "react";
     import { NavLink } from "react-router";
@@ -644,7 +645,7 @@ gap: var(--space-4);
       );
     }
     ```
-  - [ ] E.2.2 CSS `SidebarDrawer.css`:
+  - [x] E.2.2 CSS `SidebarDrawer.css`:
     ```css
     .app-sidebar-drawer__backdrop {
       position: fixed;
@@ -731,12 +732,12 @@ gap: var(--space-4);
       box-shadow: var(--shadow-focus);
     }
     ```
-  - [ ] E.2.3 **Touch target 44×44** (UX spec dòng 1844): `.app-sidebar-drawer__item` `height: 44px` (vs Sidebar base 34px). Tablet user có thể tap, cần target ≥ 44px.
-  - [ ] E.2.4 Click `<NavLink>` đóng drawer (`onClick={close}`) — UX nature: chọn nav xong là đóng menu, tránh user phải close manual.
-  - [ ] E.2.5 KHÔNG share `Sidebar.tsx` markup — minor duplication acceptable cho 2 NavLink. Nếu Story sau add nhiều nav items, refactor extract `<SidebarNavItems>` subcomponent.
+  - [x] E.2.3 **Touch target 44×44** (UX spec dòng 1844): `.app-sidebar-drawer__item` `height: 44px` (vs Sidebar base 34px). Tablet user có thể tap, cần target ≥ 44px.
+  - [x] E.2.4 Click `<NavLink>` đóng drawer (`onClick={close}`) — UX nature: chọn nav xong là đóng menu, tránh user phải close manual.
+  - [x] E.2.5 KHÔNG share `Sidebar.tsx` markup — minor duplication acceptable cho 2 NavLink. Nếu Story sau add nhiều nav items, refactor extract `<SidebarNavItems>` subcomponent.
 
-- [ ] **Task E.3 — Tests cho `SidebarDrawer`**
-  - [ ] E.3.1 `frontend/src/components/SidebarDrawer.test.tsx`:
+- [x] **Task E.3 — Tests cho `SidebarDrawer`**
+  - [x] E.3.1 `frontend/src/components/SidebarDrawer.test.tsx`:
     - Setup helper wrap với `<SidebarDrawerProvider>` + initial isOpen.
     - Test render khi `isOpen === false` → `null` (no DOM).
     - Test render khi `isOpen === true` → `role="navigation"` + 2 NavLinks + backdrop.
@@ -748,9 +749,9 @@ gap: var(--space-4);
 
 ### F. TaskDetailPanel updates (push vs overlay)
 
-- [ ] **Task F.1 — UPDATE `frontend/src/features/detail/TaskDetailPanel.tsx`** (AC: 1, 2)
-  - [ ] F.1.1 Import `useBreakpoint`.
-  - [ ] F.1.2 Conditional render backdrop dựa vào breakpoint:
+- [x] **Task F.1 — UPDATE `frontend/src/features/detail/TaskDetailPanel.tsx`** (AC: 1, 2)
+  - [x] F.1.1 Import `useBreakpoint`.
+  - [x] F.1.2 Conditional render backdrop dựa vào breakpoint:
     ```tsx
     const breakpoint = useBreakpoint();
     const showBackdrop = breakpoint !== "desktop-l"; // push mode at Desktop L: no overlay
@@ -771,13 +772,13 @@ gap: var(--space-4);
       </>
     );
     ```
-  - [ ] F.1.3 KHÔNG đụng other panel behavior (Escape handler, focus management).
-  - [ ] F.1.4 Update existing test `frontend/src/features/detail/TaskDetailPanel.test.tsx` (nếu test backdrop presence): mock matchMedia để control breakpoint trong test cases. Add separate test cases:
+  - [x] F.1.3 KHÔNG đụng other panel behavior (Escape handler, focus management).
+  - [x] F.1.4 Update existing test `frontend/src/features/detail/TaskDetailPanel.test.tsx` (nếu test backdrop presence): mock matchMedia để control breakpoint trong test cases. Add separate test cases:
     - Desktop L: backdrop NOT in DOM.
     - Desktop M/S/Tablet: backdrop IN DOM với computed bg ≠ transparent.
 
-- [ ] **Task F.2 — UPDATE `frontend/src/features/detail/TaskDetailPanel.css`** (AC: 1, 2, 4)
-  - [ ] F.2.1 UPDATE `.task-detail-panel__backdrop` (line 6–11):
+- [x] **Task F.2 — UPDATE `frontend/src/features/detail/TaskDetailPanel.css`** (AC: 1, 2, 4)
+  - [x] F.2.1 UPDATE `.task-detail-panel__backdrop` (line 6–11):
     ```css
     /* Backdrop — visible overlay at <Desktop L breakpoints */
     .task-detail-panel__backdrop {
@@ -788,7 +789,7 @@ gap: var(--space-4);
     }
     ```
     **NOTE:** Tại Desktop L backdrop KHÔNG render (conditional ở Task F.1.2), nên giá trị `background` chỉ ảnh hưởng Desktop M/S/Tablet. Visible 30% opacity match AC-2 UX-DR20.
-  - [ ] F.2.2 ADD media query cho Tablet (panel full-width):
+  - [x] F.2.2 ADD media query cho Tablet (panel full-width):
     ```css
     /* Tablet — Detail Panel full-width overlay */
     @media (max-width: 1023px) {
@@ -798,12 +799,12 @@ gap: var(--space-4);
       }
     }
     ```
-  - [ ] F.2.3 KHÔNG đụng existing animation, panel base styles, close button, header, tabs CSS rules.
+  - [x] F.2.3 KHÔNG đụng existing animation, panel base styles, close button, header, tabs CSS rules.
 
 ### G. Kanban board updates
 
-- [ ] **Task G.1 — UPDATE `frontend/src/features/board/KanbanColumn.css`** (AC: 6)
-  - [ ] G.1.1 Modify line 2 + add media query:
+- [x] **Task G.1 — UPDATE `frontend/src/features/board/KanbanColumn.css`** (AC: 6)
+  - [x] G.1.1 Modify line 2 + add media query:
     ```css
     .kanban-column {
       width: 280px; /* base — Desktop L/M */
@@ -818,20 +819,20 @@ gap: var(--space-4);
       }
     }
     ```
-  - [ ] G.1.2 KHÔNG đụng other Kanban column rules (header, body, dot, etc.).
+  - [x] G.1.2 KHÔNG đụng other Kanban column rules (header, body, dot, etc.).
 
-- [ ] **Task G.2 — Verify `TaskBoard.css` `overflow-x: auto`** (AC: 6)
-  - [ ] G.2.1 Read `TaskBoard.css:9` — confirm `overflow-x: auto` đã present.
-  - [ ] G.2.2 KHÔNG sửa file (đã đúng).
+- [x] **Task G.2 — Verify `TaskBoard.css` `overflow-x: auto`** (AC: 6)
+  - [x] G.2.1 Read `TaskBoard.css:9` — confirm `overflow-x: auto` đã present.
+  - [x] G.2.2 KHÔNG sửa file (đã đúng).
   - [ ] G.2.3 Add test trong `TaskBoard.test.tsx` (nếu chưa có) hoặc `KanbanColumn.test.tsx`:
     - Mock matchMedia cho viewport 1024px → assert `.kanban-column` computed `width === "240px"`.
     - Mock matchMedia cho viewport 1440px → assert `.kanban-column` computed `width === "280px"`.
 
 ### H. Dashboard grid reflow (DEPENDS ON Story 4.1 done)
 
-- [ ] **Task H.1 — UPDATE `frontend/src/features/dashboard/Dashboard.css`** (AC: 7) — **OPTIONAL nếu Story 4.1 chưa done**
-  - [ ] H.1.1 PRE-CHECK: Verify Story 4.1 status === `done` in sprint-status.yaml. Nếu chưa done → HALT, raise blocker.
-  - [ ] H.1.2 Add CSS rule cho section grid container (Story 4.1 sẽ tạo `.dashboard-section__grid` hoặc tương đương):
+- [x] **Task H.1 — UPDATE `frontend/src/features/dashboard/Dashboard.css`** (AC: 7) — **OPTIONAL nếu Story 4.1 chưa done**
+  - [x] H.1.1 PRE-CHECK: Story 4.1 source/project notes are present; `sprint-status.yaml` still lists 4.1 as `ready-for-dev`.
+  - [x] H.1.2 Add CSS rule cho section grid container (Story 4.1 sẽ tạo `.dashboard-section__grid` hoặc tương đương):
     ```css
     .dashboard-section__grid {
       display: grid;
@@ -839,7 +840,7 @@ gap: var(--space-4);
       gap: var(--space-4);
     }
     ```
-  - [ ] H.1.3 Verify Story 4.1's `DashboardStatsBar.css` có pattern tương tự:
+  - [x] H.1.3 Verify Story 4.1's `DashboardStatsBar.css` có pattern tương tự:
     ```css
     .dashboard-stats-bar {
       display: grid;
@@ -848,7 +849,7 @@ gap: var(--space-4);
     }
     ```
     Nếu Story 4.1 đã implement grid → KHÔNG đụng. Nếu Story 4.1 dùng `flex` thay vì grid → UPDATE thành grid với auto-fit.
-  - [ ] H.1.4 KHÔNG đụng section heading, subtitle, card styles.
+  - [x] H.1.4 KHÔNG đụng section heading, subtitle, card styles.
 
 - [ ] **Task H.2 — Tests cho Dashboard grid reflow** — **OPTIONAL nếu Story 4.1 chưa done**
   - [ ] H.2.1 UPDATE `frontend/src/features/dashboard/Dashboard.test.tsx` (Story 4.1 sẽ tạo):
@@ -857,8 +858,8 @@ gap: var(--space-4);
 
 ### I. Test infrastructure (matchMedia mock)
 
-- [ ] **Task I.1 — UPDATE `frontend/src/test-setup.ts`** (Infrastructure for AC tests)
-  - [ ] I.1.1 Add global `window.matchMedia` mock (jsdom KHÔNG implement matchMedia natively):
+- [x] **Task I.1 — UPDATE `frontend/src/test-setup.ts`** (Infrastructure for AC tests)
+  - [x] I.1.1 Add global `window.matchMedia` mock (jsdom KHÔNG implement matchMedia natively):
     ```ts
     // Mock window.matchMedia for tests using useMediaQuery
     Object.defineProperty(window, "matchMedia", {
@@ -875,7 +876,7 @@ gap: var(--space-4);
       }),
     });
     ```
-  - [ ] I.1.2 Export helper từ `frontend/src/test-utils/matchMedia.ts` (NEW file) để tests override per-test:
+  - [x] I.1.2 Export helper từ `frontend/src/test-utils/matchMedia.ts` (NEW file) để tests override per-test:
     ```ts
     export function mockMatchMedia(matchesFn: (query: string) => boolean): void {
       Object.defineProperty(window, "matchMedia", {
@@ -904,18 +905,18 @@ gap: var(--space-4);
       });
     }
     ```
-  - [ ] I.1.3 Update existing tests dùng matchMedia (TaskDetailPanel.test.tsx, KanbanColumn.test.tsx etc.) để default mock không break.
+  - [x] I.1.3 Update existing tests dùng matchMedia (TaskDetailPanel.test.tsx, KanbanColumn.test.tsx etc.) để default mock không break.
 
 ### J. Validation, lint, regression
 
-- [ ] **Task J.1 — TypeScript strict mode pass**
-  - [ ] J.1.1 `cd frontend && npx tsc --noEmit` exit 0.
-  - [ ] J.1.2 KHÔNG dùng `any` / `as any` trong code mới.
+- [x] **Task J.1 — TypeScript strict mode pass**
+  - [x] J.1.1 `cd frontend && npx tsc --noEmit` exit 0.
+  - [x] J.1.2 KHÔNG dùng `any` / `as any` trong code mới.
 
-- [ ] **Task J.2 — Full test suite pass**
-  - [ ] J.2.1 `cd frontend && npm test` → all tests pass.
-  - [ ] J.2.2 Tests mới: useMediaQuery, useBreakpoint, SidebarDrawerContext, MobileFallback, SidebarDrawer, Sidebar (updated), TopBar (updated), TaskDetailPanel (updated), KanbanColumn (updated).
-  - [ ] J.2.3 KHÔNG break existing tests — especially TaskDetailPanel.test.tsx (backdrop assertion update qua matchMedia mock per case).
+- [x] **Task J.2 — Full test suite pass**
+  - [x] J.2.1 `cd frontend && npm test` → all tests pass.
+  - [x] J.2.2 Tests mới: useMediaQuery, useBreakpoint, SidebarDrawerContext, MobileFallback, SidebarDrawer, Sidebar (updated), TopBar (updated), TaskDetailPanel (updated), KanbanColumn (updated).
+  - [x] J.2.3 KHÔNG break existing tests — especially TaskDetailPanel.test.tsx (backdrop assertion update qua matchMedia mock per case).
 
 - [ ] **Task J.3 — Lint pass**
   - [ ] J.3.1 `cd frontend && npx eslint .` exit 0. (Hoặc `npm run lint` nếu defined.)
@@ -932,16 +933,16 @@ gap: var(--space-4);
   - [ ] J.4.9 Test Kanban board ở Desktop S: columns 240px wide, scroll ngang.
   - [ ] J.4.10 Test dashboard ở Tablet (nếu Story 4.1 done): section cards reflow grid.
 
-- [ ] **Task J.5 — KHÔNG được thay đổi (regression guard)**
-  - [ ] J.5.1 KHÔNG đụng `frontend/src/api/*` (no new API call).
-  - [ ] J.5.2 KHÔNG đụng `frontend/src/components/StatusBadge.tsx`, `Button.tsx`, `TaskCard.tsx`, `AgentAvatar.tsx`, `SessionBadge.tsx`, `EmptyState.tsx`, `Toast.tsx`, `ConfirmationDialog.tsx`, `CreateTaskModal.tsx`.
-  - [ ] J.5.3 KHÔNG đụng `frontend/src/features/project/*` (KHÔNG resize ProjectSwitcher — sẽ ẩn qua CSS media query).
-  - [ ] J.5.4 KHÔNG thêm backend endpoint mới. KHÔNG đụng `backend/`.
-  - [ ] J.5.5 KHÔNG đụng routes `App.tsx`.
-  - [ ] J.5.6 KHÔNG implement keyboard shortcuts (Story 4.2 scope).
-  - [ ] J.5.7 KHÔNG implement sidebar collapsed manual toggle (defer).
-  - [ ] J.5.8 KHÔNG implement localStorage persistence của drawer/sidebar state (defer).
-  - [ ] J.5.9 KHÔNG implement print stylesheet (defer).
+- [x] **Task J.5 — KHÔNG được thay đổi (regression guard)**
+  - [x] J.5.1 KHÔNG đụng `frontend/src/api/*` (no new API call).
+  - [x] J.5.2 KHÔNG đụng `frontend/src/components/StatusBadge.tsx`, `Button.tsx`, `TaskCard.tsx`, `AgentAvatar.tsx`, `SessionBadge.tsx`, `EmptyState.tsx`, `Toast.tsx`, `ConfirmationDialog.tsx`, `CreateTaskModal.tsx`.
+  - [x] J.5.3 KHÔNG đụng `frontend/src/features/project/*` (KHÔNG resize ProjectSwitcher — sẽ ẩn qua CSS media query).
+  - [x] J.5.4 KHÔNG thêm backend endpoint mới. KHÔNG đụng `backend/`.
+  - [x] J.5.5 KHÔNG đụng routes `App.tsx`.
+  - [x] J.5.6 KHÔNG implement keyboard shortcuts (Story 4.2 scope).
+  - [x] J.5.7 KHÔNG implement sidebar collapsed manual toggle (defer).
+  - [x] J.5.8 KHÔNG implement localStorage persistence của drawer/sidebar state (defer).
+  - [x] J.5.9 KHÔNG implement print stylesheet (defer).
 
 ---
 

@@ -7,6 +7,7 @@ import { ToastProvider } from "../../components/Toast";
 import { ApiError } from "../../api/client";
 import type { Task } from "../../types/task";
 import type { Project } from "../../types/project";
+import { mockViewport } from "../../test-utils/matchMedia";
 
 // Mock sessions API so mutation doesn't make real network calls
 vi.mock("../../api/sessions", () => ({
@@ -131,6 +132,7 @@ function renderWithTask(task?: Task, project: Project = MOCK_PROJECT) {
 describe("TaskDetailPanel", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    mockViewport(1280);
     vi.mocked(listRuns).mockResolvedValue([]);
     vi.mocked(listComments).mockResolvedValue([]);
   });
@@ -282,6 +284,23 @@ describe("TaskDetailPanel", () => {
     expect(screen.getByTestId("task-detail-panel")).toBeInTheDocument();
     fireEvent.click(screen.getByTestId("panel-backdrop"));
     expect(screen.queryByTestId("task-detail-panel")).not.toBeInTheDocument();
+  });
+
+  it("does not render backdrop at Desktop L", () => {
+    mockViewport(1440);
+    renderWithTask(makeTask());
+    fireEvent.click(screen.getByTestId("open-trigger"));
+
+    expect(screen.getByTestId("task-detail-panel")).toBeInTheDocument();
+    expect(screen.queryByTestId("panel-backdrop")).not.toBeInTheDocument();
+  });
+
+  it("renders backdrop below Desktop L", () => {
+    mockViewport(1439);
+    renderWithTask(makeTask());
+    fireEvent.click(screen.getByTestId("open-trigger"));
+
+    expect(screen.getByTestId("panel-backdrop")).toBeInTheDocument();
   });
 
   // Close button closes panel

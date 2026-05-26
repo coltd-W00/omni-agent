@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: "2026-05-21T00:35:18+07:00"
-last_updated: "2026-05-26T11:42:00+07:00"
+last_updated: "2026-05-26T19:40:33+07:00"
 project: omni-agent
 project_key: NOKEY
 tracking_system: file-system
@@ -73,5 +73,5 @@ development_status:
   epic-4: in-progress
   4-1-morning-dashboard: ready-for-dev
   4-2-accessibility-and-keyboard-shortcuts: ready-for-dev
-  4-3-responsive-layout: ready-for-dev
+  4-3-responsive-layout: review
   epic-4-retrospective: optional

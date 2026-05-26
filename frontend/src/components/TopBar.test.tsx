@@ -5,6 +5,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ToastProvider } from "./Toast";
 import TopBar from "./TopBar";
 import { useActiveProjectId } from "../features/project/ActiveProjectContext";
+import { SidebarDrawerProvider } from "../contexts/SidebarDrawerContext";
+import { mockViewport } from "../test-utils/matchMedia";
 
 vi.mock("../features/project/ActiveProjectContext", () => ({
   useActiveProjectId: vi.fn(),
@@ -27,6 +29,7 @@ beforeAll(() => {
 
 beforeEach(() => {
   vi.mocked(useActiveProjectId).mockReturnValue(null);
+  mockViewport(1440);
 });
 
 import { NewTaskModalProvider, useNewTaskModal } from "../contexts/NewTaskModalContext";
@@ -55,7 +58,9 @@ function renderTopBar() {
     <QueryClientProvider client={qc}>
       <ToastProvider>
         <NewTaskModalProvider>
-          <TestTopBarWrapper />
+          <SidebarDrawerProvider>
+            <TestTopBarWrapper />
+          </SidebarDrawerProvider>
         </NewTaskModalProvider>
       </ToastProvider>
     </QueryClientProvider>,
@@ -95,5 +100,15 @@ describe("TopBar", () => {
         screen.getByRole("heading", { name: "Create Task" }),
       ).toBeInTheDocument();
     });
+  });
+
+  it("renders hamburger button on tablet viewport", () => {
+    mockViewport(900);
+    const { container } = renderTopBar();
+
+    const hamburger = container.querySelector(".app-top-bar__hamburger");
+    expect(hamburger).not.toBeNull();
+    expect(hamburger).toHaveAttribute("aria-label", "Open navigation menu");
+    expect(hamburger).toHaveAttribute("aria-expanded", "false");
   });
 });

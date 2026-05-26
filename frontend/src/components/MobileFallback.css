@@ -1,0 +1,30 @@
+.app-mobile-fallback {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-8);
+  text-align: center;
+  background: var(--bg-app);
+  color: var(--text-primary);
+}
+
+.app-mobile-fallback__icon {
+  font-size: 48px;
+  margin-bottom: var(--space-4);
+}
+
+.app-mobile-fallback__heading {
+  font-size: var(--font-size-heading-l);
+  margin: 0 0 var(--space-3);
+  color: var(--text-primary);
+}
+
+.app-mobile-fallback__body {
+  font-size: var(--font-size-body);
+  color: var(--text-secondary);
+  max-width: 320px;
+  margin: 0;
+}

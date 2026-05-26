@@ -1,5 +1,6 @@
 .kanban-column {
   width: 280px;
+  min-width: 240px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
@@ -7,6 +8,12 @@
   border-radius: var(--radius-md);
   max-height: 100%;
   overflow: hidden;
+}
+
+@media (max-width: 1279px) {
+  .kanban-column {
+    width: 240px;
+  }
 }
 .kanban-column__header {
   display: flex;

@@ -10,6 +10,7 @@ import { useStartSession } from "../../hooks/useStartSession";
 import { ApiError } from "../../api/client";
 import { useTask } from "../../hooks/useTask";
 import { useFocusTrap } from "../../hooks/useFocusTrap";
+import { useBreakpoint } from "../../hooks/useBreakpoint";
 import CommentsTabPanel from "./CommentsTabPanel";
 import LogsTabPanel from "./LogsTabPanel";
 import RunsTabPanel from "./RunsTabPanel";
@@ -144,6 +145,8 @@ export default function TaskDetailPanel() {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLElement>(null);
   const isOpen = selectedTask !== null;
+  const breakpoint = useBreakpoint();
+  const showBackdrop = breakpoint !== "desktop-l";
 
   // Trap focus when panel is open
   useFocusTrap(panelRef, isOpen);
@@ -195,13 +198,14 @@ export default function TaskDetailPanel() {
 
   return (
     <>
-      {/* Backdrop — click closes panel (AC-1) */}
-      <div
-        className="task-detail-panel__backdrop"
-        aria-hidden="true"
-        onClick={closeTask}
-        data-testid="panel-backdrop"
-      />
+      {showBackdrop && (
+        <div
+          className="task-detail-panel__backdrop"
+          aria-hidden="true"
+          onClick={closeTask}
+          data-testid="panel-backdrop"
+        />
+      )}
 
       {/* Slide-in panel (AC-1) */}
       <aside

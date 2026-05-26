@@ -23,9 +23,9 @@
 }
 
 .dashboard-section--card-grid .dashboard-section__content {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: var(--space-4);
-  overflow-x: auto;
   padding-bottom: var(--space-2);
   /* Tránh che mất focus outline của card khi đang scroll */
   padding-top: var(--space-1);
