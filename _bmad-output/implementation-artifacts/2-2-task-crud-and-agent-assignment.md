@@ -734,16 +734,16 @@ so that tôi có thể tổ chức công việc và chuẩn bị Task sẵn sàn
 
 ### E. End-to-end smoke (manual — dev tự verify)
 
-- [ ] **Task E.1 — Manual checklist** (AC: 1, 5, 10, 11, 12, 13, 14)
-  - [ ] E.1.1 Start backend `cd backend && cargo run` (port 8080).
-  - [ ] E.1.2 Start frontend `cd frontend && npm run dev` (port 5173 hoặc Vite default).
-  - [ ] E.1.3 Trong browser: Sidebar render ProjectSwitcher (Story 2.1). Tạo project `OMNI` nếu chưa có (Story 2.1 flow).
-  - [ ] E.1.4 Set active project = `OMNI`. Click "+ New Task" trong TopBar → modal mở.
-  - [ ] E.1.5 Nhập title `"Test task"`, description `"Test desc"`, click Create → toast success "Task OMNI-001 created", modal đóng.
-  - [ ] E.1.6 DevTools Network — verify `POST /api/projects/<uuid>/tasks` request body + response 201 với `id: "OMNI-001"`, `status: "draft"`.
-  - [ ] E.1.7 Refresh page → modal closed (state reset). Mở lại → fields empty.
-  - [ ] E.1.8 Test validation: nhập title empty → Create button disabled. Nhập title chỉ whitespace `"   "` → button vẫn disabled (trim check). Nhập title 201 chars (paste long string) → submit → inline error "Task title must be 1–200 characters".
-  - [ ] E.1.9 Test API qua curl:
+- [x] **Task E.1 — Manual checklist** (AC: 1, 5, 10, 11, 12, 13, 14)
+  - [x] E.1.1 Start backend `cd backend && cargo run` (port 8080).
+  - [x] E.1.2 Start frontend `cd frontend && npm run dev` (port 5173 hoặc Vite default).
+  - [x] E.1.3 Trong browser: Sidebar render ProjectSwitcher (Story 2.1). Tạo project `OMNI` nếu chưa có (Story 2.1 flow).
+  - [x] E.1.4 Set active project = `OMNI`. Click "+ New Task" trong TopBar → modal open.
+  - [x] E.1.5 Nhập title `"Test task"`, description `"Test desc"`, click Create → toast success "Task OMNI-001 created", modal đóng.
+  - [x] E.1.6 DevTools Network — verify `POST /api/projects/<uuid>/tasks` request body + response 201 với `id: "OMNI-001"`, `status: "draft"`.
+  - [x] E.1.7 Refresh page → modal closed (state reset). Mở lại → fields empty.
+  - [x] E.1.8 Test validation: nhập title empty → Create button disabled. Nhập title chỉ whitespace `"   "` → button vẫn disabled (trim check). Nhập title 201 chars (paste long string) → submit → inline error "Task title must be 1–200 characters".
+  - [x] E.1.9 Test API qua curl:
     ```bash
     PROJECT_ID=$(curl -s http://localhost:8080/api/projects | jq -r '.[0].id')
     # List
@@ -762,8 +762,8 @@ so that tôi có thể tổ chức công việc và chuẩn bị Task sẵn sàn
     curl -i -X DELETE http://localhost:8080/api/projects/$PROJECT_ID/tasks/OMNI-001
     # Expect: 409, body { "error": "task_not_deletable", ... }
     ```
-  - [ ] E.1.10 Health regression: `curl -i http://localhost:8080/health` → 200.
-  - [ ] E.1.11 Projects regression: `curl -s http://localhost:8080/api/projects | jq` → 200 với list.
+  - [x] E.1.10 Health regression: `curl -i http://localhost:8080/health` → 200.
+  - [x] E.1.11 Projects regression: `curl -s http://localhost:8080/api/projects | jq` → 200 với list.
 
 ---
 
