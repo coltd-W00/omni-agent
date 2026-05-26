@@ -7,8 +7,9 @@ import EmptyState from "../../components/EmptyState";
 import { useTaskDetail } from "../../contexts/TaskDetailContext";
 import { useToast } from "../../components/Toast";
 import { useStartSession } from "../../hooks/useStartSession";
-import { useResumeSession } from "../../hooks/useResumeSession";
 import { ApiError } from "../../api/client";
+import { useTask } from "../../hooks/useTask";
+import SummaryTab from "./SummaryTab";
 import type { Task, TaskStatus } from "../../types/task";
 
 type PanelTab = "summary" | "comments" | "runs" | "logs" | "settings";
@@ -39,8 +40,6 @@ interface ActionBarProps {
 function ActionBar({ projectId, task }: ActionBarProps) {
   const { showToast } = useToast();
   const startMut = useStartSession(projectId, task.id);
-  const resumeMut = useResumeSession(projectId, task.id);
-  const [commentText, setCommentText] = useState("");
 
   const handleStart = () => {
     startMut.mutate(undefined, {
@@ -50,28 +49,6 @@ function ActionBar({ projectId, task }: ActionBarProps) {
       onError: (err) => {
         const msg = err instanceof ApiError ? err.message : "Failed to start session";
         showToast({ tone: "error", message: msg });
-      },
-    });
-  };
-
-  const handleResume = () => {
-    const c = commentText.trim() ? commentText : undefined;
-    resumeMut.mutate(c, {
-      onSuccess: () => {
-        setCommentText("");
-        showToast({
-          tone: "success",
-          message: c
-            ? `Resumed ${task.id} with comment`
-            : `Session resumed for ${task.id}`,
-        });
-      },
-      onError: (err) => {
-        const msg = err instanceof ApiError ? err.message : "Failed to resume session";
-        const tone = err instanceof ApiError && err.code === "session_already_active"
-          ? "warning"
-          : "error";
-        showToast({ tone, message: msg });
       },
     });
   };
@@ -92,32 +69,8 @@ function ActionBar({ projectId, task }: ActionBarProps) {
   }
   if (task.status === "paused" || task.status === "failed") {
     return (
-      <div className="task-detail-panel__action-bar" style={{ flexDirection: "column", gap: "var(--space-3)", width: "100%" }}>
-        <textarea
-          value={commentText}
-          onChange={(e) => setCommentText(e.target.value)}
-          placeholder="Add a comment or instruction for the agent…"
-          rows={2}
-          style={{
-            width: "100%",
-            padding: "var(--space-2)",
-            borderRadius: "var(--radius-sm)",
-            border: "1px solid var(--border)",
-            background: "var(--bg-main)",
-            color: "var(--text-primary)",
-            fontFamily: "inherit",
-            resize: "vertical",
-          }}
-        />
+      <div className="task-detail-panel__action-bar">
         <div style={{ display: "flex", gap: "var(--space-2)" }}>
-          <Button
-            variant="primary"
-            size="md"
-            onClick={handleResume}
-            disabled={resumeMut.isPending}
-          >
-            Resume Session
-          </Button>
           <Button variant="secondary" size="md">Mark Done</Button>
           <Button variant="ghost" size="md">Cancel</Button>
         </div>
@@ -186,6 +139,18 @@ export default function TaskDetailPanel() {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const isOpen = selectedTask !== null;
 
+  // AC-7: call useTask with polling when running
+  const taskQuery = useTask(selectedProject?.id ?? null, selectedTask?.id ?? null);
+
+  useEffect(() => {
+    if (taskQuery.isError && selectedTask) {
+      console.warn("useTask query failed, using stale snapshot", taskQuery.error);
+    }
+  }, [taskQuery.isError, taskQuery.error, selectedTask]);
+
+  const task = taskQuery.data ?? selectedTask;
+  const project = selectedProject;
+
   // Handle Escape key (AC-1)
   useEffect(() => {
     if (!isOpen) return;
@@ -208,10 +173,8 @@ export default function TaskDetailPanel() {
     setActiveTab("summary");
   }, [selectedTask?.id]);
 
-  if (!isOpen || !selectedTask || !selectedProject) return null;
+  if (!isOpen || !task || !project) return null;
 
-  const task = selectedTask;
-  const project = selectedProject;
   const agentRuntime: "codex" | "claude" = task.agent ?? "codex";
   const agentName = task.role ?? task.agent ?? "unassigned";
 
@@ -288,28 +251,11 @@ export default function TaskDetailPanel() {
           aria-label={`${TABS.find((t) => t.value === activeTab)?.label ?? ""} tab content`}
         >
           {activeTab === "summary" && (
-            <div className="task-detail-panel__summary">
-              {task.description && (
-                <div className="task-detail-panel__field">
-                  <div className="task-detail-panel__field-label">Description</div>
-                  <div className="task-detail-panel__field-value">{task.description}</div>
-                </div>
-              )}
-              {task.acceptanceCriteria && (
-                <div className="task-detail-panel__field">
-                  <div className="task-detail-panel__field-label">Acceptance Criteria</div>
-                  <div className="task-detail-panel__field-value">{task.acceptanceCriteria}</div>
-                </div>
-              )}
-              {!task.description && !task.acceptanceCriteria && (
-                <EmptyState
-                  variant="inline"
-                  icon=""
-                  heading="No details yet"
-                  description="Add a description or acceptance criteria to this task."
-                />
-              )}
-            </div>
+            <SummaryTab
+              projectId={project.id}
+              task={task}
+              onSwitchTab={setActiveTab}
+            />
           )}
           {activeTab === "comments" && (
             <div className="task-detail-panel__comments">
@@ -351,3 +297,4 @@ export default function TaskDetailPanel() {
     </>
   );
 }
+

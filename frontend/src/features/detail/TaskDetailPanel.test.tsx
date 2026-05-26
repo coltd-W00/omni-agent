@@ -1,5 +1,5 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { describe, it, expect, vi } from "vitest";
+import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import TaskDetailPanel from "./TaskDetailPanel";
 import { TaskDetailProvider, useTaskDetail } from "../../contexts/TaskDetailContext";
@@ -14,7 +14,23 @@ vi.mock("../../api/sessions", () => ({
   resumeSession: vi.fn(),
 }));
 
+vi.mock("../../api/tasks", () => ({
+  getTask: vi.fn(),
+  listTasks: vi.fn(),
+  createTask: vi.fn(),
+  updateTask: vi.fn(),
+  assignAgent: vi.fn(),
+  deleteTask: vi.fn(),
+}));
+
+vi.mock("../../api/runs", () => ({
+  listRuns: vi.fn(),
+  getRun: vi.fn(),
+}));
+
 import { startSession, resumeSession } from "../../api/sessions";
+import { getTask } from "../../api/tasks";
+import { listRuns } from "../../api/runs";
 
 const MOCK_PROJECT: Project = {
   id: "proj-1",
@@ -47,6 +63,14 @@ function renderWithTask(task?: Task, project: Project = MOCK_PROJECT) {
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
 
+  const mockGetTask = vi.mocked(getTask);
+
+  if (task) {
+    mockGetTask.mockResolvedValue(task);
+  } else {
+    mockGetTask.mockRejectedValue(new Error("No task"));
+  }
+
   function Opener() {
     const { openTask } = useTaskDetail();
     return task ? (
@@ -72,6 +96,16 @@ function renderWithTask(task?: Task, project: Project = MOCK_PROJECT) {
 }
 
 describe("TaskDetailPanel", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(listRuns).mockResolvedValue([]);
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.useRealTimers();
+  });
+
   // D.1.1 — panel không render khi không có selectedTask
   it("does not render panel when no task is selected", () => {
     renderWithTask();
@@ -356,40 +390,106 @@ describe("TaskDetailPanel", () => {
     });
   });
 
-  // ─── Story 3.3: Resume Session wiring tests ─────────────────────────────
+  // ─── Story 3.5a: Session Summary Tab & Polling / Optimistic Resume Tests ─────────────────────────────
 
-  it("clicking Resume Session calls resumeSession with comment and clears textarea", async () => {
-    const mockResumeSession = vi.mocked(resumeSession);
-    mockResumeSession.mockResolvedValue({
-      sessionPk: "pk-123",
-      taskId: "OMNI-001",
-      sessionId: "cli-sess-aaa",
-      status: "running" as const,
-      runId: "run-456",
-      runNumber: 2,
-      runInput: "Check email edge case",
-      commentId: "comment-1",
-      commentSent: true,
-      startedAt: "2026-01-01T00:00:00Z",
-    });
+  // T1: Task paused → Summary tab render Current Status + Last Agent Summary + comment textarea + Resume button
+  it("T1: renders Current Status, Last Agent Summary, comment textarea, and Resume button when status is paused", async () => {
+    const mockListRuns = vi.mocked(listRuns);
+    mockListRuns.mockResolvedValue([
+      {
+        id: "run-1",
+        runNumber: 1,
+        input: "Run instructions",
+        exitCode: 0,
+        logPath: "/path/to/log",
+        logTail: "Line 1\nLine 2\nLine 3",
+        startedAt: "2026-01-01T00:00:00Z",
+        endedAt: "2026-01-01T00:05:00Z",
+      },
+    ]);
 
-    renderWithTask(makeTask({ id: "OMNI-001", projectId: "proj-1", status: "paused" }));
+    renderWithTask(makeTask({ status: "paused" }));
     fireEvent.click(screen.getByTestId("open-trigger"));
 
-    const textarea = screen.getByPlaceholderText(/Add a comment or instruction for the agent/i);
-    fireEvent.change(textarea, { target: { value: "Check email edge case" } });
+    // Check Current Status
+    expect(screen.getByText("Current Status")).toBeInTheDocument();
+    expect(screen.getByText("Paused — last run ended cleanly. Ready to resume.")).toBeInTheDocument();
 
-    const btn = screen.getByRole("button", { name: "Resume Session" });
-    fireEvent.click(btn);
+    // Check Last Agent Summary (wait for listRuns query to load)
+    await waitFor(() => {
+      expect(screen.getByText("Last Agent Summary")).toBeInTheDocument();
+      expect(screen.getByText(/Run #1/i)).toBeInTheDocument();
+      expect(screen.getByText(/Line 1/i)).toBeInTheDocument();
+    });
+
+    // Check Next Suggested Action & comment textarea
+    expect(screen.getByText("Next Suggested Action")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Add instructions for next run…")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Resume Session" })).toBeInTheDocument();
+  });
+
+  // T2: Task failed → tương tự T1 nhưng status label khác
+  it("T2: renders failed status label and exit code when status is failed", async () => {
+    const mockListRuns = vi.mocked(listRuns);
+    mockListRuns.mockResolvedValue([
+      {
+        id: "run-2",
+        runNumber: 2,
+        input: "retry",
+        exitCode: 1,
+        logPath: "/path/to/log2",
+        logTail: "Error happened",
+        startedAt: "2026-01-01T00:00:00Z",
+        endedAt: "2026-01-01T00:05:00Z",
+      },
+    ]);
+
+    renderWithTask(makeTask({ status: "failed" }));
+    fireEvent.click(screen.getByTestId("open-trigger"));
+
+    expect(screen.getByText("Failed — last run exited with a non-zero code. Review and resume.")).toBeInTheDocument();
 
     await waitFor(() => {
-      expect(mockResumeSession).toHaveBeenCalledWith("proj-1", "OMNI-001", "Check email edge case");
-      expect(textarea).toHaveValue("");
-      expect(screen.getByText(/Resumed OMNI-001 with comment/i)).toBeInTheDocument();
+      expect(screen.getByText(/Run #2/i)).toBeInTheDocument();
+      expect(screen.getByText(/exit: 1/i)).toBeInTheDocument();
+      expect(screen.getByText("Error happened")).toBeInTheDocument();
     });
   });
 
-  it("clicking Resume Session without comment works", async () => {
+  // T3: Task running → Summary tab render Live Status Feed (NO textarea/Resume button)
+  it("T3: renders Live Status feed instead of comment inputs when status is running", async () => {
+    const mockListRuns = vi.mocked(listRuns);
+    mockListRuns.mockResolvedValue([
+      {
+        id: "run-3",
+        runNumber: 3,
+        input: "retry",
+        exitCode: null,
+        logPath: "/path/to/log3",
+        logTail: "Running...",
+        startedAt: "2026-01-01T00:00:00Z",
+        endedAt: null,
+      },
+    ]);
+
+    renderWithTask(makeTask({ status: "running" }));
+    fireEvent.click(screen.getByTestId("open-trigger"));
+
+    // Live status block should be rendered
+    await waitFor(() => {
+      expect(screen.getByTestId("live-status-feed")).toBeInTheDocument();
+      expect(screen.getByText("Live Status")).toBeInTheDocument();
+      expect(screen.getByText("Starting session…")).toBeInTheDocument();
+      expect(screen.getByText("Agent running…")).toBeInTheDocument();
+    });
+
+    // Inputs should not be visible
+    expect(screen.queryByPlaceholderText("Add instructions for next run…")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Resume Session" })).not.toBeInTheDocument();
+  });
+
+  // T4: Click Resume với textarea empty → mutation called with undefined comment
+  it("T4: calls resumeSession with undefined comment when textarea is empty", async () => {
     const mockResumeSession = vi.mocked(resumeSession);
     mockResumeSession.mockResolvedValue({
       sessionPk: "pk-123",
@@ -416,48 +516,182 @@ describe("TaskDetailPanel", () => {
     });
   });
 
-  it("shows warning toast on session_already_active warning", async () => {
+  // T5: Click Resume với textarea "  hello  " → mutation called with "hello" (trimmed)
+  it("T5: calls resumeSession with trimmed comment when textarea has whitespace-wrapped text", async () => {
     const mockResumeSession = vi.mocked(resumeSession);
-    mockResumeSession.mockRejectedValue(
-      new ApiError(409, "session_already_active", "Session is already running"),
-    );
-
-    renderWithTask(makeTask({ status: "paused" }));
-    fireEvent.click(screen.getByTestId("open-trigger"));
-    fireEvent.click(screen.getByRole("button", { name: "Resume Session" }));
-
-    await waitFor(() => {
-      expect(screen.getByText("Session is already running")).toBeInTheDocument();
+    mockResumeSession.mockResolvedValue({
+      sessionPk: "pk-123",
+      taskId: "OMNI-001",
+      sessionId: "cli-sess-aaa",
+      status: "running" as const,
+      runId: "run-456",
+      runNumber: 2,
+      runInput: "hello",
+      commentId: "comment-1",
+      commentSent: true,
+      startedAt: "2026-01-01T00:00:00Z",
     });
-  });
 
-  it("shows error toast on agent_not_found error", async () => {
-    const mockResumeSession = vi.mocked(resumeSession);
-    mockResumeSession.mockRejectedValue(
-      new ApiError(400, "agent_not_found", "Agent binary not found on PATH"),
-    );
-
-    renderWithTask(makeTask({ status: "paused" }));
+    renderWithTask(makeTask({ id: "OMNI-001", projectId: "proj-1", status: "paused" }));
     fireEvent.click(screen.getByTestId("open-trigger"));
-    fireEvent.click(screen.getByRole("button", { name: "Resume Session" }));
 
-    await waitFor(() => {
-      expect(screen.getByText("Agent binary not found on PATH")).toBeInTheDocument();
-    });
-  });
-
-  it("resume button is disabled while mutation is pending", async () => {
-    const mockResumeSession = vi.mocked(resumeSession);
-    mockResumeSession.mockImplementation(() => new Promise(() => {}));
-
-    renderWithTask(makeTask({ status: "paused" }));
-    fireEvent.click(screen.getByTestId("open-trigger"));
+    const textarea = screen.getByPlaceholderText("Add instructions for next run…");
+    fireEvent.change(textarea, { target: { value: "  hello  " } });
 
     const btn = screen.getByRole("button", { name: "Resume Session" });
     fireEvent.click(btn);
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Resume Session" })).toBeDisabled();
+      expect(mockResumeSession).toHaveBeenCalledWith("proj-1", "OMNI-001", "hello");
+      expect(textarea).toHaveValue("");
+      expect(screen.getByText(/Resumed OMNI-001 with comment/i)).toBeInTheDocument();
     });
+  });
+
+  // T6: Optimistic update on click Resume → status badge immediately shows "Running"
+  it("T6: immediately performs optimistic update to running status on resume click", async () => {
+    const mockResumeSession = vi.mocked(resumeSession);
+    mockResumeSession.mockImplementation(() => new Promise((resolve) => setTimeout(resolve, 150)));
+
+    renderWithTask(makeTask({ id: "OMNI-001", projectId: "proj-1", status: "paused" }));
+    fireEvent.click(screen.getByTestId("open-trigger"));
+
+    const btn = await screen.findByRole("button", { name: "Resume Session" });
+    fireEvent.click(btn);
+
+    // Wait for optimistic update to apply (runs in microtask because of await cancelQueries)
+    await waitFor(() => {
+      expect(screen.getAllByText("Running").length).toBeGreaterThan(0);
+    });
+  });
+
+  // T7: Resume error rollback → status badge revert to paused + error toast shown
+  it("T7: rolls back status badge to paused and displays error toast on resume failure", async () => {
+    const mockResumeSession = vi.mocked(resumeSession);
+    mockResumeSession.mockRejectedValue(new ApiError(500, "internal_error", "boom"));
+
+    renderWithTask(makeTask({ id: "OMNI-001", projectId: "proj-1", status: "paused" }));
+    fireEvent.click(screen.getByTestId("open-trigger"));
+
+    const btn = await screen.findByRole("button", { name: "Resume Session" });
+    fireEvent.click(btn);
+
+    await waitFor(() => {
+      // Reverts to paused status badges
+      expect(screen.queryByText("Running")).not.toBeInTheDocument();
+      expect(screen.getAllByText("Paused").length).toBeGreaterThan(0);
+      // Displays toast
+      expect(screen.getByText("boom")).toBeInTheDocument();
+    });
+  });
+
+  // T8: Resume 409 conflict → warning toast (not error)
+  it("T8: shows warning toast on 409 session_already_active error", async () => {
+    const mockResumeSession = vi.mocked(resumeSession);
+    mockResumeSession.mockRejectedValue(
+      new ApiError(409, "session_already_active", "Session already running"),
+    );
+
+    renderWithTask(makeTask({ id: "OMNI-001", projectId: "proj-1", status: "paused" }));
+    fireEvent.click(screen.getByTestId("open-trigger"));
+
+    const btn = await screen.findByRole("button", { name: "Resume Session" });
+    fireEvent.click(btn);
+
+    await waitFor(() => {
+      expect(screen.getByText("Session already running")).toBeInTheDocument();
+    });
+  });
+
+  // T9: Polling: task running → getTask called twice within 6 seconds
+  it("T9: polls getTask API every 5 seconds when status is running", async () => {
+    vi.useFakeTimers();
+    const mockGetTask = vi.mocked(getTask);
+    mockGetTask.mockResolvedValue(makeTask({ id: "OMNI-001", status: "running" }));
+
+    renderWithTask(makeTask({ id: "OMNI-001", status: "running" }));
+    fireEvent.click(screen.getByTestId("open-trigger"));
+
+    // Wait for initial render / queries to fire
+    await vi.advanceTimersByTimeAsync(0);
+    mockGetTask.mockClear();
+
+    // Advance 5500ms
+    await vi.advanceTimersByTimeAsync(5500);
+
+    // Should have polled again (second call)
+    expect(mockGetTask).toHaveBeenCalled();
+  });
+
+  // T10: Polling stops when status changes to paused
+  it("T10: stops polling getTask API when status transitions out of running", async () => {
+    vi.useFakeTimers();
+    const mockGetTask = vi.mocked(getTask);
+    
+    // First query return running, second return paused
+    mockGetTask
+      .mockResolvedValueOnce(makeTask({ id: "OMNI-001", status: "running" }))
+      .mockResolvedValueOnce(makeTask({ id: "OMNI-001", status: "paused" }))
+      .mockResolvedValue(makeTask({ id: "OMNI-001", status: "paused" }));
+
+    renderWithTask(makeTask({ id: "OMNI-001", status: "running" }));
+    fireEvent.click(screen.getByTestId("open-trigger"));
+
+    await vi.advanceTimersByTimeAsync(0);
+    mockGetTask.mockClear();
+
+    // Trigger polling check
+    await vi.advanceTimersByTimeAsync(5500);
+    expect(mockGetTask).toHaveBeenCalledTimes(1); // Switched to paused
+
+    mockGetTask.mockClear();
+
+    // Advance another 5500ms, should NOT call a third time because status is now paused
+    await vi.advanceTimersByTimeAsync(5500);
+    expect(mockGetTask).not.toHaveBeenCalled();
+  });
+
+  // T11: Live Status Feed has aria-live="polite" attribute
+  it("T11: includes aria-live='polite' in the Live Status feed container", async () => {
+    const mockListRuns = vi.mocked(listRuns);
+    mockListRuns.mockResolvedValue([
+      {
+        id: "run-3",
+        runNumber: 3,
+        input: "retry",
+        exitCode: null,
+        logPath: "/path/to/log3",
+        logTail: "Running...",
+        startedAt: "2026-01-01T00:00:00Z",
+        endedAt: null,
+      },
+    ]);
+
+    renderWithTask(makeTask({ status: "running" }));
+    fireEvent.click(screen.getByTestId("open-trigger"));
+
+    await waitFor(() => {
+      const feedList = screen.getByTestId("live-status-feed").querySelector("ol");
+      expect(feedList).toHaveAttribute("aria-live", "polite");
+    });
+  });
+
+  // T12: Comment textarea reset ("") khi switch tab away rồi quay lại Summary
+  it("T12: resets comment textarea content when switching tabs away and back", async () => {
+    renderWithTask(makeTask({ status: "paused" }));
+    fireEvent.click(screen.getByTestId("open-trigger"));
+
+    const textarea = await screen.findByPlaceholderText("Add instructions for next run…");
+    fireEvent.change(textarea, { target: { value: "Draft instructions" } });
+    expect(textarea).toHaveValue("Draft instructions");
+
+    // Switch tab
+    fireEvent.click(screen.getByRole("tab", { name: "Comments" }));
+    expect(textarea).not.toBeInTheDocument();
+
+    // Switch back
+    fireEvent.click(screen.getByRole("tab", { name: "Summary" }));
+    const retextarea = await screen.findByPlaceholderText("Add instructions for next run…");
+    expect(retextarea).toHaveValue("");
   });
 });
