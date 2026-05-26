@@ -1,43 +1,132 @@
-<!-- gitnexus:start -->
-# GitNexus — Code Intelligence
+## Communication defaults
 
-This project is indexed by GitNexus as **omni-agent** (1292 symbols, 1578 relationships, 29 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+- Always reply in Vietnamese by default.
+- Keep technical terms, code, commands, file paths, config keys, and error messages in their original form unless translation is explicitly requested.
+- If the user writes in another language and explicitly asks for that language, follow the user's language for that response.
+- Prefer concise, operational Vietnamese.
+- Do not switch to English unless the user asks, the content is a verbatim quote, or keeping the original wording is technically important.
 
-> If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
+## 1. Think Before Coding
 
-## Always Do
+**Don't assume. Don't hide confusion. Surface tradeoffs.**
 
-- **MUST run impact analysis before editing any symbol.** Before modifying a function, class, or method, run `gitnexus_impact({target: "symbolName", direction: "upstream"})` and report the blast radius (direct callers, affected processes, risk level) to the user.
-- **MUST run `gitnexus_detect_changes()` before committing** to verify your changes only affect expected symbols and execution flows.
-- **MUST warn the user** if impact analysis returns HIGH or CRITICAL risk before proceeding with edits.
-- When exploring unfamiliar code, use `gitnexus_query({query: "concept"})` to find execution flows instead of grepping. It returns process-grouped results ranked by relevance.
-- When you need full context on a specific symbol — callers, callees, which execution flows it participates in — use `gitnexus_context({name: "symbolName"})`.
+Before implementing:
+- State your assumptions explicitly. If uncertain, ask.
+- If multiple interpretations exist, present them - don't pick silently.
+- If a simpler approach exists, say so. Push back when warranted.
+- If something is unclear, stop. Name what's confusing. Ask.
 
-## Never Do
+## 2. Simplicity First
 
-- NEVER edit a function, class, or method without first running `gitnexus_impact` on it.
-- NEVER ignore HIGH or CRITICAL risk warnings from impact analysis.
-- NEVER rename symbols with find-and-replace — use `gitnexus_rename` which understands the call graph.
-- NEVER commit changes without running `gitnexus_detect_changes()` to check affected scope.
+**Minimum code that solves the problem. Nothing speculative.**
 
-## Resources
+- No features beyond what was asked.
+- No abstractions for single-use code.
+- No "flexibility" or "configurability" that wasn't requested.
+- No error handling for impossible scenarios.
+- If you write 200 lines and it could be 50, rewrite it.
 
-| Resource | Use for |
-|----------|---------|
-| `gitnexus://repo/omni-agent/context` | Codebase overview, check index freshness |
-| `gitnexus://repo/omni-agent/clusters` | All functional areas |
-| `gitnexus://repo/omni-agent/processes` | All execution flows |
-| `gitnexus://repo/omni-agent/process/{name}` | Step-by-step execution trace |
+Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
 
-## CLI
+## 3. Surgical Changes
 
-| Task | Read this skill file |
-|------|---------------------|
-| Understand architecture / "How does X work?" | `.claude/skills/gitnexus/gitnexus-exploring/SKILL.md` |
-| Blast radius / "What breaks if I change X?" | `.claude/skills/gitnexus/gitnexus-impact-analysis/SKILL.md` |
-| Trace bugs / "Why is X failing?" | `.claude/skills/gitnexus/gitnexus-debugging/SKILL.md` |
-| Rename / extract / split / refactor | `.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md` |
-| Tools, resources, schema reference | `.claude/skills/gitnexus/gitnexus-guide/SKILL.md` |
-| Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
+**Touch only what you must. Clean up only your own mess.**
 
-<!-- gitnexus:end -->
+When editing existing code:
+- Don't "improve" adjacent code, comments, or formatting.
+- Don't refactor things that aren't broken.
+- Match existing style, even if you'd do it differently.
+- If you notice unrelated dead code, mention it - don't delete it.
+
+When your changes create orphans:
+- Remove imports/variables/functions that YOUR changes made unused.
+- Don't remove pre-existing dead code unless asked.
+
+The test: Every changed line should trace directly to the user's request.
+
+## 4. Goal-Driven Execution
+
+**Define success criteria. Loop until verified.**
+
+Transform tasks into verifiable goals:
+- "Add validation" → "Write tests for invalid inputs, then make them pass"
+- "Fix the bug" → "Write a test that reproduces it, then make it pass"
+- "Refactor X" → "Ensure tests pass before and after"
+
+For multi-step tasks, state a brief plan:
+```
+1. [Step] → verify: [check]
+2. [Step] → verify: [check]
+3. [Step] → verify: [check]
+```
+
+Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
+
+---
+
+**These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
+
+## Project Notes Completion Gate
+
+For any task with implementation output, project notes are mandatory.
+
+Implementation output includes changes to:
+
+- source code
+- tests
+- config
+- scripts
+- migrations
+- generated project files
+- project behavior
+
+Before starting implementation or broad source exploration, use project notes to recall relevant context:
+
+    ./bin/pnotes brief --area <path> --limit 3
+
+If `brief` is unavailable or returns no useful context, use:
+
+    ./bin/pnotes recall --area <path> --limit 3
+
+Before reporting a task as complete, the agent must do one of the following:
+
+1. Create a continuity note:
+
+       ./bin/pnotes add continuity ...
+
+2. Explicitly state why no note was needed.
+
+When a continuity note is created, inspect the generated file before final response.
+
+The note must be readable multiline Markdown and should include high-signal frontmatter when applicable:
+
+- `decisions`
+- `invariants`
+- `risks`
+- `tests`
+- `missing_tests`
+- `supersedes`
+
+Valid skip reasons:
+
+- no code/config/test/script/behavior changed
+- task was pure Q&A or read-only
+- repository has no `./bin/pnotes` or `.project-notes/`
+- user explicitly requested no note
+
+Invalid skip reasons:
+
+- task was small
+- change was simple
+- only a few lines changed
+- final summary already explains it
+- git diff is enough
+- generated note was created but not inspected
+
+Final response must include one line:
+
+    Project notes: created <path>
+
+or:
+
+    Project notes: skipped — <valid reason>
