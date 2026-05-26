@@ -2,7 +2,6 @@ use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::time::Duration;
 
-use tokio::io::AsyncWriteExt;
 use tokio::process::Command;
 
 use crate::error::AppError;
@@ -244,17 +243,14 @@ pub async fn test_agent(path: &Path, name: &str) -> Result<AgentTestResult, AppE
         })?;
 
     let mut cmd = Command::new(&agent.binary);
+    cmd.arg("--version");
     cmd.kill_on_drop(true);
-    cmd.stdin(Stdio::piped());
+    cmd.stdin(Stdio::null());
     cmd.stdout(Stdio::piped());
     cmd.stderr(Stdio::piped());
 
     let result = match cmd.spawn() {
-        Ok(mut child) => {
-            if let Some(mut stdin) = child.stdin.take() {
-                let _ = stdin.write_all(b"ping\n").await;
-                let _ = stdin.shutdown().await;
-            }
+        Ok(child) => {
             match tokio::time::timeout(Duration::from_secs(15), child.wait_with_output()).await {
                 Ok(Ok(output)) => {
                     let text = String::from_utf8_lossy(if output.stdout.is_empty() {
@@ -303,4 +299,75 @@ pub async fn test_agent(path: &Path, name: &str) -> Result<AgentTestResult, AppE
     }
     write_config(path, &updated)?;
     Ok(result)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::os::unix::fs::PermissionsExt;
+
+    fn unique_path(name: &str, extension: &str) -> PathBuf {
+        std::env::temp_dir().join(format!(
+            "omni-agent-{}-{}.{}",
+            name,
+            uuid::Uuid::new_v4(),
+            extension
+        ))
+    }
+
+    fn write_executable(path: &Path, body: &str) {
+        std::fs::write(path, body).unwrap();
+        let mut permissions = std::fs::metadata(path).unwrap().permissions();
+        permissions.set_mode(0o755);
+        std::fs::set_permissions(path, permissions).unwrap();
+    }
+
+    #[tokio::test]
+    async fn codex_test_connection_uses_non_interactive_version_command() {
+        let config_path = unique_path("codex-config", "json");
+        let binary_path = unique_path("codex-mock", "sh");
+        write_executable(
+            &binary_path,
+            r#"#!/usr/bin/env bash
+if [ "$1" = "--version" ]; then
+  echo "codex-cli 1.2.3"
+  exit 0
+fi
+echo "Error: Error: stdin is not a terminal" >&2
+exit 1
+"#,
+        );
+        write_config(
+            &config_path,
+            &AgentConfigFile {
+                agents: vec![AgentConfig {
+                    name: "codex".to_string(),
+                    protocol: AgentProtocol::Codex,
+                    binary: binary_path.to_string_lossy().to_string(),
+                    enabled: true,
+                    built_in: true,
+                    last_test: None,
+                }],
+            },
+        )
+        .unwrap();
+
+        let result = test_agent(&config_path, "codex").await.unwrap();
+
+        assert!(result.ok);
+        assert_eq!(result.message, "codex-cli 1.2.3");
+        let updated = read_config(&config_path).unwrap();
+        let codex = updated
+            .agents
+            .iter()
+            .find(|agent| agent.name == "codex")
+            .unwrap();
+        assert_eq!(
+            codex.last_test.as_ref().map(|test| &test.message),
+            Some(&"codex-cli 1.2.3".to_string())
+        );
+
+        std::fs::remove_file(config_path).ok();
+        std::fs::remove_file(binary_path).ok();
+    }
 }
