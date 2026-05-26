@@ -1,0 +1,46 @@
+.dashboard-section {
+  margin-bottom: var(--space-8);
+}
+
+.dashboard-section__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-bottom: var(--space-4);
+}
+
+.dashboard-section__title {
+  font-size: var(--font-size-heading-m);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.dashboard-section__subtitle {
+  font-size: var(--font-size-body-s);
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.dashboard-section--card-grid .dashboard-section__content {
+  display: flex;
+  gap: var(--space-4);
+  overflow-x: auto;
+  padding-bottom: var(--space-2);
+  /* Tránh che mất focus outline của card khi đang scroll */
+  padding-top: var(--space-1);
+  padding-left: var(--space-1);
+  padding-right: var(--space-1);
+  margin-left: -var(--space-1);
+  margin-right: -var(--space-1);
+  scrollbar-width: thin;
+}
+
+.dashboard-section--compact-list .dashboard-section__content {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  overflow: hidden;
+}

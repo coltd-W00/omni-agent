@@ -6,7 +6,7 @@ interface StatusBadgeProps {
   size?: "sm" | "md" | "lg";
 }
 
-const STATUS_DISPLAY = {
+export const STATUS_DISPLAY = {
   draft: { label: "Draft", icon: "●" },
   ready: { label: "Ready", icon: "●" },
   assigned: { label: "Assigned", icon: "●" },
