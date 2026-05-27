@@ -27,6 +27,7 @@ impl AgentStrategy for CodexStrategy {
 
     fn spawn_command(&self, _task: &Task, _log_path: &Path, workspace_path: &Path) -> Command {
         let mut cmd = Command::new(self.binary());
+        cmd.arg("exec").arg("--json").arg("-");
         cmd.current_dir(workspace_path);
         cmd.kill_on_drop(true);
         cmd.stdin(Stdio::piped());
@@ -37,9 +38,10 @@ impl AgentStrategy for CodexStrategy {
 
     fn resume_command(&self, session_id: &str, comment: Option<&str>) -> Command {
         let mut cmd = Command::new(self.binary());
-        cmd.arg("resume").arg(session_id);
+        cmd.arg("exec").arg("resume").arg("--json").arg(session_id);
         cmd.kill_on_drop(true);
         if comment.is_some() {
+            cmd.arg("-");
             cmd.stdin(Stdio::piped());
         } else {
             cmd.stdin(Stdio::null());
@@ -275,6 +277,38 @@ mod tests {
     }
 
     #[test]
+    fn spawn_command_uses_non_interactive_exec() {
+        let s = CodexStrategy::default();
+        unsafe {
+            std::env::set_var("OMNI_AGENT_CODEX_BIN", "/tmp/mock-codex-test");
+        }
+        let cmd = s.spawn_command(
+            &crate::models::task::Task {
+                id: "T".to_string(),
+                project_id: "P".to_string(),
+                seq: 1,
+                title: "t".to_string(),
+                description: "d".to_string(),
+                acceptance_criteria: None,
+                agent: Some("codex".to_string()),
+                role: None,
+                status: "Assigned".to_string(),
+                created_at: "2026-01-01T00:00:00Z".to_string(),
+                updated_at: "2026-01-01T00:00:00Z".to_string(),
+            },
+            std::path::Path::new("/tmp/log.log"),
+            std::path::Path::new("/tmp"),
+        );
+        let std_cmd = cmd.as_std();
+        assert_eq!(std_cmd.get_program(), "/tmp/mock-codex-test");
+        let args: Vec<&str> = std_cmd.get_args().map(|a| a.to_str().unwrap()).collect();
+        assert_eq!(args, vec!["exec", "--json", "-"]);
+        unsafe {
+            std::env::remove_var("OMNI_AGENT_CODEX_BIN");
+        }
+    }
+
+    #[test]
     fn resume_command_with_comment_has_stdin_piped() {
         let s = CodexStrategy::default();
         unsafe {
@@ -284,7 +318,7 @@ mod tests {
         let std_cmd = cmd.as_std();
         assert_eq!(std_cmd.get_program(), "/tmp/mock-codex-test");
         let args: Vec<&str> = std_cmd.get_args().map(|a| a.to_str().unwrap()).collect();
-        assert_eq!(args, vec!["resume", "sess-uuid"]);
+        assert_eq!(args, vec!["exec", "resume", "--json", "sess-uuid", "-"]);
         unsafe {
             std::env::remove_var("OMNI_AGENT_CODEX_BIN");
         }

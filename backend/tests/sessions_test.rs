@@ -96,6 +96,11 @@ fn mock_bin() -> String {
     format!("{}/tests/fixtures/mock-agent.sh", manifest)
 }
 
+fn codex_cli_mock_bin() -> String {
+    let manifest = std::env::var("CARGO_MANIFEST_DIR").unwrap();
+    format!("{}/tests/fixtures/mock-codex-cli.sh", manifest)
+}
+
 /// Create project, task, and assign agent; returns (project_id, task_id).
 async fn setup_assigned_task(app: &Router, agent: &str) -> (String, String) {
     // Create project
@@ -379,6 +384,60 @@ async fn start_session_codex_happy_path_via_stdout() {
         std::env::remove_var("OMNI_AGENT_CODEX_BIN");
         std::env::remove_var("MOCK_AGENT_SESSION_ID");
         std::env::remove_var("MOCK_AGENT_DELAY_MS");
+        std::env::remove_var("MOCK_AGENT_SLEEP_SECS");
+    }
+}
+
+#[tokio::test]
+#[serial]
+async fn start_session_codex_uses_exec_instead_of_interactive_tui() {
+    let tmp_home = std::env::temp_dir().join(format!(
+        "omni-test-home-codex-exec-{}",
+        std::process::id()
+    ));
+    std::fs::create_dir_all(&tmp_home).unwrap();
+    unsafe {
+        std::env::set_var("HOME", tmp_home.to_str().unwrap());
+        std::env::set_var("OMNI_AGENT_CODEX_BIN", codex_cli_mock_bin());
+        std::env::set_var("MOCK_AGENT_SESSION_ID", "codex-exec-test-uuid");
+        std::env::set_var("MOCK_AGENT_SLEEP_SECS", "10");
+    }
+
+    let (app, state) = build_sessions_app().await;
+    let (project_id, task_id) = setup_assigned_task(&app, "codex").await;
+
+    let (status, body) = start_session(&app, &project_id, &task_id).await;
+    assert_eq!(status, StatusCode::OK, "body: {}", body);
+
+    tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+
+    let session_pk = body["sessionPk"].as_str().unwrap();
+    let session_id: Option<String> =
+        sqlx::query_scalar("SELECT session_id FROM sessions WHERE id = ?")
+            .bind(session_pk)
+            .fetch_one(&state.db)
+            .await
+            .unwrap();
+    assert_eq!(session_id.as_deref(), Some("codex-exec-test-uuid"));
+
+    let log_path: String = sqlx::query_scalar("SELECT log_path FROM runs WHERE session_id = ?")
+        .bind(session_pk)
+        .fetch_one(&state.db)
+        .await
+        .unwrap();
+    let log_content = std::fs::read_to_string(log_path).unwrap_or_default();
+    assert!(
+        !log_content.contains("stdin is not a terminal"),
+        "log content: {}",
+        log_content
+    );
+
+    drain_subprocesses(&state).await;
+    std::fs::remove_dir_all(&tmp_home).ok();
+    unsafe {
+        std::env::remove_var("HOME");
+        std::env::remove_var("OMNI_AGENT_CODEX_BIN");
+        std::env::remove_var("MOCK_AGENT_SESSION_ID");
         std::env::remove_var("MOCK_AGENT_SLEEP_SECS");
     }
 }
