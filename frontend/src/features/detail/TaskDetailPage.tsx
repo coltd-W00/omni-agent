@@ -370,7 +370,7 @@ export default function TaskDetailPage({ task, project }: TaskDetailPageProps) {
               />
             )}
             {activeTab === "comments" && (
-              <CommentsTabPanel task={task} projectId={project.id} />
+              <CommentsTabPanel task={task} projectId={project.id} hideComposer />
             )}
             {activeTab === "runs" && (
               <RunsTabPanel task={task} projectId={project.id} onSwitchTab={handleSwitchTab} />
