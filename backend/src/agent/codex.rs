@@ -61,6 +61,9 @@ impl AgentStrategy for CodexStrategy {
                 if let Some(s) = value.get("session_id").and_then(|v| v.as_str()) {
                     return Some(s.to_string());
                 }
+                if let Some(s) = value.get("thread_id").and_then(|v| v.as_str()) {
+                    return Some(s.to_string());
+                }
                 if let Some(s) = value.get("id").and_then(|v| v.as_str()) {
                     if s.len() >= 8 {
                         return Some(s.to_string());
@@ -158,6 +161,15 @@ mod tests {
         assert_eq!(
             strategy().parse_session_id_chunk(input),
             Some("abc-123".to_string())
+        );
+    }
+
+    #[test]
+    fn parse_returns_some_when_json_has_thread_id() {
+        let input = r#"{"thread_id":"xyz-789","type":"thread.started"}"#;
+        assert_eq!(
+            strategy().parse_session_id_chunk(input),
+            Some("xyz-789".to_string())
         );
     }
 

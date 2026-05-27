@@ -1,0 +1,5 @@
+[2m2026-05-27T05:41:19.847811Z[0m [32m INFO[0m [2momni_agent_backend[0m[2m:[0m Database migrations applied
+[2m2026-05-27T05:41:19.848688Z[0m [32m INFO[0m [2momni_agent_backend[0m[2m:[0m Server running on http://127.0.0.1:8080
+[2m2026-05-27T05:42:11.923233Z[0m [32m INFO[0m [2momni_agent_backend[0m[2m:[0m Received SIGTERM
+[2m2026-05-27T05:42:11.924534Z[0m [32m INFO[0m [2momni_agent_backend[0m[2m:[0m All running tasks flushed to Paused [3mflushed_count[0m[2m=[0m0
+[2m2026-05-27T05:42:11.924576Z[0m [32m INFO[0m [2momni_agent_backend[0m[2m:[0m Graceful shutdown: all tasks flushed

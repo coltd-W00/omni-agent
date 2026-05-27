@@ -1,0 +1,18 @@
+{
+  "agents": [
+    {
+      "name": "claude",
+      "protocol": "claude",
+      "binary": "claude",
+      "enabled": true,
+      "builtIn": true
+    },
+    {
+      "name": "codex",
+      "protocol": "codex",
+      "binary": "codex",
+      "enabled": true,
+      "builtIn": true
+    }
+  ]
+}
