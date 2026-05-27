@@ -8,6 +8,8 @@ import EmptyState from "../../components/EmptyState";
 import { useTaskDetail } from "../../contexts/TaskDetailContext";
 import { useToast } from "../../components/Toast";
 import { useStartSession } from "../../hooks/useStartSession";
+import { useCompleteSession } from "../../hooks/useCompleteSession";
+import { useCancelSession } from "../../hooks/useCancelSession";
 import { useDeleteTask } from "../../hooks/useTasks";
 import { ApiError } from "../../api/client";
 import { useTask } from "../../hooks/useTask";
@@ -48,6 +50,8 @@ interface ActionBarProps {
 function ActionBar({ project, task }: ActionBarProps) {
   const { showToast } = useToast();
   const startMut = useStartSession(project.id, task.id);
+  const completeMut = useCompleteSession(project.id, task.id);
+  const cancelMut = useCancelSession(project.id, task.id);
   const workspaceMissing = !project.workspacePath;
   const agentMissing = !task.agent;
 
@@ -63,6 +67,32 @@ function ActionBar({ project, task }: ActionBarProps) {
     });
   };
 
+  const handleComplete = () => {
+    completeMut.mutate(undefined, {
+      onSuccess: () => {
+        showToast({ tone: "success", message: `Task ${task.id} marked as completed` });
+      },
+      onError: (err) => {
+        const msg = err instanceof ApiError ? err.message : "Failed to complete task";
+        showToast({ tone: "error", message: msg });
+      },
+    });
+  };
+
+  const handleCancel = () => {
+    cancelMut.mutate(undefined, {
+      onSuccess: () => {
+        showToast({ tone: "success", message: `Task ${task.id} cancelled` });
+      },
+      onError: (err) => {
+        const msg = err instanceof ApiError ? err.message : "Failed to cancel task";
+        showToast({ tone: "error", message: msg });
+      },
+    });
+  };
+
+  const isPending = startMut.isPending || completeMut.isPending || cancelMut.isPending;
+
   if (task.status === "assigned") {
     return (
       <div className="task-detail-panel__action-bar">
@@ -73,7 +103,7 @@ function ActionBar({ project, task }: ActionBarProps) {
           variant="primary"
           size="md"
           onClick={handleStart}
-          disabled={startMut.isPending || workspaceMissing || agentMissing}
+          disabled={isPending || workspaceMissing || agentMissing}
         >
           Start Session
         </Button>
@@ -84,8 +114,22 @@ function ActionBar({ project, task }: ActionBarProps) {
     return (
       <div className="task-detail-panel__action-bar">
         <div style={{ display: "flex", gap: "var(--space-2)" }}>
-          <Button variant="secondary" size="md">Mark Done</Button>
-          <Button variant="ghost" size="md">Cancel</Button>
+          <Button
+            variant="secondary"
+            size="md"
+            onClick={handleComplete}
+            disabled={isPending}
+          >
+            Mark Done
+          </Button>
+          <Button
+            variant="ghost"
+            size="md"
+            onClick={handleCancel}
+            disabled={isPending}
+          >
+            Cancel
+          </Button>
         </div>
       </div>
     );

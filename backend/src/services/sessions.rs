@@ -769,13 +769,76 @@ pub async fn mark_session_paused(pool: &SqlitePool, session_pk: &str) -> Result<
 pub async fn mark_session_closed(pool: &SqlitePool, session_pk: &str) -> Result<(), AppError> {
     let now = Utc::now().to_rfc3339();
     sqlx::query(
-        "UPDATE sessions SET status = 'closed', last_active = ? WHERE id = ? AND status = 'running'",
+        "UPDATE sessions SET status = 'closed', last_active = ? WHERE id = ? AND status IN ('running', 'paused')",
     )
     .bind(&now)
     .bind(session_pk)
     .execute(pool)
     .await?;
     Ok(())
+}
+
+#[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CompleteSessionResponse {
+    pub task_id: String,
+    pub status: String,
+    pub message: String,
+}
+
+pub async fn complete_session(
+    pool: &SqlitePool,
+    subprocess_map: Arc<Mutex<HashMap<String, Child>>>,
+    project_id: &str,
+    task_id: &str,
+) -> Result<CompleteSessionResponse, AppError> {
+    // Verify task exists in project (404 if not found)
+    tasks::get_task(pool, project_id, task_id).await?;
+
+    // Atomic transition Paused/Failed → Done (409 if not Paused/Failed)
+    tasks::transition_to_done(pool, task_id).await?;
+
+    // Remove and kill subprocess if still running
+    let child_opt = subprocess_map.lock().await.remove(task_id);
+    if let Some(mut child) = child_opt {
+        let _ = child.start_kill();
+    }
+
+    // Find active session and mark closed
+    let session_pk: Option<String> = sqlx::query_scalar(
+        "SELECT id FROM sessions WHERE task_id = ? ORDER BY created_at DESC LIMIT 1",
+    )
+    .bind(task_id)
+    .fetch_optional(pool)
+    .await?;
+
+    if let Some(ref spk) = session_pk {
+        mark_session_closed(pool, spk).await?;
+
+        // Find active run and complete it with exit_code=0
+        let run_row: Option<(String, Option<String>)> = sqlx::query_as(
+            "SELECT id, log_path FROM runs WHERE session_id = ? AND ended_at IS NULL \
+             ORDER BY started_at DESC LIMIT 1",
+        )
+        .bind(spk)
+        .fetch_optional(pool)
+        .await?;
+
+        if let Some((run_id, log_path)) = run_row {
+            let log_tail = if let Some(ref lp) = log_path {
+                runs::read_log_tail(std::path::Path::new(lp), 100, 10_240).await
+            } else {
+                None
+            };
+            runs::complete_run(pool, &run_id, 0, log_tail.as_deref()).await?;
+        }
+    }
+
+    Ok(CompleteSessionResponse {
+        task_id: task_id.to_string(),
+        status: "completed".to_string(),
+        message: "Session completed successfully".to_string(),
+    })
 }
 
 pub async fn cancel_session(
@@ -787,7 +850,7 @@ pub async fn cancel_session(
     // Verify task exists in project (404 if not found)
     tasks::get_task(pool, project_id, task_id).await?;
 
-    // Atomic transition Running → Cancelled (409 if not Running)
+    // Atomic transition Running/Paused/Failed → Cancelled (409 if not in correct state)
     tasks::transition_to_cancelled(pool, task_id).await?;
 
     // Remove and kill subprocess

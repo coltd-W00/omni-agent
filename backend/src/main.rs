@@ -86,6 +86,10 @@ async fn main() -> anyhow::Result<()> {
             axum::routing::post(handlers::sessions::cancel_session),
         )
         .route(
+            "/projects/{project_id}/tasks/{task_id}/sessions/complete",
+            axum::routing::post(handlers::sessions::complete_session),
+        )
+        .route(
             "/projects/{project_id}/tasks/{task_id}/sessions/resume",
             axum::routing::post(handlers::sessions::resume_session),
         )

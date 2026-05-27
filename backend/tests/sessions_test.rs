@@ -1019,6 +1019,10 @@ async fn build_sessions_app_with_cancel() -> (Router, Arc<AppState>) {
         .route(
             "/projects/{project_id}/tasks/{task_id}/sessions/cancel",
             axum::routing::post(handlers::sessions::cancel_session),
+        )
+        .route(
+            "/projects/{project_id}/tasks/{task_id}/sessions/complete",
+            axum::routing::post(handlers::sessions::complete_session),
         );
 
     let app = Router::new()
@@ -1035,6 +1039,22 @@ async fn post_cancel(app: &Router, project_id: &str, task_id: &str) -> (StatusCo
         .method("POST")
         .uri(format!(
             "/api/projects/{}/tasks/{}/sessions/cancel",
+            project_id, task_id
+        ))
+        .header("content-type", "application/json")
+        .body(Body::from("{}"))
+        .unwrap();
+    let res = app.clone().oneshot(req).await.unwrap();
+    let status = res.status();
+    let body = body_json(res.into_body()).await;
+    (status, body)
+}
+
+async fn post_complete(app: &Router, project_id: &str, task_id: &str) -> (StatusCode, Value) {
+    let req = Request::builder()
+        .method("POST")
+        .uri(format!(
+            "/api/projects/{}/tasks/{}/sessions/complete",
             project_id, task_id
         ))
         .header("content-type", "application/json")
@@ -1454,6 +1474,10 @@ async fn build_sessions_app_with_resume() -> (Router, Arc<AppState>) {
         .route(
             "/projects/{project_id}/tasks/{task_id}/sessions/cancel",
             axum::routing::post(handlers::sessions::cancel_session),
+        )
+        .route(
+            "/projects/{project_id}/tasks/{task_id}/sessions/complete",
+            axum::routing::post(handlers::sessions::complete_session),
         )
         .route(
             "/projects/{project_id}/tasks/{task_id}/sessions/resume",
@@ -2090,6 +2114,109 @@ async fn add_comment_done_task_returns_409() {
 
     assert_eq!(status, StatusCode::CONFLICT);
     assert_eq!(body["error"], "task_terminal");
+
+    drain_subprocesses(&state).await;
+    let _ = std::fs::remove_dir_all(&tmp_home);
+}
+
+#[tokio::test]
+#[serial]
+async fn complete_session_paused_task_returns_200() {
+    let (app, pool, state, project_id, task_id, session_pk, tmp_home) =
+        setup_app_with_paused_task("claude", Some("cli-sess-uuid-aaa"), "Paused").await;
+
+    let run_id = "run-uuid-111";
+    let now = chrono::Utc::now().to_rfc3339();
+    sqlx::query(
+        "INSERT INTO runs (id, session_id, run_number, input, started_at) VALUES (?, ?, 1, 'test', ?)"
+    )
+    .bind(run_id)
+    .bind(&session_pk)
+    .bind(&now)
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    let (status, body) = post_complete(&app, &project_id, &task_id).await;
+    assert_eq!(status, StatusCode::OK, "body: {}", body);
+    assert_eq!(body["status"], "completed");
+
+    let task_row = sqlx::query("SELECT status FROM tasks WHERE id = ?")
+        .bind(&task_id)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(task_row.try_get::<String, _>("status").unwrap(), "Done");
+
+    let session_row = sqlx::query("SELECT status FROM sessions WHERE id = ?")
+        .bind(&session_pk)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(session_row.try_get::<String, _>("status").unwrap(), "closed");
+
+    let run_row = sqlx::query("SELECT exit_code, ended_at FROM runs WHERE id = ?")
+        .bind(run_id)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(run_row.try_get::<Option<i64>, _>("exit_code").unwrap(), Some(0));
+    assert!(run_row.try_get::<Option<String>, _>("ended_at").unwrap().is_some());
+
+    drain_subprocesses(&state).await;
+    let _ = std::fs::remove_dir_all(&tmp_home);
+}
+
+#[tokio::test]
+#[serial]
+async fn complete_session_failed_task_returns_200() {
+    let (app, pool, state, project_id, task_id, _session_pk, tmp_home) =
+        setup_app_with_paused_task("claude", Some("cli-sess-uuid-aaa"), "Failed").await;
+
+    let (status, body) = post_complete(&app, &project_id, &task_id).await;
+    assert_eq!(status, StatusCode::OK, "body: {}", body);
+
+    let task_row = sqlx::query("SELECT status FROM tasks WHERE id = ?")
+        .bind(&task_id)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(task_row.try_get::<String, _>("status").unwrap(), "Done");
+
+    drain_subprocesses(&state).await;
+    let _ = std::fs::remove_dir_all(&tmp_home);
+}
+
+#[tokio::test]
+#[serial]
+async fn complete_session_running_task_returns_409() {
+    let (app, _pool, state, project_id, task_id, _session_pk, tmp_home) =
+        setup_app_with_paused_task("claude", Some("cli-sess-uuid-aaa"), "Running").await;
+
+    let (status, body) = post_complete(&app, &project_id, &task_id).await;
+    assert_eq!(status, StatusCode::CONFLICT, "body: {}", body);
+    assert_eq!(body["error"], "task_not_completable");
+
+    drain_subprocesses(&state).await;
+    let _ = std::fs::remove_dir_all(&tmp_home);
+}
+
+#[tokio::test]
+#[serial]
+async fn cancel_session_paused_task_returns_200() {
+    let (app, pool, state, project_id, task_id, session_pk, tmp_home) =
+        setup_app_with_paused_task("claude", Some("cli-sess-uuid-aaa"), "Paused").await;
+
+    let (status, body) = post_cancel(&app, &project_id, &task_id).await;
+    assert_eq!(status, StatusCode::OK, "body: {}", body);
+    assert_eq!(body["status"], "cancelled");
+
+    let task_row = sqlx::query("SELECT status FROM tasks WHERE id = ?")
+        .bind(&task_id)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(task_row.try_get::<String, _>("status").unwrap(), "Cancelled");
 
     drain_subprocesses(&state).await;
     let _ = std::fs::remove_dir_all(&tmp_home);

@@ -13,6 +13,8 @@ import { mockViewport } from "../../test-utils/matchMedia";
 vi.mock("../../api/sessions", () => ({
   startSession: vi.fn(),
   resumeSession: vi.fn(),
+  completeSession: vi.fn(),
+  cancelSession: vi.fn(),
 }));
 
 vi.mock("../../api/tasks", () => ({
@@ -34,7 +36,7 @@ vi.mock("../../api/comments", () => ({
   addComment: vi.fn(),
 }));
 
-import { startSession, resumeSession } from "../../api/sessions";
+import { startSession, resumeSession, completeSession, cancelSession } from "../../api/sessions";
 import { deleteTask, getTask } from "../../api/tasks";
 import { listRuns } from "../../api/runs";
 import { addComment, listComments } from "../../api/comments";
@@ -477,6 +479,46 @@ describe("TaskDetailPanel", () => {
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Start Session" })).toBeDisabled();
+    });
+  });
+
+  it("clicking Mark Done calls completeSession and shows success toast", async () => {
+    const mockCompleteSession = vi.mocked(completeSession);
+    mockCompleteSession.mockResolvedValue({
+      taskId: "OMNI-001",
+      status: "completed",
+      message: "Session completed successfully",
+    });
+
+    renderWithTask(makeTask({ id: "OMNI-001", projectId: "proj-1", status: "paused" }));
+    fireEvent.click(screen.getByTestId("open-trigger"));
+
+    const btn = screen.getByRole("button", { name: "Mark Done" });
+    fireEvent.click(btn);
+
+    await waitFor(() => {
+      expect(mockCompleteSession).toHaveBeenCalledWith("proj-1", "OMNI-001");
+      expect(screen.getByText(/Task OMNI-001 marked as completed/i)).toBeInTheDocument();
+    });
+  });
+
+  it("clicking Cancel calls cancelSession and shows success toast", async () => {
+    const mockCancelSession = vi.mocked(cancelSession);
+    mockCancelSession.mockResolvedValue({
+      taskId: "OMNI-001",
+      status: "cancelled",
+      message: "Session cancelled",
+    });
+
+    renderWithTask(makeTask({ id: "OMNI-001", projectId: "proj-1", status: "failed" }));
+    fireEvent.click(screen.getByTestId("open-trigger"));
+
+    const btn = screen.getByRole("button", { name: "Cancel" });
+    fireEvent.click(btn);
+
+    await waitFor(() => {
+      expect(mockCancelSession).toHaveBeenCalledWith("proj-1", "OMNI-001");
+      expect(screen.getByText(/Task OMNI-001 cancelled/i)).toBeInTheDocument();
     });
   });
 

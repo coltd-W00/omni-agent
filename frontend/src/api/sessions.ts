@@ -37,3 +37,15 @@ export const resumeSession = (
     },
   );
 };
+
+export const completeSession = (projectId: string, taskId: string) =>
+  apiFetch<{ taskId: string; status: string; message: string }>(
+    `/projects/${projectId}/tasks/${taskId}/sessions/complete`,
+    { method: "POST", body: JSON.stringify({}) },
+  );
+
+export const cancelSession = (projectId: string, taskId: string) =>
+  apiFetch<{ taskId: string; status: string; message: string }>(
+    `/projects/${projectId}/tasks/${taskId}/sessions/cancel`,
+    { method: "POST", body: JSON.stringify({}) },
+  );

@@ -40,6 +40,20 @@ pub async fn cancel_session(
     Ok(Json(resp))
 }
 
+pub async fn complete_session(
+    State(state): State<Arc<AppState>>,
+    Path((project_id, task_id)): Path<(String, String)>,
+) -> Result<impl IntoResponse, AppError> {
+    let resp = sessions::complete_session(
+        &state.db,
+        state.subprocess_map.clone(),
+        &project_id,
+        &task_id,
+    )
+    .await?;
+    Ok(Json(resp))
+}
+
 #[derive(Debug, serde::Deserialize, Default)]
 #[serde(rename_all = "camelCase", default)]
 pub struct ResumeSessionRequest {

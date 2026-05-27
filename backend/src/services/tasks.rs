@@ -572,7 +572,7 @@ pub async fn transition_to_failed(pool: &SqlitePool, task_id: &str) -> Result<()
 pub async fn transition_to_cancelled(pool: &SqlitePool, task_id: &str) -> Result<(), AppError> {
     let now = chrono::Utc::now().to_rfc3339();
     let rows = sqlx::query(
-        "UPDATE tasks SET status = 'Cancelled', updated_at = ? WHERE id = ? AND status = 'Running'",
+        "UPDATE tasks SET status = 'Cancelled', updated_at = ? WHERE id = ? AND status IN ('Running', 'Paused', 'Failed')",
     )
     .bind(&now)
     .bind(task_id)
@@ -582,7 +582,26 @@ pub async fn transition_to_cancelled(pool: &SqlitePool, task_id: &str) -> Result
     if rows == 0 {
         return Err(AppError::Conflict {
             code: "task_not_running",
-            message: "Can only cancel a running task".to_string(),
+            message: "Can only cancel a running, paused, or failed task".to_string(),
+        });
+    }
+    Ok(())
+}
+
+pub async fn transition_to_done(pool: &SqlitePool, task_id: &str) -> Result<(), AppError> {
+    let now = chrono::Utc::now().to_rfc3339();
+    let rows = sqlx::query(
+        "UPDATE tasks SET status = 'Done', updated_at = ? WHERE id = ? AND status IN ('Paused', 'Failed')",
+    )
+    .bind(&now)
+    .bind(task_id)
+    .execute(pool)
+    .await?
+    .rows_affected();
+    if rows == 0 {
+        return Err(AppError::Conflict {
+            code: "task_not_completable",
+            message: "Can only mark a paused or failed task as done".to_string(),
         });
     }
     Ok(())

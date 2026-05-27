@@ -5,7 +5,9 @@ fn serialize_status_lowercase<S>(value: &str, serializer: S) -> Result<S::Ok, S:
 where
     S: serde::Serializer,
 {
-    serializer.serialize_str(&value.to_lowercase())
+    let lower = value.to_lowercase();
+    let val = if lower == "done" { "completed" } else { &lower };
+    serializer.serialize_str(val)
 }
 
 /// Double-option deserializer:
