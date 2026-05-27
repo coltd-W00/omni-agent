@@ -4,6 +4,14 @@
   gap: var(--space-4);
 }
 
+.comments-tab-panel.chat-panel {
+  /* Fill remaining height inside the tab container. */
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  gap: var(--space-3);
+}
+
 .comments-tab-panel__placeholder,
 .comments-tab-panel__error {
   font-size: var(--font-size-body-s);
@@ -15,6 +23,56 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
+}
+
+/* Token usage strip at the top of the chat panel */
+.chat-token-usage {
+  display: flex;
+  gap: var(--space-2);
+  align-items: stretch;
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-app);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  flex-shrink: 0;
+}
+
+.chat-token-usage__stat {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: 2px var(--space-2);
+  min-width: 0;
+}
+
+.chat-token-usage__stat + .chat-token-usage__stat {
+  border-left: 1px solid var(--border);
+  padding-left: var(--space-3);
+}
+
+.chat-token-usage__label {
+  font-size: var(--font-size-caption);
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.chat-token-usage__value {
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-body);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Scrollable conversation area */
+.chat-panel__messages {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-2) 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .comment-thread-list {
@@ -31,6 +89,23 @@
   border-bottom: 1px solid var(--border);
 }
 
+.chat-msg {
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  border-bottom: 1px solid var(--border);
+}
+
+.chat-msg--user {
+  background: var(--bg-card);
+  border-color: var(--border);
+}
+
+.chat-msg--agent {
+  background: var(--brand-light, var(--bg-app));
+  border-color: var(--border);
+}
+
 .comment-thread-header {
   display: flex;
   align-items: center;
@@ -41,6 +116,16 @@
 .comment-thread-author {
   font-weight: 600;
   color: var(--text-primary);
+}
+
+.chat-msg__phase {
+  font-size: var(--font-size-caption);
+  color: var(--text-secondary);
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--bg-app);
+  border: 1px solid var(--border);
+  text-transform: lowercase;
 }
 
 .comment-thread-timestamp {
@@ -70,11 +155,21 @@
   color: var(--text-secondary);
 }
 
+.chat-msg__run-tag {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
 .comment-input-section {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
   padding-top: var(--space-2);
+}
+
+.chat-panel__composer {
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
 }
 
 .comment-input-label {
