@@ -5,31 +5,16 @@ import "./TaskDetailPanel.css";
 import StatusBadge from "../../components/StatusBadge";
 import AgentAvatar from "../../components/AgentAvatar";
 import Button from "../../components/Button";
-import ConfirmationDialog from "../../components/ConfirmationDialog";
-import EmptyState from "../../components/EmptyState";
 import { useToast } from "../../components/Toast";
-import { useDeleteTask } from "../../hooks/useTasks";
 import { useRunList } from "../../hooks/useRunList";
 import { useCommentList } from "../../hooks/useCommentList";
 import { useResumeSession } from "../../hooks/useResumeSession";
 import { ApiError } from "../../api/client";
-import CommentsTabPanel from "./CommentsTabPanel";
-import LogsTabPanel from "./LogsTabPanel";
-import RunsTabPanel from "./RunsTabPanel";
-import SummaryTab from "./SummaryTab";
 import { ActionBar } from "./TaskDetailActions";
+import { buildChatTimeline, type ChatEvent } from "./chatTimeline";
 import type { Task, TaskStatus } from "../../types/task";
 import type { Project } from "../../types/project";
-
-type PageTab = "summary" | "comments" | "runs" | "logs" | "settings";
-
-const TABS: ReadonlyArray<{ value: PageTab; label: string }> = [
-  { value: "comments", label: "Chat" },
-  { value: "logs", label: "Terminal" },
-  { value: "summary", label: "Overview" },
-  { value: "runs", label: "Activity" },
-  { value: "settings", label: "Settings" },
-];
+import type { Run } from "../../types/run";
 
 const RESUMABLE_STATUSES = new Set<TaskStatus>(["paused", "failed"]);
 
@@ -75,6 +60,178 @@ function roleDisplayLabel(role: string | null): string {
   return role.charAt(0).toUpperCase() + role.slice(1);
 }
 
+function formatTerminalTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+}
+
+function runStatus(run: Run): "running" | "completed" | "failed" {
+  if (run.exitCode === null && run.endedAt === null) return "running";
+  return run.exitCode === 0 ? "completed" : "failed";
+}
+
+function commandForRun(task: Task, run: Run): string {
+  const agent = task.agent === "claude" || task.agent === "codex" ? task.agent : "agent";
+  const role = task.role ? ` --role ${task.role}` : "";
+  return `${agent} run ${task.id}${role}${run.input ? ` --prompt "${run.input}"` : ""}`;
+}
+
+function previewLog(logTail: string | null): string {
+  if (!logTail) return "(no output captured yet)";
+  const lines = logTail.trim().split("\n").map(formatTranscriptLine);
+  const visible = lines.slice(-80);
+  return visible.join("\n");
+}
+
+function formatTranscriptLine(line: string): string {
+  const trimmed = line.trim();
+  if (!trimmed.startsWith("{")) return line;
+
+  try {
+    const root = JSON.parse(trimmed) as Record<string, unknown>;
+    const payload = root.payload;
+    if (root.type !== "event_msg" || payload === null || typeof payload !== "object") {
+      return line;
+    }
+
+    const event = payload as Record<string, unknown>;
+    if (event.type === "agent_message" && typeof event.message === "string") {
+      const phase = typeof event.phase === "string" ? `:${event.phase}` : "";
+      return `agent${phase}> ${event.message}`;
+    }
+
+    if (event.type === "token_count" && event.info && typeof event.info === "object") {
+      const info = event.info as Record<string, unknown>;
+      const usage = info.total_token_usage;
+      if (usage && typeof usage === "object") {
+        const tokenUsage = usage as Record<string, unknown>;
+        return `usage> input=${tokenUsage.input_tokens ?? 0} output=${tokenUsage.output_tokens ?? 0} total=${tokenUsage.total_tokens ?? 0}`;
+      }
+    }
+  } catch {
+    return line;
+  }
+
+  return line;
+}
+
+function finalOutputFrom(task: Task, runs: Run[], events: ChatEvent[]): string {
+  const latestAgentEvent = [...events].reverse().find((event) => event.kind === "agent");
+  if (latestAgentEvent) return latestAgentEvent.content;
+
+  const latestRunWithOutput = [...runs]
+    .sort((a, b) => b.runNumber - a.runNumber)
+    .find((run) => run.logTail?.trim());
+  if (latestRunWithOutput?.logTail) return previewLog(latestRunWithOutput.logTail);
+
+  if (task.status === "running") return "Agent is still running. Final output is not available yet.";
+  return "No final agent output captured yet.";
+}
+
+function ConversationSnapshot({
+  task,
+  finalOutput,
+}: {
+  task: Task;
+  finalOutput: string;
+}) {
+  return (
+    <section className="tdp__chat-snapshot" aria-label="Input and final output">
+      <div className="tdp__chat-stream">
+        <article className="tdp__chat-message tdp__chat-message--user">
+          <div className="tdp__chat-message-meta">You</div>
+          <div className="tdp__chat-message-body">
+            <h2>{task.title}</h2>
+            <p>{task.description}</p>
+            {task.acceptanceCriteria && (
+              <div className="tdp__acceptance">
+                <span>Acceptance criteria</span>
+                <p>{task.acceptanceCriteria}</p>
+              </div>
+            )}
+          </div>
+        </article>
+
+        <article className="tdp__chat-message tdp__chat-message--agent">
+          <div className="tdp__chat-message-meta">{agentDisplayLabel(task)}</div>
+          <div className="tdp__chat-message-body">
+            <p>{finalOutput}</p>
+          </div>
+        </article>
+      </div>
+    </section>
+  );
+}
+
+function TerminalTranscript({
+  task,
+  runs,
+  isLoading,
+  isError,
+  onRetry,
+}: {
+  task: Task;
+  runs: Run[];
+  isLoading: boolean;
+  isError: boolean;
+  onRetry: () => void;
+}) {
+  return (
+    <section className="tdp__terminal" aria-label="Agent terminal transcript">
+      <div className="tdp__terminal-bar">
+        <span className="tdp__terminal-dot tdp__terminal-dot--red" aria-hidden="true" />
+        <span className="tdp__terminal-dot tdp__terminal-dot--yellow" aria-hidden="true" />
+        <span className="tdp__terminal-dot tdp__terminal-dot--green" aria-hidden="true" />
+        <span className="tdp__terminal-title">agent-run:{task.id}</span>
+      </div>
+
+      <div className="tdp__terminal-scroll">
+        {isLoading && <p className="tdp__terminal-muted">loading runs...</p>}
+        {isError && (
+          <div className="tdp__terminal-error">
+            <p>could not load run transcript.</p>
+            <Button variant="ghost" size="sm" onClick={onRetry}>
+              Retry
+            </Button>
+          </div>
+        )}
+        {!isLoading && !isError && runs.length === 0 && (
+          <div className="tdp__terminal-block">
+            <div className="tdp__terminal-line">
+              <span className="tdp__terminal-prompt">$</span>
+              <span>waiting for agent run...</span>
+            </div>
+            <p className="tdp__terminal-muted">No execution transcript has been recorded yet.</p>
+          </div>
+        )}
+        {!isLoading &&
+          !isError &&
+          runs.map((run) => {
+            const status = runStatus(run);
+            return (
+              <article key={run.id} className="tdp__terminal-block">
+                <div className="tdp__terminal-line">
+                  <span className="tdp__terminal-prompt">$</span>
+                  <span>{commandForRun(task, run)}</span>
+                </div>
+                <div className={`tdp__terminal-status tdp__terminal-status--${status}`}>
+                  <span>{formatTerminalTime(run.startedAt)}</span>
+                  <span>run #{run.runNumber}</span>
+                  <span>{status}</span>
+                  {run.exitCode !== null && <span>exit {run.exitCode}</span>}
+                </div>
+                <pre className="tdp__terminal-output">{previewLog(run.logTail)}</pre>
+              </article>
+            );
+          })}
+      </div>
+    </section>
+  );
+}
+
 interface StatCardProps {
   label: string;
   value: React.ReactNode;
@@ -86,77 +243,6 @@ function StatCard({ label, value, title }: StatCardProps) {
     <div className="tdp__stat-card" title={title}>
       <div className="tdp__stat-label">{label}</div>
       <div className="tdp__stat-value">{value}</div>
-    </div>
-  );
-}
-
-function SettingsTab({
-  projectId,
-  task,
-  onDeleted,
-}: {
-  projectId: string;
-  task: Task;
-  onDeleted: () => void;
-}) {
-  const [pendingDelete, setPendingDelete] = useState(false);
-  const { showToast } = useToast();
-  const deleteMut = useDeleteTask(projectId, task.id);
-
-  if (task.status !== "draft") {
-    return (
-      <EmptyState
-        variant="inline"
-        icon=""
-        heading="Settings"
-        description="Task settings are only available for draft tasks."
-      />
-    );
-  }
-
-  const handleConfirmDelete = () => {
-    deleteMut.mutate(undefined, {
-      onSuccess: () => {
-        setPendingDelete(false);
-        showToast({ tone: "success", message: `Task ${task.id} deleted` });
-        onDeleted();
-      },
-      onError: (error: unknown) => {
-        const message = error instanceof ApiError ? error.message : "Failed to delete task";
-        showToast({ tone: "error", message });
-        setPendingDelete(false);
-      },
-    });
-  };
-
-  return (
-    <div className="task-detail-panel__settings">
-      <section className="task-detail-panel__settings-section">
-        <h3 className="task-detail-panel__settings-heading">Danger zone</h3>
-        <p className="task-detail-panel__settings-copy">
-          Delete this draft task permanently.
-        </p>
-        <Button
-          variant="destructive"
-          size="md"
-          onClick={() => setPendingDelete(true)}
-          disabled={deleteMut.isPending}
-        >
-          Delete task
-        </Button>
-      </section>
-
-      <ConfirmationDialog
-        open={pendingDelete}
-        title="Delete task"
-        description={`Delete "${task.title}"? This cannot be undone.`}
-        confirmLabel="Delete task"
-        cancelLabel="Cancel"
-        variant="destructive"
-        onConfirm={handleConfirmDelete}
-        onCancel={() => setPendingDelete(false)}
-        confirmLoading={deleteMut.isPending}
-      />
     </div>
   );
 }
@@ -230,8 +316,6 @@ interface TaskDetailPageProps {
 
 export default function TaskDetailPage({ task, project }: TaskDetailPageProps) {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<PageTab>("comments");
-  const [focusedRunId, setFocusedRunId] = useState<string | null>(null);
 
   const agentRuntime = task.agent === "claude" || task.agent === "codex" ? task.agent : undefined;
   const agentName = task.agent ?? task.role ?? "unassigned";
@@ -239,23 +323,22 @@ export default function TaskDetailPage({ task, project }: TaskDetailPageProps) {
 
   const runsQuery = useRunList(project.id, task.id, task.status);
   const commentsQuery = useCommentList(project.id, task.id);
+  const timeline = useMemo(
+    () => buildChatTimeline(commentsQuery.data ?? [], runsQuery.data ?? []),
+    [commentsQuery.data, runsQuery.data],
+  );
 
   const totalRuns = runsQuery.data?.length ?? 0;
   const totalComments = commentsQuery.data?.length ?? 0;
+  const finalOutput = useMemo(
+    () => finalOutputFrom(task, runsQuery.data ?? [], timeline.events),
+    [task, runsQuery.data, timeline.events],
+  );
   const evidenceLabel = useMemo(() => {
     if (runsQuery.isPending) return "—";
     if (totalRuns === 0) return "No evidence";
     return `${totalRuns} run${totalRuns === 1 ? "" : "s"}`;
   }, [runsQuery.isPending, totalRuns]);
-
-  const handleSwitchTab = (tab: PageTab, runId?: string) => {
-    setActiveTab(tab);
-    if (runId !== undefined) setFocusedRunId(runId);
-  };
-
-  const handleDeleted = () => {
-    void navigate("/board");
-  };
 
   return (
     <div className="tdp" data-testid="task-detail-page">
@@ -302,84 +385,15 @@ export default function TaskDetailPage({ task, project }: TaskDetailPageProps) {
         )}
       </header>
 
-      {/* Compact stat strip */}
-      <section className="tdp__stat-grid" aria-label="Task summary">
-        <StatCard
-          label="Workflow"
-          value={<StatusBadge status={task.status} size="sm" />}
+      <div className="tdp__workspace">
+        <ConversationSnapshot task={task} finalOutput={finalOutput} />
+        <TerminalTranscript
+          task={task}
+          runs={runsQuery.data ?? []}
+          isLoading={runsQuery.isLoading}
+          isError={runsQuery.isError}
+          onRetry={() => void runsQuery.refetch()}
         />
-        <StatCard
-          label="Runner"
-          value={runnerLabel(task.status)}
-        />
-        <StatCard label="Agent" value={agentDisplayLabel(task)} />
-        <StatCard label="Role" value={roleDisplayLabel(task.role)} />
-        <StatCard
-          label="Evidence"
-          value={evidenceLabel}
-          title={totalRuns > 0 ? `${totalRuns} run${totalRuns === 1 ? "" : "s"} recorded` : undefined}
-        />
-        <StatCard label="Comments" value={commentsQuery.isPending ? "—" : String(totalComments)} />
-        <StatCard
-          label="Updated"
-          value={formatUpdated(task.updatedAt)}
-          title={new Date(task.updatedAt).toLocaleString()}
-        />
-      </section>
-
-      {/* Body: tabs + content */}
-      <div className="tdp__body">
-        <div className="tdp__main">
-          <div className="tdp__tabs" role="tablist" aria-label="Task detail tabs">
-            {TABS.map((tab) => (
-              <button
-                key={tab.value}
-                role="tab"
-                type="button"
-                className={`tdp__tab${activeTab === tab.value ? " tdp__tab--active" : ""}`}
-                aria-selected={activeTab === tab.value}
-                aria-controls="tdp-tabcontent"
-                onClick={() => setActiveTab(tab.value)}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
-          <div
-            id="tdp-tabcontent"
-            className="tdp__tab-content"
-            role="tabpanel"
-            aria-label={`${TABS.find((t) => t.value === activeTab)?.label ?? ""} tab content`}
-          >
-            {activeTab === "summary" && (
-              <SummaryTab
-                projectId={project.id}
-                task={task}
-                onSwitchTab={handleSwitchTab}
-                hideStatusBlocks
-              />
-            )}
-            {activeTab === "comments" && (
-              <CommentsTabPanel task={task} projectId={project.id} hideComposer />
-            )}
-            {activeTab === "runs" && (
-              <RunsTabPanel task={task} projectId={project.id} onSwitchTab={handleSwitchTab} />
-            )}
-            {activeTab === "logs" && (
-              <LogsTabPanel
-                task={task}
-                projectId={project.id}
-                focusedRunId={focusedRunId}
-                clearFocusedRunId={() => setFocusedRunId(null)}
-                onSwitchTab={handleSwitchTab}
-              />
-            )}
-            {activeTab === "settings" && (
-              <SettingsTab projectId={project.id} task={task} onDeleted={handleDeleted} />
-            )}
-          </div>
-        </div>
       </div>
 
       {/* Bottom follow-up prompt (paused/failed only) */}
