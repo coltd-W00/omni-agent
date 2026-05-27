@@ -166,8 +166,12 @@
   border: none;
   cursor: pointer;
   font-size: var(--font-size-body-s);
-  color: var(--status-failed-text);
+  color: var(--text-primary);
   text-align: left;
+}
+
+.project-switcher__overflow-menu-item--destructive {
+  color: var(--status-failed-text);
 }
 
 .project-switcher__overflow-menu-item:hover {

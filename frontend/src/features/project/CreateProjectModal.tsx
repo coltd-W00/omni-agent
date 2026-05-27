@@ -1,19 +1,22 @@
 import "./CreateProjectModal.css";
 import { useEffect, useRef, useState } from "react";
 import Button from "../../components/Button";
-import { useCreateProjectMutation } from "../../hooks/useProjects";
+import { useCreateProjectMutation, useUpdateProjectMutation } from "../../hooks/useProjects";
 import { ApiError } from "../../api/client";
+import type { Project } from "../../types/project";
 
 const KEY_REGEX = /^[A-Z][A-Z0-9]{1,7}$/;
 
 interface CreateProjectModalProps {
   open: boolean;
   onClose: () => void;
+  project?: Project | null;
 }
 
-export default function CreateProjectModal({ open, onClose }: CreateProjectModalProps) {
+export default function CreateProjectModal({ open, onClose, project = null }: CreateProjectModalProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const nameRef = useRef<HTMLInputElement>(null);
+  const isEditMode = project !== null;
 
   const [name, setName] = useState("");
   const [key, setKey] = useState("");
@@ -22,7 +25,9 @@ export default function CreateProjectModal({ open, onClose }: CreateProjectModal
   const [keyError, setKeyError] = useState<string | null>(null);
   const [workspacePathError, setWorkspacePathError] = useState<string | null>(null);
 
-  const mutation = useCreateProjectMutation();
+  const createMutation = useCreateProjectMutation();
+  const updateMutation = useUpdateProjectMutation();
+  const isPending = createMutation.isPending || updateMutation.isPending;
 
   const triggeringElementRef = useRef<HTMLElement | null>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -37,10 +42,9 @@ export default function CreateProjectModal({ open, onClose }: CreateProjectModal
           ? document.activeElement
           : null;
       dialog.showModal();
-      // Reset form state
-      setName("");
-      setKey("");
-      setWorkspacePath("");
+      setName(project?.name ?? "");
+      setKey(project?.key ?? "");
+      setWorkspacePath(project?.workspacePath ?? "");
       setNameError(null);
       setKeyError(null);
       setWorkspacePathError(null);
@@ -54,7 +58,7 @@ export default function CreateProjectModal({ open, onClose }: CreateProjectModal
       }
       triggeringElementRef.current = null;
     }
-  }, [open]);
+  }, [open, project]);
 
   // Listen for native close event (Esc / backdrop) → call onClose
   useEffect(() => {
@@ -97,22 +101,46 @@ export default function CreateProjectModal({ open, onClose }: CreateProjectModal
   };
 
   const hasErrors = !!nameError || !!keyError || !!workspacePathError;
-  const isEmpty = !name.trim() || !key || !workspacePath.trim();
-  const isSubmitDisabled = hasErrors || isEmpty || mutation.isPending;
+  const isEmpty = !name.trim() || (!isEditMode && !key) || !workspacePath.trim();
+  const isSubmitDisabled = hasErrors || isEmpty || isPending;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
     // Final validation before submit
     const ne = validateName(name);
-    const ke = validateKey(key);
+    const ke = isEditMode ? null : validateKey(key);
     const we = validateWorkspacePath(workspacePath);
     setNameError(ne);
     setKeyError(ke);
     setWorkspacePathError(we);
     if (ne || ke || we) return;
 
-    mutation.mutate(
+    if (isEditMode) {
+      updateMutation.mutate(
+        {
+          id: project.id,
+          input: { name: name.trim(), workspacePath: workspacePath.trim() },
+        },
+        {
+          onSuccess: () => {
+            dialogRef.current?.close();
+          },
+          onError: (error: unknown) => {
+            if (error instanceof ApiError) {
+              if (error.code === "invalid_project_name") {
+                setNameError(error.message);
+              } else if (error.code === "invalid_workspace_path") {
+                setWorkspacePathError(error.message);
+              }
+            }
+          },
+        },
+      );
+      return;
+    }
+
+    createMutation.mutate(
       { name: name.trim(), key, workspacePath: workspacePath.trim() },
       {
         onSuccess: () => {
@@ -155,7 +183,7 @@ export default function CreateProjectModal({ open, onClose }: CreateProjectModal
         className="create-project-modal__title"
         style={{ outline: "none" }}
       >
-        Create new project
+        {isEditMode ? "Edit project" : "Create new project"}
       </h2>
 
       <form onSubmit={handleSubmit} noValidate>
@@ -226,37 +254,38 @@ export default function CreateProjectModal({ open, onClose }: CreateProjectModal
           )}
         </div>
 
-        {/* Key field */}
-        <div className="create-project-modal__field">
-          <label className="create-project-modal__label" htmlFor="project-key">
-            Key
-          </label>
-          <input
-            id="project-key"
-            type="text"
-            className={
-              "create-project-modal__input" +
-              (keyError ? " create-project-modal__input--error" : "")
-            }
-            placeholder="OMNI"
-            value={key}
-            maxLength={8}
-            onChange={handleKeyChange}
-            onBlur={handleKeyBlur}
-            aria-describedby={keyError ? "project-key-error" : "project-key-hint"}
-            aria-invalid={keyError ? "true" : undefined}
-            required
-          />
-          {keyError ? (
-            <span id="project-key-error" className="create-project-modal__error" role="alert">
-              {keyError}
-            </span>
-          ) : (
-            <span id="project-key-hint" className="create-project-modal__hint">
-              2–8 ký tự, chữ hoa và số
-            </span>
-          )}
-        </div>
+        {!isEditMode && (
+          <div className="create-project-modal__field">
+            <label className="create-project-modal__label" htmlFor="project-key">
+              Key
+            </label>
+            <input
+              id="project-key"
+              type="text"
+              className={
+                "create-project-modal__input" +
+                (keyError ? " create-project-modal__input--error" : "")
+              }
+              placeholder="OMNI"
+              value={key}
+              maxLength={8}
+              onChange={handleKeyChange}
+              onBlur={handleKeyBlur}
+              aria-describedby={keyError ? "project-key-error" : "project-key-hint"}
+              aria-invalid={keyError ? "true" : undefined}
+              required
+            />
+            {keyError ? (
+              <span id="project-key-error" className="create-project-modal__error" role="alert">
+                {keyError}
+              </span>
+            ) : (
+              <span id="project-key-hint" className="create-project-modal__hint">
+                2–8 ký tự, chữ hoa và số
+              </span>
+            )}
+          </div>
+        )}
 
         <div className="create-project-modal__footer">
           <Button
@@ -269,10 +298,10 @@ export default function CreateProjectModal({ open, onClose }: CreateProjectModal
           <Button
             type="submit"
             variant="primary"
-            loading={mutation.isPending}
+            loading={isPending}
             disabled={isSubmitDisabled}
           >
-            Create project
+            {isEditMode ? "Save changes" : "Create project"}
           </Button>
         </div>
       </form>

@@ -43,17 +43,42 @@ export function useCreateProjectMutation() {
   });
 }
 
+export function useUpdateProjectMutation() {
+  const queryClient = useQueryClient();
+  const { showToast } = useToast();
+
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: Parameters<typeof projectsApi.update>[1] }) =>
+      projectsApi.update(id, input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["projects"] });
+      showToast({ tone: "success", message: "Project updated" });
+    },
+    onError: (error: unknown) => {
+      if (
+        error instanceof ApiError &&
+        ["invalid_project_name", "invalid_workspace_path"].includes(error.code)
+      ) {
+        return;
+      }
+      showToast({ tone: "error", message: "Failed to update project" });
+    },
+  });
+}
+
 export function useDeleteProjectMutation() {
   const queryClient = useQueryClient();
   const activeProjectId = useActiveProjectId();
   const setActiveProject = useSetActiveProject();
   const { showToast } = useToast();
+  type DeleteProjectVariables = { id: string; force?: boolean };
 
   return useMutation({
-    mutationFn: (id: string) => projectsApi.remove(id),
-    onSuccess: (_data: void, deletedId: string) => {
+    mutationFn: ({ id, force = false }: DeleteProjectVariables) =>
+      projectsApi.remove(id, force),
+    onSuccess: (_data: void, variables: DeleteProjectVariables) => {
       void queryClient.invalidateQueries({ queryKey: ["projects"] });
-      if (deletedId === activeProjectId) {
+      if (variables.id === activeProjectId) {
         // Fallback will happen in useResolvedActiveProject after refetch
         setActiveProject(null);
       }
@@ -61,7 +86,6 @@ export function useDeleteProjectMutation() {
     },
     onError: (error: unknown) => {
       if (error instanceof ApiError && error.code === "project_has_tasks") {
-        showToast({ tone: "error", message: "Cannot delete project with existing tasks" });
         return;
       }
       showToast({ tone: "error", message: "Failed to delete project" });

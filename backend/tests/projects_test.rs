@@ -52,7 +52,8 @@ async fn build_test_app() -> Router {
         )
         .route(
             "/projects/{id}",
-            axum::routing::delete(handlers::projects::delete_project),
+            axum::routing::put(handlers::projects::update_project)
+                .delete(handlers::projects::delete_project),
         );
 
     Router::new()
@@ -60,6 +61,38 @@ async fn build_test_app() -> Router {
         .nest("/api", api_router)
         .fallback(fallback_handler)
         .with_state(Arc::new(state))
+}
+
+#[tokio::test]
+async fn put_project_updates_name_and_workspace() {
+    let app = build_test_app().await;
+
+    let create_req = Request::builder()
+        .method("POST")
+        .uri("/api/projects")
+        .header("content-type", "application/json")
+        .body(Body::from(
+            r#"{"name": "Old", "key": "EDIT", "workspacePath": "/tmp"}"#,
+        ))
+        .unwrap();
+    let create_resp = app.clone().oneshot(create_req).await.unwrap();
+    let created = body_json(create_resp.into_body()).await;
+    let id = created["id"].as_str().unwrap();
+
+    let update_req = Request::builder()
+        .method("PUT")
+        .uri(format!("/api/projects/{}", id))
+        .header("content-type", "application/json")
+        .body(Body::from(
+            r#"{"name": "Updated", "workspacePath": "/tmp"}"#,
+        ))
+        .unwrap();
+    let response = app.oneshot(update_req).await.unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let json = body_json(response.into_body()).await;
+    assert_eq!(json["name"], "Updated");
+    assert_eq!(json["key"], "EDIT");
+    assert_eq!(json["workspacePath"], "/tmp");
 }
 
 async fn body_json(body: Body) -> Value {

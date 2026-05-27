@@ -60,7 +60,8 @@ async fn main() -> anyhow::Result<()> {
         )
         .route(
             "/projects/{id}",
-            axum::routing::delete(handlers::projects::delete_project),
+            axum::routing::put(handlers::projects::update_project)
+                .delete(handlers::projects::delete_project),
         )
         .route(
             "/projects/{project_id}/tasks",

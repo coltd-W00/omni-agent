@@ -12,3 +12,8 @@ export interface CreateProjectInput {
   key: string;
   workspacePath: string;
 }
+
+export interface UpdateProjectInput {
+  name: string;
+  workspacePath: string;
+}

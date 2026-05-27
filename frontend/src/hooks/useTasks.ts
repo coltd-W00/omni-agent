@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-query";
-import { createTask, listTasks } from "../api/tasks";
+import { createTask, deleteTask, listTasks } from "../api/tasks";
 import type { CreateTaskInput } from "../api/tasks";
 import type { Task } from "../types/task";
+import { taskQueryKey } from "./useTask";
 
 export const tasksQueryKey = (projectId: string | null) =>
   ["tasks", projectId] as const;
@@ -31,6 +32,22 @@ export function useCreateTask(projectId: string | null) {
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: tasksQueryKey(projectId) });
+    },
+  });
+}
+
+export function useDeleteTask(projectId: string | null, taskId: string | null) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => {
+      if (!projectId || !taskId) throw new Error("projectId and taskId required");
+      return deleteTask(projectId, taskId);
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: tasksQueryKey(projectId) });
+      if (projectId && taskId) {
+        void qc.invalidateQueries({ queryKey: taskQueryKey(projectId, taskId) });
+      }
     },
   });
 }

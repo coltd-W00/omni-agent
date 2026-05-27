@@ -2,7 +2,7 @@ use sqlx::SqlitePool;
 use uuid::Uuid;
 
 use crate::error::AppError;
-use crate::models::project::{CreateProjectRequest, Project};
+use crate::models::project::{CreateProjectRequest, Project, UpdateProjectRequest};
 
 pub async fn list_projects(pool: &SqlitePool) -> Result<Vec<Project>, AppError> {
     let projects = sqlx::query_as::<_, Project>(
@@ -99,6 +99,35 @@ pub fn validate_workspace_path(value: Option<&str>) -> Result<String, AppError> 
     Ok(workspace_path.to_string())
 }
 
+pub async fn update_project(
+    pool: &SqlitePool,
+    id: &str,
+    req: UpdateProjectRequest,
+) -> Result<Project, AppError> {
+    let name = validate_project_name(&req.name)?;
+    let workspace_path = validate_workspace_path(req.workspace_path.as_deref())?;
+    let now = chrono::Utc::now().to_rfc3339();
+
+    let result = sqlx::query(
+        "UPDATE projects SET name = ?, workspace_path = ?, updated_at = ? WHERE id = ?",
+    )
+    .bind(&name)
+    .bind(&workspace_path)
+    .bind(&now)
+    .bind(id)
+    .execute(pool)
+    .await?;
+
+    if result.rows_affected() == 0 {
+        return Err(AppError::NotFound {
+            code: "project_not_found",
+            message: format!("Project {} does not exist", id),
+        });
+    }
+
+    get_project(pool, id).await
+}
+
 pub async fn workspace_path_for_run(
     pool: &SqlitePool,
     project_id: &str,
@@ -124,6 +153,17 @@ pub async fn workspace_path_for_run(
     })
 }
 
+pub async fn list_project_task_ids(
+    pool: &SqlitePool,
+    project_id: &str,
+) -> Result<Vec<String>, AppError> {
+    let ids = sqlx::query_scalar::<_, String>("SELECT id FROM tasks WHERE project_id = ?")
+        .bind(project_id)
+        .fetch_all(pool)
+        .await?;
+    Ok(ids)
+}
+
 fn invalid_workspace_path() -> AppError {
     AppError::BadRequest {
         code: "invalid_workspace_path",
@@ -131,7 +171,7 @@ fn invalid_workspace_path() -> AppError {
     }
 }
 
-pub async fn delete_project(pool: &SqlitePool, id: &str) -> Result<(), AppError> {
+pub async fn delete_project(pool: &SqlitePool, id: &str, force: bool) -> Result<(), AppError> {
     let mut tx = pool.begin().await?;
 
     // Check project exists
@@ -151,11 +191,39 @@ pub async fn delete_project(pool: &SqlitePool, id: &str) -> Result<(), AppError>
         .bind(id)
         .fetch_one(&mut *tx)
         .await?;
-    if task_count > 0 {
+    if task_count > 0 && !force {
         return Err(AppError::Conflict {
             code: "project_has_tasks",
             message: "Cannot delete project with existing tasks".to_string(),
         });
+    }
+
+    if force {
+        sqlx::query(
+            "DELETE FROM runs WHERE session_id IN (SELECT id FROM sessions WHERE task_id IN (SELECT id FROM tasks WHERE project_id = ?))",
+        )
+        .bind(id)
+        .execute(&mut *tx)
+        .await?;
+
+        sqlx::query(
+            "DELETE FROM sessions WHERE task_id IN (SELECT id FROM tasks WHERE project_id = ?)",
+        )
+        .bind(id)
+        .execute(&mut *tx)
+        .await?;
+
+        sqlx::query(
+            "DELETE FROM comments WHERE task_id IN (SELECT id FROM tasks WHERE project_id = ?)",
+        )
+        .bind(id)
+        .execute(&mut *tx)
+        .await?;
+
+        sqlx::query("DELETE FROM tasks WHERE project_id = ?")
+            .bind(id)
+            .execute(&mut *tx)
+            .await?;
     }
 
     sqlx::query("DELETE FROM projects WHERE id = ?")
@@ -165,6 +233,30 @@ pub async fn delete_project(pool: &SqlitePool, id: &str) -> Result<(), AppError>
 
     tx.commit().await?;
     Ok(())
+}
+
+fn validate_project_name(value: &str) -> Result<String, AppError> {
+    let name = value.trim().to_string();
+    if name.is_empty() || name.chars().count() > 80 {
+        return Err(AppError::BadRequest {
+            code: "invalid_project_name",
+            message: "Project name must be 1–80 characters".to_string(),
+        });
+    }
+    Ok(name)
+}
+
+async fn get_project(pool: &SqlitePool, id: &str) -> Result<Project, AppError> {
+    sqlx::query_as::<_, Project>(
+        "SELECT id, name, key, workspace_path, created_at, updated_at FROM projects WHERE id = ?",
+    )
+    .bind(id)
+    .fetch_optional(pool)
+    .await?
+    .ok_or_else(|| AppError::NotFound {
+        code: "project_not_found",
+        message: format!("Project {} does not exist", id),
+    })
 }
 
 fn is_unique_project_key_error(db_err: &dyn sqlx::error::DatabaseError) -> bool {
@@ -306,7 +398,7 @@ mod tests {
         .await
         .unwrap();
 
-        delete_project(&pool, &project.id).await.unwrap();
+        delete_project(&pool, &project.id, false).await.unwrap();
 
         let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM projects WHERE id = ?")
             .bind(&project.id)
@@ -317,7 +409,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn delete_project_with_tasks_blocked() {
+    async fn delete_project_with_tasks_blocked_without_force() {
         let pool = setup_pool().await;
         let project = create_project(
             &pool,
@@ -346,7 +438,7 @@ mod tests {
         .await
         .unwrap();
 
-        let err = delete_project(&pool, &project.id).await.unwrap_err();
+        let err = delete_project(&pool, &project.id, false).await.unwrap_err();
         match err {
             AppError::Conflict { code, .. } => assert_eq!(code, "project_has_tasks"),
             _ => panic!("Expected Conflict"),
@@ -364,10 +456,116 @@ mod tests {
     #[tokio::test]
     async fn delete_project_not_found() {
         let pool = setup_pool().await;
-        let err = delete_project(&pool, "nonexistent-id").await.unwrap_err();
+        let err = delete_project(&pool, "nonexistent-id", false)
+            .await
+            .unwrap_err();
         match err {
             AppError::NotFound { code, .. } => assert_eq!(code, "project_not_found"),
             _ => panic!("Expected NotFound"),
+        }
+    }
+
+    #[tokio::test]
+    async fn update_project_changes_name_and_workspace_only() {
+        let pool = setup_pool().await;
+        let project = create_project(
+            &pool,
+            CreateProjectRequest {
+                name: "Old".to_string(),
+                key: "EDIT".to_string(),
+                workspace_path: Some("/tmp".to_string()),
+            },
+        )
+        .await
+        .unwrap();
+
+        let updated = update_project(
+            &pool,
+            &project.id,
+            UpdateProjectRequest {
+                name: "New Name".to_string(),
+                workspace_path: Some("/tmp".to_string()),
+            },
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(updated.name, "New Name");
+        assert_eq!(updated.key, "EDIT");
+        assert_eq!(updated.workspace_path.as_deref(), Some("/tmp"));
+        assert_ne!(updated.updated_at, "");
+    }
+
+    #[tokio::test]
+    async fn delete_project_with_tasks_force_deletes_related_rows() {
+        let pool = setup_pool().await;
+        let project = create_project(
+            &pool,
+            CreateProjectRequest {
+                name: "Test".to_string(),
+                key: "FORC".to_string(),
+                workspace_path: Some("/tmp".to_string()),
+            },
+        )
+        .await
+        .unwrap();
+
+        sqlx::query(
+            "INSERT INTO tasks (id, project_id, seq, title, description, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        )
+        .bind("FORC-001")
+        .bind(&project.id)
+        .bind(1i64)
+        .bind("title")
+        .bind("desc")
+        .bind("Draft")
+        .bind("2026-01-01T00:00:00Z")
+        .bind("2026-01-01T00:00:00Z")
+        .execute(&pool)
+        .await
+        .unwrap();
+        sqlx::query(
+            "INSERT INTO sessions (id, task_id, agent, status, created_at, last_active) VALUES (?, ?, ?, ?, ?, ?)",
+        )
+        .bind("session-1")
+        .bind("FORC-001")
+        .bind("codex")
+        .bind("none")
+        .bind("2026-01-01T00:00:00Z")
+        .bind("2026-01-01T00:00:00Z")
+        .execute(&pool)
+        .await
+        .unwrap();
+        sqlx::query(
+            "INSERT INTO runs (id, session_id, run_number, started_at) VALUES (?, ?, ?, ?)",
+        )
+        .bind("run-1")
+        .bind("session-1")
+        .bind(1i64)
+        .bind("2026-01-01T00:00:00Z")
+        .execute(&pool)
+        .await
+        .unwrap();
+        sqlx::query(
+            "INSERT INTO comments (id, task_id, content, sent, created_at) VALUES (?, ?, ?, ?, ?)",
+        )
+        .bind("comment-1")
+        .bind("FORC-001")
+        .bind("content")
+        .bind(0i64)
+        .bind("2026-01-01T00:00:00Z")
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        delete_project(&pool, &project.id, true).await.unwrap();
+
+        for table in ["projects", "tasks", "sessions", "runs", "comments"] {
+            let count: i64 = sqlx::query_scalar(&format!("SELECT COUNT(*) FROM {table}"))
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+            assert_eq!(count, 0, "{table} should be empty");
         }
     }
 

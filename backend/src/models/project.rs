@@ -19,3 +19,10 @@ pub struct CreateProjectRequest {
     pub key: String,
     pub workspace_path: Option<String>,
 }
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateProjectRequest {
+    pub name: String,
+    pub workspace_path: Option<String>,
+}

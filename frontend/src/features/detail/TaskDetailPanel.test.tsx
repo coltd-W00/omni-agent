@@ -35,7 +35,7 @@ vi.mock("../../api/comments", () => ({
 }));
 
 import { startSession, resumeSession } from "../../api/sessions";
-import { getTask } from "../../api/tasks";
+import { deleteTask, getTask } from "../../api/tasks";
 import { listRuns } from "../../api/runs";
 import { addComment, listComments } from "../../api/comments";
 import type { Comment } from "../../types/comment";
@@ -361,6 +361,32 @@ describe("TaskDetailPanel", () => {
     expect(screen.queryByRole("button", { name: "Start Session" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Resume Session" })).not.toBeInTheDocument();
     warnSpy.mockRestore();
+  });
+
+  it("deletes a draft task from Settings tab after confirmation", async () => {
+    vi.mocked(deleteTask).mockResolvedValue(undefined);
+    renderWithTask(makeTask({ status: "draft" }));
+    fireEvent.click(screen.getByTestId("open-trigger"));
+
+    fireEvent.click(screen.getByRole("tab", { name: "Settings" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete task" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Delete task" }).at(-1)!);
+
+    await waitFor(() => {
+      expect(deleteTask).toHaveBeenCalledWith("proj-1", "OMNI-001");
+    });
+    await waitFor(() => {
+      expect(screen.queryByTestId("task-detail-panel")).not.toBeInTheDocument();
+    });
+  });
+
+  it("does not show delete task action for non-draft tasks", () => {
+    renderWithTask(makeTask({ status: "assigned" }));
+    fireEvent.click(screen.getByTestId("open-trigger"));
+
+    fireEvent.click(screen.getByRole("tab", { name: "Settings" }));
+    expect(screen.queryByRole("button", { name: "Delete task" })).not.toBeInTheDocument();
+    expect(screen.getByText("Task settings are only available for draft tasks.")).toBeInTheDocument();
   });
 
   // ─── Story 3.1: Start Session wiring tests ───────────────────────────────

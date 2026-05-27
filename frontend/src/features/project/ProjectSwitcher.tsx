@@ -10,11 +10,14 @@ import { useSetActiveProject } from "./ActiveProjectContext";
 import ConfirmationDialog from "../../components/ConfirmationDialog";
 import ProjectIcon from "./ProjectIcon";
 import CreateProjectModal from "./CreateProjectModal";
+import { ApiError } from "../../api/client";
 
 export default function ProjectSwitcher() {
   const [open, setOpen] = useState(false);
   const [overflowOpenId, setOverflowOpenId] = useState<string | null>(null);
   const [projectPendingDelete, setProjectPendingDelete] = useState<Project | null>(null);
+  const [projectPendingEdit, setProjectPendingEdit] = useState<Project | null>(null);
+  const [deleteNeedsForce, setDeleteNeedsForce] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -64,13 +67,35 @@ export default function ProjectSwitcher() {
     e.stopPropagation();
     setOverflowOpenId(null);
     setOpen(false);
+    setDeleteNeedsForce(false);
     setProjectPendingDelete(project);
+  };
+
+  const handleEditClick = (e: React.MouseEvent, project: Project) => {
+    e.stopPropagation();
+    setOverflowOpenId(null);
+    setOpen(false);
+    setProjectPendingEdit(project);
   };
 
   const handleConfirmDelete = () => {
     if (!projectPendingDelete || deleteMutation.isPending) return;
-    deleteMutation.mutate(projectPendingDelete.id, {
-      onSettled: () => setProjectPendingDelete(null),
+    deleteMutation.mutate({
+      id: projectPendingDelete.id,
+      force: deleteNeedsForce,
+    }, {
+      onSuccess: () => {
+        setProjectPendingDelete(null);
+        setDeleteNeedsForce(false);
+      },
+      onError: (error: unknown) => {
+        if (error instanceof ApiError && error.code === "project_has_tasks") {
+          setDeleteNeedsForce(true);
+          return;
+        }
+        setProjectPendingDelete(null);
+        setDeleteNeedsForce(false);
+      },
     });
   };
 
@@ -158,6 +183,14 @@ export default function ProjectSwitcher() {
                             type="button"
                             role="menuitem"
                             className="project-switcher__overflow-menu-item"
+                            onClick={(e) => handleEditClick(e, project)}
+                          >
+                            Edit project
+                          </button>
+                          <button
+                            type="button"
+                            role="menuitem"
+                            className="project-switcher__overflow-menu-item project-switcher__overflow-menu-item--destructive"
                             onClick={(e) => handleDeleteClick(e, project)}
                           >
                             Delete project
@@ -193,20 +226,31 @@ export default function ProjectSwitcher() {
         onClose={() => setShowCreateModal(false)}
       />
 
+      <CreateProjectModal
+        open={projectPendingEdit !== null}
+        project={projectPendingEdit}
+        onClose={() => setProjectPendingEdit(null)}
+      />
+
       {/* Delete Confirmation Dialog */}
       <ConfirmationDialog
         open={projectPendingDelete !== null}
         title="Delete project"
         description={
           projectPendingDelete
-            ? `Are you sure you want to delete "${projectPendingDelete.name}"? This cannot be undone.`
+            ? deleteNeedsForce
+              ? `"${projectPendingDelete.name}" has tasks. Delete the project and all related tasks, sessions, runs, and comments? This cannot be undone.`
+              : `Are you sure you want to delete "${projectPendingDelete.name}"? This cannot be undone.`
             : ""
         }
-        confirmLabel="Delete project"
+        confirmLabel={deleteNeedsForce ? "Delete project and tasks" : "Delete project"}
         cancelLabel="Cancel"
         variant="destructive"
         onConfirm={handleConfirmDelete}
-        onCancel={() => setProjectPendingDelete(null)}
+        onCancel={() => {
+          setProjectPendingDelete(null);
+          setDeleteNeedsForce(false);
+        }}
         confirmLoading={deleteMutation.isPending}
       />
     </div>
