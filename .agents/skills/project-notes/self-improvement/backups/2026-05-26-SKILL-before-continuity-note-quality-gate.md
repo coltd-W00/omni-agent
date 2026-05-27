@@ -37,15 +37,15 @@ Phải dùng skill này trước khi sửa source code cho feature, bugfix, refa
 
 Ưu tiên:
 
-    ./bin/pnotes brief --area <path> --limit 3
+    ./bin/pnotes brief --area <path> --limit 5
 
 Fallback nếu `brief` chưa có hoặc không hữu ích:
 
-    ./bin/pnotes recall --area <path> --limit 3
+    ./bin/pnotes recall --area <path> --limit 5
 
 Có thể thêm filter khi biết task/tag:
 
-    ./bin/pnotes brief --area <path> --tag <tag> --limit 3
+    ./bin/pnotes brief --area <path> --tag <tag> --limit 5
     ./bin/pnotes recall --task <slug>
     ./bin/pnotes recall --tag <tag>
 
@@ -106,9 +106,9 @@ Initialize một lần nếu cần:
 
 Pre-work recall/brief:
 
-    ./bin/pnotes brief --area src/session-manager --limit 3
-    ./bin/pnotes brief --area src/session-manager --tag resume-flow --limit 3
-    ./bin/pnotes recall --area src/session-manager --limit 3
+    ./bin/pnotes brief --area src/session-manager --limit 5
+    ./bin/pnotes brief --area src/session-manager --tag resume-flow --limit 5
+    ./bin/pnotes recall --area src/session-manager --limit 5
     ./bin/pnotes recall --task auth-fix
     ./bin/pnotes recall --tag bug
 
@@ -422,7 +422,7 @@ Nếu lỗi permission:
 
 Nếu `brief` unavailable nhưng `recall` có:
 
-    ./bin/pnotes recall --area <path> --limit 3
+    ./bin/pnotes recall --area <path> --limit 5
 
 Nếu không có note nào match:
 

@@ -36,10 +36,10 @@ Agent bắt buộc phải kích hoạt skill này tại 3 thời điểm chiến
 Áp dụng trước khi sửa đổi source code cho feature, bugfix, refactor, migration, hoặc thay đổi hành vi hệ thống (behavior change).
 
 * **Chiến lược ưu tiên câu lệnh:**
-    1.  *Lựa chọn 1 (Ưu tiên cao nhất):* `./bin/pnotes brief --area <path> --limit 3`
-    2.  *Lựa chọn 2 (Fallback nếu brief trống/lỗi):* `./bin/pnotes recall --area <path> --limit 3`
+    1.  *Lựa chọn 1 (Ưu tiên cao nhất):* `./bin/pnotes brief --area <path> --limit 5`
+    2.  *Lựa chọn 2 (Fallback nếu brief trống/lỗi):* `./bin/pnotes recall --area <path> --limit 5`
 * **Bộ lọc nâng cao (Khi xác định rõ task/tag):**
-    * `./bin/pnotes brief --area <path> --tag <tag> --limit 3`
+    * `./bin/pnotes brief --area <path> --tag <tag> --limit 5`
     * `./bin/pnotes recall --task <slug>`
     * `./bin/pnotes recall --tag <tag>`
 
@@ -88,9 +88,9 @@ Tác vụ chỉ được phép bỏ qua cổng kiểm soát project notes nếu 
 ./bin/pnotes init
 
 # Kiểm tra an toàn trước khi xử lý (Pre-work recall/brief)
-./bin/pnotes brief --area src/session-manager --limit 3
-./bin/pnotes brief --area src/session-manager --tag resume-flow --limit 3
-./bin/pnotes recall --area src/session-manager --limit 3
+./bin/pnotes brief --area src/session-manager --limit 5
+./bin/pnotes brief --area src/session-manager --tag resume-flow --limit 5
+./bin/pnotes recall --area src/session-manager --limit 5
 ./bin/pnotes recall --task auth-fix
 ./bin/pnotes recall --tag bug
 
@@ -329,7 +329,7 @@ Tuyệt đối không ghi nhận các thông tin nhạy cảm vào project notes
 
 
 * **Trường hợp lỗi phân quyền (Permission Denied):** Thực thi ngay lệnh cấp quyền truy cập: `chmod +x bin/pnotes`
-* **Trường hợp lệnh `brief` lỗi nhưng `recall` chạy được:** Chuyển đổi trạng thái sang lệnh dự phòng: `./bin/pnotes recall --area <path> --limit 3`
+* **Trường hợp lệnh `brief` lỗi nhưng `recall` chạy được:** Chuyển đổi trạng thái sang lệnh dự phòng: `./bin/pnotes recall --area <path> --limit 5`
 * **Trường hợp không tìm thấy ghi chú nào khớp (No match):** Tiếp tục thực hiện task bình thường, không quét bừa bãi toàn bộ kho dữ liệu. Khi kết thúc task, nếu phát hiện tri thức mới có khả năng tái sử dụng, tiến hành lập note như quy định.
 
 ---

@@ -23,7 +23,7 @@ Before implementing:
 - No features beyond what was asked.
 - No abstractions for single-use code.
 - No "flexibility" or "configurability" that wasn't requested.
-- No error handling for impossible scenarios.
+- Avoid defensive programming for well-defined internal invariants, but ensure boundary and external failure handling.
 - If you write 200 lines and it could be 50, rewrite it.
 
 Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
@@ -82,11 +82,11 @@ Implementation output includes changes to:
 
 Before starting implementation or broad source exploration, use project notes to recall relevant context:
 
-    ./bin/pnotes brief --area <path> --limit 3
+    ./bin/pnotes brief --area <path> --limit 5
 
 If `brief` is unavailable or returns no useful context, use:
 
-    ./bin/pnotes recall --area <path> --limit 3
+    ./bin/pnotes recall --area <path> --limit 5
 
 Before reporting a task as complete, the agent must do one of the following:
 

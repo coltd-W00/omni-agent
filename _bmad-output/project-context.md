@@ -124,7 +124,7 @@ _File này chứa các rules và patterns quan trọng mà AI agents phải tuâ
 
 **Before implementing:**
 - Đọc `AGENTS.md` trước; repo yêu cầu giao tiếp tiếng Việt, thay đổi surgical, success criteria rõ, và không tự refactor ngoài scope.
-- Trước broad source exploration hoặc implementation, chạy `./bin/pnotes brief --area <path> --limit 3`; nếu không hữu ích thì dùng `recall`.
+- Trước broad source exploration hoặc implementation, chạy `./bin/pnotes brief --area <path> --limit 5`; nếu không hữu ích thì dùng `recall`.
 - Nếu làm theo story, kiểm tra `_bmad-output/implementation-artifacts/sprint-status.yaml` và story dependencies trước khi code; không workaround khi dependency story chưa done.
 
 **Validation commands:**

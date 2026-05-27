@@ -1168,9 +1168,9 @@ Purpose:
 Before implementation or broad source exploration:
 1. Identify the target area, task, or tag.
 2. Prefer:
-   pnotes brief --area <area> --limit 3
+   pnotes brief --area <area> --limit 5
 3. If brief is unavailable or empty, fallback to:
-   pnotes recall --area <area> --limit 3
+   pnotes recall --area <area> --limit 5
 4. Read only returned notes that are relevant.
 5. Do not scan all .project-notes/notes by default.
 

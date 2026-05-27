@@ -82,11 +82,11 @@ Implementation output includes changes to:
 
 Before starting implementation or broad source exploration, use project notes to recall relevant context:
 
-    ./bin/pnotes brief --area <path> --limit 3
+    ./bin/pnotes brief --area <path> --limit 5
 
 If `brief` is unavailable or returns no useful context, use:
 
-    ./bin/pnotes recall --area <path> --limit 3
+    ./bin/pnotes recall --area <path> --limit 5
 
 Before reporting a task as complete, the agent must do one of the following:
 
