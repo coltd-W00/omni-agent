@@ -278,19 +278,31 @@ export default function TaskDetailPage({ task, project }: TaskDetailPageProps) {
         <span className="tdp__breadcrumb-task-id">{task.id}</span>
       </nav>
 
-      {/* Title row */}
+      {/* Title row with inline next-action buttons */}
       <header className="tdp__title-row">
-        <h1 className="tdp__title">{task.title}</h1>
-        <div className="tdp__title-meta">
-          <AgentAvatar name={agentName} runtime={agentRuntime} size="sm" />
-          <span className="tdp__agent-name">{agentName}</span>
-          {!project.workspacePath && (
-            <span className="tdp__workspace-missing">Workspace missing</span>
-          )}
+        <div className="tdp__title-block">
+          <h1 className="tdp__title">{task.title}</h1>
+          <div className="tdp__title-meta">
+            <AgentAvatar name={agentName} runtime={agentRuntime} size="sm" />
+            <span className="tdp__agent-name">{agentName}</span>
+            {!project.workspacePath && (
+              <span className="tdp__workspace-missing">Workspace missing</span>
+            )}
+          </div>
         </div>
+        {(task.status === "assigned" || RESUMABLE_STATUSES.has(task.status)) && (
+          <div className="tdp__title-actions" aria-label="Next action">
+            <ActionBar
+              project={project}
+              task={task}
+              className="tdp__next-action-buttons"
+              includeResume
+            />
+          </div>
+        )}
       </header>
 
-      {/* Stat card grid */}
+      {/* Compact stat strip */}
       <section className="tdp__stat-grid" aria-label="Task summary">
         <StatCard
           label="Workflow"
@@ -300,41 +312,20 @@ export default function TaskDetailPage({ task, project }: TaskDetailPageProps) {
           label="Runner"
           value={runnerLabel(task.status)}
         />
+        <StatCard label="Agent" value={agentDisplayLabel(task)} />
+        <StatCard label="Role" value={roleDisplayLabel(task.role)} />
         <StatCard
           label="Evidence"
           value={evidenceLabel}
           title={totalRuns > 0 ? `${totalRuns} run${totalRuns === 1 ? "" : "s"} recorded` : undefined}
         />
-        <StatCard label="Agent" value={agentDisplayLabel(task)} />
-        <StatCard
-          label="Task ID"
-          value={<span className="tdp__stat-mono">{task.id}</span>}
-          title={task.id}
-        />
+        <StatCard label="Comments" value={commentsQuery.isPending ? "—" : String(totalComments)} />
         <StatCard
           label="Updated"
           value={formatUpdated(task.updatedAt)}
           title={new Date(task.updatedAt).toLocaleString()}
         />
-        <StatCard label="Runs" value={runsQuery.isPending ? "—" : String(totalRuns)} />
-        <StatCard label="Comments" value={commentsQuery.isPending ? "—" : String(totalComments)} />
-        <StatCard label="Role" value={roleDisplayLabel(task.role)} />
       </section>
-
-      {/* NEXT ACTION row */}
-      {(task.status === "assigned" || RESUMABLE_STATUSES.has(task.status)) && (
-        <section className="tdp__next-action" aria-label="Next action">
-          <div className="tdp__next-action-label">Next action</div>
-          <div className="tdp__next-action-row">
-            <ActionBar
-              project={project}
-              task={task}
-              className="tdp__next-action-buttons"
-              includeResume
-            />
-          </div>
-        </section>
-      )}
 
       {/* Body: tabs + content */}
       <div className="tdp__body">
