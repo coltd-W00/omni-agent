@@ -3,6 +3,7 @@ import AppShell from "./components/AppShell";
 import BoardRoute from "./routes/BoardRoute";
 import DashboardRoute from "./routes/DashboardRoute";
 import AgentsRoute from "./routes/AgentsRoute";
+import TaskDetailRoute from "./routes/TaskDetailRoute";
 import NotFoundRoute from "./routes/NotFoundRoute";
 
 export default function App() {
@@ -13,6 +14,7 @@ export default function App() {
         <Route path="/dashboard" element={<DashboardRoute />} />
         <Route path="/board" element={<BoardRoute />} />
         <Route path="/agents" element={<AgentsRoute />} />
+        <Route path="/tasks/:projectId/:taskId" element={<TaskDetailRoute />} />
         <Route path="*" element={<NotFoundRoute />} />
       </Route>
     </Routes>

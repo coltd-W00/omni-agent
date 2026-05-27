@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router";
 import "./TaskDetailPanel.css";
 import StatusBadge from "../../components/StatusBadge";
 import AgentAvatar from "../../components/AgentAvatar";
@@ -7,9 +8,6 @@ import ConfirmationDialog from "../../components/ConfirmationDialog";
 import EmptyState from "../../components/EmptyState";
 import { useTaskDetail } from "../../contexts/TaskDetailContext";
 import { useToast } from "../../components/Toast";
-import { useStartSession } from "../../hooks/useStartSession";
-import { useCompleteSession } from "../../hooks/useCompleteSession";
-import { useCancelSession } from "../../hooks/useCancelSession";
 import { useDeleteTask } from "../../hooks/useTasks";
 import { ApiError } from "../../api/client";
 import { useTask } from "../../hooks/useTask";
@@ -19,7 +17,8 @@ import CommentsTabPanel from "./CommentsTabPanel";
 import LogsTabPanel from "./LogsTabPanel";
 import RunsTabPanel from "./RunsTabPanel";
 import SummaryTab from "./SummaryTab";
-import type { Task, TaskStatus } from "../../types/task";
+import { ActionBar, SessionPanel } from "./TaskDetailActions";
+import type { Task } from "../../types/task";
 import type { Project } from "../../types/project";
 
 type PanelTab = "summary" | "comments" | "runs" | "logs" | "settings";
@@ -32,163 +31,7 @@ const TABS: ReadonlyArray<{ value: PanelTab; label: string }> = [
   { value: "settings", label: "Settings" },
 ];
 
-// Session panel shows for tasks that have reached Running or later in the lifecycle.
-const HAS_SESSION_STATUSES = new Set<TaskStatus>([
-  "running",
-  "paused",
-  "needs-review",
-  "changes-requested",
-  "completed",
-  "failed",
-]);
 
-interface ActionBarProps {
-  project: Project;
-  task: Task;
-}
-
-function ActionBar({ project, task }: ActionBarProps) {
-  const { showToast } = useToast();
-  const startMut = useStartSession(project.id, task.id);
-  const completeMut = useCompleteSession(project.id, task.id);
-  const cancelMut = useCancelSession(project.id, task.id);
-  const workspaceMissing = !project.workspacePath;
-  const agentMissing = !task.agent;
-
-  const handleStart = () => {
-    startMut.mutate(undefined, {
-      onSuccess: () => {
-        showToast({ tone: "success", message: `Session started for ${task.id}` });
-      },
-      onError: (err) => {
-        const msg = err instanceof ApiError ? err.message : "Failed to start session";
-        showToast({ tone: "error", message: msg });
-      },
-    });
-  };
-
-  const handleComplete = () => {
-    completeMut.mutate(undefined, {
-      onSuccess: () => {
-        showToast({ tone: "success", message: `Task ${task.id} marked as completed` });
-      },
-      onError: (err) => {
-        const msg = err instanceof ApiError ? err.message : "Failed to complete task";
-        showToast({ tone: "error", message: msg });
-      },
-    });
-  };
-
-  const handleCancel = () => {
-    cancelMut.mutate(undefined, {
-      onSuccess: () => {
-        showToast({ tone: "success", message: `Task ${task.id} cancelled` });
-      },
-      onError: (err) => {
-        const msg = err instanceof ApiError ? err.message : "Failed to cancel task";
-        showToast({ tone: "error", message: msg });
-      },
-    });
-  };
-
-  const isPending = startMut.isPending || completeMut.isPending || cancelMut.isPending;
-
-  if (task.status === "assigned") {
-    return (
-      <div className="task-detail-panel__action-bar">
-        {workspaceMissing && (
-          <span className="task-detail-panel__action-note">Workspace missing</span>
-        )}
-        <Button
-          variant="primary"
-          size="md"
-          onClick={handleStart}
-          disabled={isPending || workspaceMissing || agentMissing}
-        >
-          Start Session
-        </Button>
-      </div>
-    );
-  }
-  if (task.status === "paused" || task.status === "failed") {
-    return (
-      <div className="task-detail-panel__action-bar">
-        <div style={{ display: "flex", gap: "var(--space-2)" }}>
-          <Button
-            variant="secondary"
-            size="md"
-            onClick={handleComplete}
-            disabled={isPending}
-          >
-            Mark Done
-          </Button>
-          <Button
-            variant="ghost"
-            size="md"
-            onClick={handleCancel}
-            disabled={isPending}
-          >
-            Cancel
-          </Button>
-        </div>
-      </div>
-    );
-  }
-  return null;
-}
-
-interface SessionPanelProps {
-  task: Task;
-}
-
-function SessionPanel({ task }: SessionPanelProps) {
-  const [showId, setShowId] = useState(false);
-
-  if (!HAS_SESSION_STATUSES.has(task.status)) return null;
-
-  const agentLabel =
-    task.agent === "claude" ? "Claude CLI" : task.agent === "codex" ? "Codex CLI" : "—";
-
-  return (
-    <div className="task-detail-panel__session" data-testid="session-panel">
-      <span className="task-detail-panel__section-title">Session</span>
-      <div className="task-detail-panel__session-row">
-        <span className="task-detail-panel__session-label">Agent</span>
-        <span className="task-detail-panel__session-value">{agentLabel}</span>
-      </div>
-      <div className="task-detail-panel__session-row">
-        <span className="task-detail-panel__session-label">Status</span>
-        <StatusBadge status={task.status} size="sm" />
-      </div>
-      <div className="task-detail-panel__session-row">
-        <span className="task-detail-panel__session-label">Created</span>
-        <span className="task-detail-panel__session-value">
-          {new Date(task.createdAt).toLocaleString()}
-        </span>
-      </div>
-      <div className="task-detail-panel__session-row">
-        <span className="task-detail-panel__session-label">Last active</span>
-        <span className="task-detail-panel__session-value">
-          {new Date(task.updatedAt).toLocaleString()}
-        </span>
-      </div>
-      <div className="task-detail-panel__session-row">
-        <span className="task-detail-panel__session-label">Session ID</span>
-        <span className="task-detail-panel__session-value task-detail-panel__session-id">
-          <span>{showId ? "—" : "••••••••••••"}</span>
-          <button
-            className="task-detail-panel__show-id-btn"
-            type="button"
-            onClick={() => setShowId((v) => !v)}
-            aria-pressed={showId}
-          >
-            {showId ? "Hide ID" : "Show ID"}
-          </button>
-        </span>
-      </div>
-    </div>
-  );
-}
 
 function SettingsTab({
   projectId,
@@ -263,6 +106,7 @@ function SettingsTab({
 
 export default function TaskDetailPanel() {
   const { selectedTask, selectedProject, closeTask } = useTaskDetail();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<PanelTab>("summary");
   const [focusedRunId, setFocusedRunId] = useState<string | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -316,6 +160,11 @@ export default function TaskDetailPanel() {
     if (runId !== undefined) setFocusedRunId(runId);
   };
 
+  const handleOpenFullPage = () => {
+    closeTask();
+    void navigate(`/tasks/${project.id}/${task.id}`);
+  };
+
   const agentRuntime = task.agent === "claude" || task.agent === "codex" ? task.agent : undefined;
   const agentName = task.agent ?? task.role ?? "unassigned";
 
@@ -338,16 +187,28 @@ export default function TaskDetailPanel() {
         aria-label={`Task detail: ${task.title}`}
         data-testid="task-detail-panel"
       >
-        {/* Close button */}
-        <button
-          ref={closeButtonRef}
-          className="task-detail-panel__close"
-          type="button"
-          aria-label="Close task detail panel"
-          onClick={closeTask}
-        >
-          ✕
-        </button>
+        {/* Panel controls: open full page + close */}
+        <div className="task-detail-panel__controls">
+          <button
+            className="task-detail-panel__open-full"
+            type="button"
+            aria-label="Open task detail full page"
+            onClick={handleOpenFullPage}
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+              <path d="M8 1.5H12.5M12.5 1.5V6M12.5 1.5L7 7M5.5 2.5H2.5C1.95 2.5 1.5 2.95 1.5 3.5V11.5C1.5 12.05 1.95 12.5 2.5 12.5H10.5C11.05 12.5 11.5 12.05 11.5 11.5V8.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+          <button
+            ref={closeButtonRef}
+            className="task-detail-panel__close"
+            type="button"
+            aria-label="Close task detail panel"
+            onClick={closeTask}
+          >
+            ✕
+          </button>
+        </div>
 
         {/* Header (AC-2) */}
         <div className="task-detail-panel__header">
@@ -367,10 +228,10 @@ export default function TaskDetailPanel() {
         </div>
 
         {/* Action Bar (AC-3 to AC-6) */}
-        <ActionBar project={project} task={task} />
+        <ActionBar project={project} task={task} className="task-detail-panel__action-bar" />
 
         {/* Session Panel (AC-7, AC-8) */}
-        <SessionPanel task={task} />
+        <SessionPanel task={task} className="task-detail-panel__session" />
 
         {/* Tab bar (AC-9) */}
         <div className="task-detail-panel__tabs" role="tablist" aria-label="Task detail tabs">

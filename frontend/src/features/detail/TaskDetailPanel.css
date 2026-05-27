@@ -37,11 +37,19 @@
   }
 }
 
-/* Close button */
-.task-detail-panel__close {
+/* Controls row: open-full + close buttons */
+.task-detail-panel__controls {
   position: absolute;
   top: var(--space-4);
   right: var(--space-4);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  z-index: 1;
+}
+
+.task-detail-panel__open-full,
+.task-detail-panel__close {
   width: 28px;
   height: 28px;
   border: none;
@@ -53,14 +61,16 @@
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-sm);
-  z-index: 1;
+  flex-shrink: 0;
 }
 
+.task-detail-panel__open-full:hover,
 .task-detail-panel__close:hover {
   background: var(--bg-hover);
   color: var(--text-primary);
 }
 
+.task-detail-panel__open-full:focus-visible,
 .task-detail-panel__close:focus-visible {
   outline: none;
   box-shadow: var(--shadow-focus);
@@ -87,7 +97,7 @@
   font-weight: 600;
   color: var(--text-primary);
   margin: 0 0 var(--space-3) 0;
-  padding-right: var(--space-8); /* space for close button */
+  padding-right: 72px; /* space for open-full + close buttons */
 }
 
 .task-detail-panel__header-meta {
