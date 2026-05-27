@@ -134,6 +134,25 @@ describe("TaskBoard", () => {
     expect(cards).toHaveLength(1);
   });
 
+  it("paused task is shown on board in the running column", () => {
+    mockUseResolvedActiveProject.mockReturnValue(MOCK_PROJECT);
+    const tasks: Task[] = [
+      makeTask({ id: "OMNI-001", status: "paused" }),
+    ];
+    mockUseTasks.mockReturnValue({ data: tasks, isPending: false, isError: false, error: null, refetch: vi.fn() } as never);
+    const { container } = renderBoard();
+    
+    // Verify it is rendered on the board (length = 1)
+    const cards = container.querySelectorAll(".app-task-card");
+    expect(cards).toHaveLength(1);
+    
+    // Verify Running column has count = 1
+    const runningColumn = container.querySelector(".kanban-column--running");
+    expect(runningColumn).not.toBeNull();
+    const countElement = runningColumn?.querySelector(".kanban-column__count");
+    expect(countElement?.textContent).toBe("1");
+  });
+
   it("running column dot has pulse class when task is running", () => {
     mockUseResolvedActiveProject.mockReturnValue(MOCK_PROJECT);
     const tasks: Task[] = [makeTask({ id: "OMNI-001", status: "running" })];

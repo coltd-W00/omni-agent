@@ -80,10 +80,12 @@ describe("taskClassification", () => {
     expect(results[0].id).toBe("9");
   });
 
-  it("should filter and sort running tasks", () => {
+  it("should filter and sort running and paused tasks as running sessions", () => {
     const results = tasksRunningSessions(tasks);
-    expect(results.length).toBe(1);
-    expect(results[0].id).toBe("4");
+    expect(results.length).toBe(2);
+    // Descending order by updatedAt: 5 (paused, 14:00) then 4 (running, 13:00)
+    expect(results[0].id).toBe("5");
+    expect(results[1].id).toBe("4");
   });
 
   it("should filter and sort ready-to-assign tasks", () => {

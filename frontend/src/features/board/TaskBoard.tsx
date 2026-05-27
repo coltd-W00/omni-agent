@@ -25,8 +25,8 @@ const COLUMNS: ReadonlyArray<{ value: BoardStatus; label: string }> = [
 function groupByStatus(tasks: Task[]): Partial<Record<BoardStatus, Task[]>> {
   const out: Partial<Record<BoardStatus, Task[]>> = {};
   for (const t of tasks) {
-    if (t.status === "cancelled" || t.status === "paused") continue;
-    const key = t.status as BoardStatus;
+    if (t.status === "cancelled") continue;
+    const key = (t.status === "paused" ? "running" : t.status) as BoardStatus;
     (out[key] ??= []).push(t);
   }
   return out;

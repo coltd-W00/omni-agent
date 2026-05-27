@@ -54,7 +54,7 @@ export default function RunningSessionCard({
       onKeyUp={handleKeyUp}
     >
       <div className="dashboard-card__badge-wrapper">
-        <StatusBadge status="running" size="md" />
+        <StatusBadge status={task.status} size="md" />
       </div>
       <h3 className="dashboard-card__title">{task.title}</h3>
       <div className="dashboard-card__meta">

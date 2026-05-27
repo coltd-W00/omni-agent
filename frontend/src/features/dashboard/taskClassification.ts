@@ -54,7 +54,7 @@ export function tasksFailedAndBlocked<T extends Task>(tasks: T[]): T[] {
 }
 
 export function tasksRunningSessions<T extends Task>(tasks: T[]): T[] {
-  const filtered = tasks.filter((t) => t.status === "running");
+  const filtered = tasks.filter((t) => t.status === "running" || t.status === "paused");
   return sortByUpdatedAtDesc(filtered);
 }
 
