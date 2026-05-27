@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router";
 import "./TaskDetailPage.css";
 import "./TaskDetailPanel.css";
@@ -9,24 +9,86 @@ import ConfirmationDialog from "../../components/ConfirmationDialog";
 import EmptyState from "../../components/EmptyState";
 import { useToast } from "../../components/Toast";
 import { useDeleteTask } from "../../hooks/useTasks";
+import { useRunList } from "../../hooks/useRunList";
+import { useCommentList } from "../../hooks/useCommentList";
+import { useResumeSession } from "../../hooks/useResumeSession";
 import { ApiError } from "../../api/client";
 import CommentsTabPanel from "./CommentsTabPanel";
 import LogsTabPanel from "./LogsTabPanel";
 import RunsTabPanel from "./RunsTabPanel";
 import SummaryTab from "./SummaryTab";
-import { ActionBar, SessionPanel, HAS_SESSION_STATUSES } from "./TaskDetailActions";
-import type { Task } from "../../types/task";
+import { ActionBar } from "./TaskDetailActions";
+import type { Task, TaskStatus } from "../../types/task";
 import type { Project } from "../../types/project";
 
 type PageTab = "summary" | "comments" | "runs" | "logs" | "settings";
 
 const TABS: ReadonlyArray<{ value: PageTab; label: string }> = [
-  { value: "summary", label: "Summary" },
-  { value: "comments", label: "Comments" },
-  { value: "runs", label: "Runs" },
-  { value: "logs", label: "Logs" },
+  { value: "comments", label: "Chat" },
+  { value: "logs", label: "Terminal" },
+  { value: "summary", label: "Overview" },
+  { value: "runs", label: "Activity" },
   { value: "settings", label: "Settings" },
 ];
+
+const RESUMABLE_STATUSES = new Set<TaskStatus>(["paused", "failed"]);
+
+function runnerLabel(status: TaskStatus): string {
+  switch (status) {
+    case "running":
+      return "Running";
+    case "paused":
+      return "Paused";
+    case "failed":
+      return "Exited";
+    case "completed":
+    case "cancelled":
+      return "Exited";
+    case "assigned":
+      return "Idle";
+    default:
+      return "—";
+  }
+}
+
+function formatUpdated(iso: string): string {
+  const date = new Date(iso);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 1) return "Just now";
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffH = Math.floor(diffMin / 60);
+  if (diffH < 24) return `${diffH}h ago`;
+  return date.toLocaleDateString();
+}
+
+function agentDisplayLabel(task: Task): string {
+  if (task.agent === "claude") return "Claude CLI";
+  if (task.agent === "codex") return "Codex CLI";
+  if (task.agent) return task.agent;
+  return "—";
+}
+
+function roleDisplayLabel(role: string | null): string {
+  if (!role) return "—";
+  return role.charAt(0).toUpperCase() + role.slice(1);
+}
+
+interface StatCardProps {
+  label: string;
+  value: React.ReactNode;
+  title?: string;
+}
+
+function StatCard({ label, value, title }: StatCardProps) {
+  return (
+    <div className="tdp__stat-card" title={title}>
+      <div className="tdp__stat-label">{label}</div>
+      <div className="tdp__stat-value">{value}</div>
+    </div>
+  );
+}
 
 function SettingsTab({
   projectId,
@@ -99,6 +161,68 @@ function SettingsTab({
   );
 }
 
+interface FollowupPromptProps {
+  projectId: string;
+  task: Task;
+}
+
+function FollowupPrompt({ projectId, task }: FollowupPromptProps) {
+  const [commentText, setCommentText] = useState("");
+  const { showToast } = useToast();
+  const resumeMut = useResumeSession(projectId, task.id);
+
+  const handleResume = () => {
+    const trimmed = commentText.trim();
+    const commentArg = trimmed === "" ? undefined : trimmed;
+
+    resumeMut.mutate(commentArg, {
+      onSuccess: () => {
+        setCommentText("");
+        showToast({
+          tone: "success",
+          message: commentArg
+            ? `Resumed ${task.id} with comment`
+            : `Session resumed for ${task.id}`,
+        });
+      },
+      onError: (err) => {
+        const msg = err instanceof ApiError ? err.message : "Failed to resume session";
+        const tone =
+          err instanceof ApiError && err.code === "session_already_active"
+            ? "warning"
+            : "error";
+        showToast({ tone, message: msg });
+      },
+    });
+  };
+
+  return (
+    <div className="tdp__followup" data-testid="task-detail-followup">
+      <textarea
+        value={commentText}
+        onChange={(e) => setCommentText(e.target.value)}
+        placeholder="Type a follow-up prompt."
+        rows={2}
+        aria-label="Follow-up prompt"
+        disabled={resumeMut.isPending}
+        className="tdp__followup-textarea summary-comment-textarea"
+      />
+      <div className="tdp__followup-actions">
+        <Button
+          variant="primary"
+          size="md"
+          onClick={handleResume}
+          disabled={resumeMut.isPending}
+          aria-label="Resume Session"
+          data-action="resume-session"
+        >
+          {resumeMut.isPending ? "Resuming…" : "Resume"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 interface TaskDetailPageProps {
   task: Task;
   project: Project;
@@ -106,12 +230,23 @@ interface TaskDetailPageProps {
 
 export default function TaskDetailPage({ task, project }: TaskDetailPageProps) {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<PageTab>("summary");
+  const [activeTab, setActiveTab] = useState<PageTab>("comments");
   const [focusedRunId, setFocusedRunId] = useState<string | null>(null);
 
   const agentRuntime = task.agent === "claude" || task.agent === "codex" ? task.agent : undefined;
   const agentName = task.agent ?? task.role ?? "unassigned";
-  const hasSession = HAS_SESSION_STATUSES.has(task.status);
+  const showFollowup = RESUMABLE_STATUSES.has(task.status);
+
+  const runsQuery = useRunList(project.id, task.id, task.status);
+  const commentsQuery = useCommentList(project.id, task.id);
+
+  const totalRuns = runsQuery.data?.length ?? 0;
+  const totalComments = commentsQuery.data?.length ?? 0;
+  const evidenceLabel = useMemo(() => {
+    if (runsQuery.isPending) return "—";
+    if (totalRuns === 0) return "No evidence";
+    return `${totalRuns} run${totalRuns === 1 ? "" : "s"}`;
+  }, [runsQuery.isPending, totalRuns]);
 
   const handleSwitchTab = (tab: PageTab, runId?: string) => {
     setActiveTab(tab);
@@ -143,31 +278,66 @@ export default function TaskDetailPage({ task, project }: TaskDetailPageProps) {
         <span className="tdp__breadcrumb-task-id">{task.id}</span>
       </nav>
 
-      {/* Page header */}
-      <header className="tdp__header">
-        <div className="tdp__header-main">
-          <div className="tdp__header-meta">
-            <StatusBadge status={task.status} size="lg" />
-            <span className="tdp__project-label">{project.name}</span>
-            {!project.workspacePath && (
-              <span className="tdp__workspace-missing">Workspace missing</span>
-            )}
-          </div>
-          <h1 className="tdp__title">{task.title}</h1>
-          <div className="tdp__agent-row">
-            <AgentAvatar name={agentName} runtime={agentRuntime} size="sm" />
-            <span className="tdp__agent-name">{agentName}</span>
-            <span className="tdp__task-id-label">{task.id}</span>
-          </div>
+      {/* Title row */}
+      <header className="tdp__title-row">
+        <h1 className="tdp__title">{task.title}</h1>
+        <div className="tdp__title-meta">
+          <AgentAvatar name={agentName} runtime={agentRuntime} size="sm" />
+          <span className="tdp__agent-name">{agentName}</span>
+          {!project.workspacePath && (
+            <span className="tdp__workspace-missing">Workspace missing</span>
+          )}
         </div>
-
-        {/* Inline action bar for assigned/paused/failed */}
-        <ActionBar project={project} task={task} className="tdp__header-actions" />
       </header>
 
-      {/* Body: tabs + sidebar */}
+      {/* Stat card grid */}
+      <section className="tdp__stat-grid" aria-label="Task summary">
+        <StatCard
+          label="Workflow"
+          value={<StatusBadge status={task.status} size="sm" />}
+        />
+        <StatCard
+          label="Runner"
+          value={runnerLabel(task.status)}
+        />
+        <StatCard
+          label="Evidence"
+          value={evidenceLabel}
+          title={totalRuns > 0 ? `${totalRuns} run${totalRuns === 1 ? "" : "s"} recorded` : undefined}
+        />
+        <StatCard label="Agent" value={agentDisplayLabel(task)} />
+        <StatCard
+          label="Task ID"
+          value={<span className="tdp__stat-mono">{task.id}</span>}
+          title={task.id}
+        />
+        <StatCard
+          label="Updated"
+          value={formatUpdated(task.updatedAt)}
+          title={new Date(task.updatedAt).toLocaleString()}
+        />
+        <StatCard label="Runs" value={runsQuery.isPending ? "—" : String(totalRuns)} />
+        <StatCard label="Comments" value={commentsQuery.isPending ? "—" : String(totalComments)} />
+        <StatCard label="Role" value={roleDisplayLabel(task.role)} />
+      </section>
+
+      {/* NEXT ACTION row */}
+      {(task.status === "assigned" || RESUMABLE_STATUSES.has(task.status)) && (
+        <section className="tdp__next-action" aria-label="Next action">
+          <div className="tdp__next-action-label">Next action</div>
+          <div className="tdp__next-action-row">
+            <ActionBar
+              project={project}
+              task={task}
+              className="tdp__next-action-buttons"
+              includeResume
+            />
+          </div>
+        </section>
+      )}
+
+      {/* Body: tabs + content */}
       <div className="tdp__body">
-        {/* Main content */}
         <div className="tdp__main">
           <div className="tdp__tabs" role="tablist" aria-label="Task detail tabs">
             {TABS.map((tab) => (
@@ -192,7 +362,12 @@ export default function TaskDetailPage({ task, project }: TaskDetailPageProps) {
             aria-label={`${TABS.find((t) => t.value === activeTab)?.label ?? ""} tab content`}
           >
             {activeTab === "summary" && (
-              <SummaryTab projectId={project.id} task={task} onSwitchTab={handleSwitchTab} />
+              <SummaryTab
+                projectId={project.id}
+                task={task}
+                onSwitchTab={handleSwitchTab}
+                hideStatusBlocks
+              />
             )}
             {activeTab === "comments" && (
               <CommentsTabPanel task={task} projectId={project.id} />
@@ -214,18 +389,10 @@ export default function TaskDetailPage({ task, project }: TaskDetailPageProps) {
             )}
           </div>
         </div>
-
-        {/* Right sidebar: session info */}
-        {hasSession && (
-          <aside className="tdp__sidebar" aria-label="Session information">
-            <SessionPanel
-              task={task}
-              className="tdp__session"
-              titleClassName="tdp__section-title"
-            />
-          </aside>
-        )}
       </div>
+
+      {/* Bottom follow-up prompt (paused/failed only) */}
+      {showFollowup && <FollowupPrompt projectId={project.id} task={task} />}
     </div>
   );
 }

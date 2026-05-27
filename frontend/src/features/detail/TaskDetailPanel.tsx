@@ -19,7 +19,6 @@ import RunsTabPanel from "./RunsTabPanel";
 import SummaryTab from "./SummaryTab";
 import { ActionBar, SessionPanel } from "./TaskDetailActions";
 import type { Task } from "../../types/task";
-import type { Project } from "../../types/project";
 
 type PanelTab = "summary" | "comments" | "runs" | "logs" | "settings";
 
