@@ -5,6 +5,7 @@ import { useToast } from "../../components/Toast";
 import { useStartSession } from "../../hooks/useStartSession";
 import { useCompleteSession } from "../../hooks/useCompleteSession";
 import { useCancelSession } from "../../hooks/useCancelSession";
+import { useResumeSession } from "../../hooks/useResumeSession";
 import { ApiError } from "../../api/client";
 import type { Task, TaskStatus } from "../../types/task";
 import type { Project } from "../../types/project";
@@ -23,13 +24,21 @@ interface ActionBarProps {
   project: Project;
   task: Task;
   className?: string;
+  /**
+   * When true, render a "Resume session" button as the primary action for
+   * paused / failed tasks (no follow-up comment). Used by the full-page
+   * NEXT ACTION row; the side drawer keeps its existing resume flow inside
+   * the Summary tab.
+   */
+  includeResume?: boolean;
 }
 
-export function ActionBar({ project, task, className }: ActionBarProps) {
+export function ActionBar({ project, task, className, includeResume = false }: ActionBarProps) {
   const { showToast } = useToast();
   const startMut = useStartSession(project.id, task.id);
   const completeMut = useCompleteSession(project.id, task.id);
   const cancelMut = useCancelSession(project.id, task.id);
+  const resumeMut = useResumeSession(project.id, task.id);
   const workspaceMissing = !project.workspacePath;
   const agentMissing = !task.agent;
 
@@ -69,7 +78,22 @@ export function ActionBar({ project, task, className }: ActionBarProps) {
     });
   };
 
-  const isPending = startMut.isPending || completeMut.isPending || cancelMut.isPending;
+  const handleResume = () => {
+    resumeMut.mutate(undefined, {
+      onSuccess: () => {
+        showToast({ tone: "success", message: `Session resumed for ${task.id}` });
+      },
+      onError: (err) => {
+        const msg = err instanceof ApiError ? err.message : "Failed to resume session";
+        const tone =
+          err instanceof ApiError && err.code === "session_already_active" ? "warning" : "error";
+        showToast({ tone, message: msg });
+      },
+    });
+  };
+
+  const isPending =
+    startMut.isPending || completeMut.isPending || cancelMut.isPending || resumeMut.isPending;
 
   if (task.status === "assigned") {
     return (
@@ -92,6 +116,17 @@ export function ActionBar({ project, task, className }: ActionBarProps) {
     return (
       <div className={className}>
         <div style={{ display: "flex", gap: "var(--space-2)" }}>
+          {includeResume && (
+            <Button
+              variant="primary"
+              size="md"
+              onClick={handleResume}
+              disabled={isPending}
+              aria-label="Resume task"
+            >
+              Resume session
+            </Button>
+          )}
           <Button
             variant="secondary"
             size="md"

@@ -15,9 +15,10 @@ interface SummaryTabProps {
   projectId: string;
   task: Task;
   onSwitchTab: (tab: "summary" | "comments" | "runs" | "logs" | "settings") => void;
+  hideStatusBlocks?: boolean;
 }
 
-export default function SummaryTab({ projectId, task, onSwitchTab }: SummaryTabProps) {
+export default function SummaryTab({ projectId, task, onSwitchTab, hideStatusBlocks = false }: SummaryTabProps) {
   // Runs query: Paused/Failed = terminal states, running = polling, else disabled.
   const isRunsFetchEnabled = ["paused", "failed", "running"].includes(task.status);
   const runsQuery = useQuery({
@@ -66,8 +67,8 @@ export default function SummaryTab({ projectId, task, onSwitchTab }: SummaryTabP
 
   return (
     <div className="summary-tab">
-      {/* Top blocks */}
-      {renderContent()}
+      {/* Top blocks (suppressed when page-level header already shows status) */}
+      {!hideStatusBlocks && renderContent()}
 
       {/* Existing Description & AC content */}
       <div className="summary-tab__details">

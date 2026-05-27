@@ -3,7 +3,6 @@ import { useTask } from "../hooks/useTask";
 import { useProjectsQuery } from "../hooks/useProjects";
 import TaskDetailPage from "../features/detail/TaskDetailPage";
 import EmptyState from "../components/EmptyState";
-import Button from "../components/Button";
 
 export default function TaskDetailRoute() {
   const { projectId = "", taskId = "" } = useParams<{ projectId: string; taskId: string }>();

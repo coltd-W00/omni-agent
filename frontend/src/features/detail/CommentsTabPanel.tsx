@@ -12,9 +12,15 @@ import "./CommentsTabPanel.css";
 interface CommentsTabPanelProps {
   task: Task;
   projectId: string;
+  /**
+   * When true, hide the inline composer (used on the full-page route
+   * where a single follow-up prompt at the bottom of the page is the
+   * only comment input).
+   */
+  hideComposer?: boolean;
 }
 
-export default function CommentsTabPanel({ task, projectId }: CommentsTabPanelProps) {
+export default function CommentsTabPanel({ task, projectId, hideComposer = false }: CommentsTabPanelProps) {
   const { showToast } = useToast();
   const commentsQuery = useCommentList(projectId, task.id);
   const addCommentMut = useAddComment(projectId, task.id);
@@ -95,32 +101,34 @@ export default function CommentsTabPanel({ task, projectId }: CommentsTabPanelPr
         </ul>
       )}
 
-      <div className="comment-input-section">
-        <label className="comment-input-label" htmlFor="new-comment">
-          New comment
-        </label>
-        <textarea
-          id="new-comment"
-          ref={textareaRef}
-          className="comment-input-textarea"
-          value={inputText}
-          onChange={(event) => setInputText(event.target.value)}
-          placeholder={placeholder}
-          rows={4}
-          disabled={isTerminal || addCommentMut.isPending}
-          aria-label="New comment"
-        />
-        <p className="comment-input-hint">This comment will be sent to the agent on next resume.</p>
-        <Button
-          variant="primary"
-          size="md"
-          onClick={handleAddComment}
-          disabled={isSubmitDisabled}
-          aria-disabled={isSubmitDisabled}
-        >
-          {addCommentMut.isPending ? "Adding…" : "Add Comment"}
-        </Button>
-      </div>
+      {!hideComposer && (
+        <div className="comment-input-section">
+          <label className="comment-input-label" htmlFor="new-comment">
+            New comment
+          </label>
+          <textarea
+            id="new-comment"
+            ref={textareaRef}
+            className="comment-input-textarea"
+            value={inputText}
+            onChange={(event) => setInputText(event.target.value)}
+            placeholder={placeholder}
+            rows={4}
+            disabled={isTerminal || addCommentMut.isPending}
+            aria-label="New comment"
+          />
+          <p className="comment-input-hint">This comment will be sent to the agent on next resume.</p>
+          <Button
+            variant="primary"
+            size="md"
+            onClick={handleAddComment}
+            disabled={isSubmitDisabled}
+            aria-disabled={isSubmitDisabled}
+          >
+            {addCommentMut.isPending ? "Adding…" : "Add Comment"}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
