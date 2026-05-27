@@ -97,7 +97,7 @@ Tác vụ chỉ được phép bỏ qua cổng kiểm soát project notes nếu 
 # Đọc chi tiết một ghi chú cụ thể
 ./bin/pnotes show <note-id>
 
-# Kiểm tra trạng thái và danh sách ghi chú chưa đánh giá chất lượng
+# Kiểm tra trạng thái và danh sách ghi chú chưa đánh giá chất lượng (chạy khi có Continuity được tạo mới)
 ./bin/pnotes quality status
 
 # Ghi nhận kết quả đánh giá chất lượng từ file JSON cấu trúc
