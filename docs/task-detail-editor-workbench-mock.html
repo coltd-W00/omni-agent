@@ -1,0 +1,652 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Task Detail Workbench Mock</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #111315;
+      --rail: #181b1f;
+      --panel: #1d2025;
+      --panel-2: #15181c;
+      --line: #343941;
+      --line-soft: #2a2f36;
+      --text: #e7eaee;
+      --muted: #9da6b2;
+      --accent: #4fb286;
+      --accent-2: #7aa7ff;
+      --warn: #e6b450;
+      --danger: #ee6a6a;
+      --code: #d4d8de;
+      --input: #0f1114;
+      --shadow: rgba(0, 0, 0, 0.24);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    button,
+    textarea {
+      font: inherit;
+    }
+
+    button {
+      border: 1px solid var(--line);
+      background: #22272e;
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #2a3038;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: 248px minmax(0, 1fr) 460px;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background: var(--bg);
+    }
+
+    .app.menu-collapsed {
+      grid-template-columns: 56px minmax(0, 1fr) 460px;
+    }
+
+    .app.transcript-closed {
+      grid-template-columns: 248px minmax(0, 1fr) 0;
+    }
+
+    .app.menu-collapsed.transcript-closed {
+      grid-template-columns: 56px minmax(0, 1fr) 0;
+    }
+
+    .menu {
+      min-width: 0;
+      border-right: 1px solid var(--line);
+      background: var(--rail);
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      overflow: hidden;
+    }
+
+    .menu-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 52px;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line-soft);
+    }
+
+    .icon-button {
+      display: inline-grid;
+      place-items: center;
+      width: 32px;
+      height: 32px;
+      flex: 0 0 32px;
+      border-radius: 6px;
+      padding: 0;
+      line-height: 1;
+    }
+
+    .brand {
+      min-width: 0;
+      font-size: 13px;
+      font-weight: 650;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .menu-collapsed .brand,
+    .menu-collapsed .nav-label,
+    .menu-collapsed .menu-foot {
+      display: none;
+    }
+
+    .nav {
+      min-width: 0;
+      padding: 10px 8px;
+      overflow: hidden auto;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+      height: 36px;
+      padding: 0 10px;
+      border-radius: 6px;
+      color: var(--muted);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .nav-item.active {
+      background: #242a31;
+      color: var(--text);
+    }
+
+    .nav-mark {
+      display: inline-grid;
+      place-items: center;
+      width: 18px;
+      height: 18px;
+      flex: 0 0 18px;
+      color: var(--accent);
+      font-size: 12px;
+    }
+
+    .nav-label {
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .menu-foot {
+      border-top: 1px solid var(--line-soft);
+      padding: 10px 12px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .workspace {
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      background: var(--panel);
+      overflow: hidden;
+    }
+
+    .topbar {
+      min-width: 0;
+      min-height: 52px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 14px;
+      border-bottom: 1px solid var(--line);
+      background: #1a1e23;
+    }
+
+    .title-wrap {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .task-title {
+      margin: 0;
+      font-size: 14px;
+      line-height: 1.3;
+      font-weight: 650;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .task-meta {
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 0 0 auto;
+    }
+
+    .text-button {
+      height: 32px;
+      border-radius: 6px;
+      padding: 0 10px;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .chat-scroll {
+      min-width: 0;
+      min-height: 0;
+      overflow: hidden auto;
+      padding: 18px;
+      background: var(--panel);
+    }
+
+    .chat-stream {
+      max-width: 920px;
+      margin: 0 auto;
+      display: grid;
+      gap: 14px;
+    }
+
+    .message {
+      min-width: 0;
+      border: 1px solid var(--line-soft);
+      background: #20252b;
+      border-radius: 8px;
+      box-shadow: 0 8px 20px var(--shadow);
+      overflow: hidden;
+    }
+
+    .message.agent {
+      background: #1a2222;
+      border-color: #29443a;
+    }
+
+    .message-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 9px 12px;
+      border-bottom: 1px solid var(--line-soft);
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .message-role {
+      color: var(--text);
+      font-weight: 650;
+    }
+
+    .message-body {
+      min-width: 0;
+      padding: 12px;
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.55;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    .message-body code,
+    .terminal-line,
+    .terminal-block {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    }
+
+    .chat-input {
+      min-width: 0;
+      border-top: 1px solid var(--line);
+      background: #191d22;
+      padding: 12px 18px 14px;
+    }
+
+    .composer {
+      max-width: 920px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: end;
+      gap: 10px;
+      border: 1px solid var(--line);
+      background: var(--input);
+      border-radius: 8px;
+      padding: 10px;
+    }
+
+    .composer textarea {
+      min-width: 0;
+      width: 100%;
+      height: 74px;
+      resize: none;
+      border: 0;
+      outline: 0;
+      background: transparent;
+      color: var(--text);
+      line-height: 1.45;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
+    .send {
+      width: 36px;
+      height: 36px;
+      border-radius: 6px;
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #06130d;
+      font-weight: 800;
+    }
+
+    .transcript {
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      border-left: 1px solid var(--line);
+      background: var(--panel-2);
+      overflow: hidden;
+      transition: opacity 140ms ease;
+    }
+
+    .transcript-closed .transcript {
+      opacity: 0;
+      pointer-events: none;
+      border-left: 0;
+    }
+
+    .transcript-head {
+      min-width: 0;
+      min-height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--line);
+      background: #111418;
+    }
+
+    .transcript-title {
+      min-width: 0;
+      font-size: 13px;
+      font-weight: 650;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .terminal {
+      min-width: 0;
+      min-height: 0;
+      overflow: hidden auto;
+      padding: 12px;
+      background: #0d0f12;
+    }
+
+    .terminal-group {
+      min-width: 0;
+      border: 1px solid #242a31;
+      background: #111419;
+      border-radius: 6px;
+      margin-bottom: 10px;
+      overflow: hidden;
+    }
+
+    .terminal-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 7px 9px;
+      border-bottom: 1px solid #242a31;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.3;
+    }
+
+    .terminal-status {
+      color: var(--accent);
+      white-space: nowrap;
+    }
+
+    .terminal-block {
+      min-width: 0;
+      padding: 9px;
+      color: var(--code);
+      font-size: 12px;
+      line-height: 1.55;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    .prompt {
+      color: var(--accent-2);
+    }
+
+    .warn {
+      color: var(--warn);
+    }
+
+    .danger {
+      color: var(--danger);
+    }
+
+    .open-tab {
+      display: none;
+    }
+
+    .transcript-closed .open-tab {
+      display: inline-flex;
+    }
+
+    @media (max-width: 920px) {
+      .app,
+      .app.menu-collapsed,
+      .app.transcript-closed,
+      .app.menu-collapsed.transcript-closed {
+        grid-template-columns: 56px minmax(0, 1fr);
+      }
+
+      .menu:not(.force-wide) .brand,
+      .menu:not(.force-wide) .nav-label,
+      .menu:not(.force-wide) .menu-foot {
+        display: none;
+      }
+
+      .transcript {
+        position: fixed;
+        inset: 0 0 0 56px;
+        z-index: 3;
+        width: auto;
+        border-left: 1px solid var(--line);
+      }
+
+      .transcript-closed .transcript {
+        transform: translateX(100%);
+      }
+
+      .topbar {
+        padding-right: 10px;
+      }
+
+      .chat-scroll,
+      .chat-input {
+        padding-left: 12px;
+        padding-right: 12px;
+      }
+    }
+
+    @media (max-width: 620px) {
+      .app,
+      .app.menu-collapsed,
+      .app.transcript-closed,
+      .app.menu-collapsed.transcript-closed {
+        grid-template-columns: 0 minmax(0, 1fr);
+      }
+
+      .menu {
+        display: none;
+      }
+
+      .transcript {
+        inset: 0;
+      }
+
+      .task-meta {
+        display: none;
+      }
+
+      .text-button {
+        padding: 0 8px;
+      }
+
+      .composer {
+        grid-template-columns: minmax(0, 1fr);
+      }
+
+      .send {
+        justify-self: end;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app" id="app">
+    <aside class="menu" aria-label="Task navigation">
+      <div class="menu-head">
+        <button class="icon-button" id="menuToggle" type="button" title="Collapse menu" aria-label="Collapse menu">M</button>
+        <div class="brand">Omni Agent</div>
+      </div>
+
+      <nav class="nav">
+        <div class="nav-item active"><span class="nav-mark">T</span><span class="nav-label">Task detail</span></div>
+        <div class="nav-item"><span class="nav-mark">R</span><span class="nav-label">Runs</span></div>
+        <div class="nav-item"><span class="nav-mark">N</span><span class="nav-label">Notes</span></div>
+        <div class="nav-item"><span class="nav-mark">S</span><span class="nav-label">Settings</span></div>
+      </nav>
+
+      <div class="menu-foot">
+        Left menu collapses independently from the transcript panel.
+      </div>
+    </aside>
+
+    <section class="workspace" aria-label="Task chat workspace">
+      <header class="topbar">
+        <div class="title-wrap">
+          <h1 class="task-title">Task detail: rework editor-style chat and transcript</h1>
+          <div class="task-meta">Primary pane: chat input and final output. Secondary pane: run transcript.</div>
+        </div>
+        <div class="toolbar">
+          <button class="text-button open-tab" id="openTranscript" type="button">Open transcript</button>
+          <button class="text-button" id="toggleTranscript" type="button">Close transcript</button>
+        </div>
+      </header>
+
+      <div class="chat-scroll">
+        <div class="chat-stream">
+          <article class="message">
+            <div class="message-head">
+              <span class="message-role">User</span>
+              <span>09:42</span>
+            </div>
+            <div class="message-body">Lam lai man hinh task detail. Menu co tuy chon thu/phong ve ben trai. O input chat chi nam ben trai, khong mo rong sang ben phai. Output trong khung chat va transcript phai giong chat/terminal that, word wrap, khong co scroll ngang, giong editor.</div>
+          </article>
+
+          <article class="message agent">
+            <div class="message-head">
+              <span class="message-role">Agent</span>
+              <span>Final output</span>
+            </div>
+            <div class="message-body">Da tao mock theo huong editor/workbench: chat pane la trai/main pane, composer bi gioi han trong pane nay; transcript la panel phu ben phai co the dong/mo. Cac block output dung <code>white-space: pre-wrap</code>, <code>overflow-wrap: anywhere</code>, va <code>word-break: break-word</code> de tranh horizontal scroll.</div>
+          </article>
+
+          <article class="message agent">
+            <div class="message-head">
+              <span class="message-role">Long output sample</span>
+              <span>wrap check</span>
+            </div>
+            <div class="message-body">This is a deliberately long single token to verify no horizontal scrollbar appears: task_detail_editor_workbench_mock_with_extremely_long_unbroken_terminal_output_path_/home/locdt/omni-agent/frontend/src/screens/task-detail/components/transcript-panel/very-long-file-name-without-spaces.tsx_should_wrap_inside_the_chat_surface.</div>
+          </article>
+        </div>
+      </div>
+
+      <form class="chat-input">
+        <div class="composer">
+          <textarea aria-label="Chat input">Input chi nam trong left/main chat pane. No khong duoc stretch sang right transcript panel.</textarea>
+          <button class="send" type="button" title="Send" aria-label="Send">&gt;</button>
+        </div>
+      </form>
+    </section>
+
+    <aside class="transcript" aria-label="Run transcript">
+      <header class="transcript-head">
+        <div class="transcript-title">Transcript</div>
+        <button class="icon-button" id="closeTranscript" type="button" title="Close transcript" aria-label="Close transcript">x</button>
+      </header>
+
+      <div class="terminal">
+        <section class="terminal-group">
+          <div class="terminal-label">
+            <span>command</span>
+            <span class="terminal-status">ok</span>
+          </div>
+          <div class="terminal-block"><span class="prompt">$</span> rg "TaskDetail|transcript|chat input" frontend/src</div>
+        </section>
+
+        <section class="terminal-group">
+          <div class="terminal-label">
+            <span>output</span>
+            <span class="terminal-status">wrapped</span>
+          </div>
+          <div class="terminal-block">frontend/src/screens/task-detail/TaskDetail.tsx
+frontend/src/screens/task-detail/components/ChatPane.tsx
+frontend/src/screens/task-detail/components/TranscriptPanel.tsx
+
+VeryLongSingleLineWithoutSpacesToCheckWrapping_task_detail_transcript_output_should_not_create_horizontal_scroll_even_when_a_command_prints_an_extremely_long_path_or_identifier_like_frontend_src_screens_task_detail_components_transcript_panel_index_tsx_2026_05_27_mock_verification</div>
+        </section>
+
+        <section class="terminal-group">
+          <div class="terminal-label">
+            <span>edit</span>
+            <span class="terminal-status">planned</span>
+          </div>
+          <div class="terminal-block">- Left menu: collapsed/expanded state.
+- Main pane: chat stream plus input composer.
+- Right pane: closable transcript panel.
+- Overflow rule: vertical scroll only, no horizontal scroll.</div>
+        </section>
+
+        <section class="terminal-group">
+          <div class="terminal-label">
+            <span>test note</span>
+            <span class="warn">manual</span>
+          </div>
+          <div class="terminal-block">Resize viewport, close transcript, collapse menu, paste long logs. Expected: text wraps inside pane boundaries; composer remains in main chat pane.</div>
+        </section>
+      </div>
+    </aside>
+  </main>
+
+  <script>
+    const app = document.getElementById('app');
+    const menuToggle = document.getElementById('menuToggle');
+    const toggleTranscript = document.getElementById('toggleTranscript');
+    const openTranscript = document.getElementById('openTranscript');
+    const closeTranscript = document.getElementById('closeTranscript');
+
+    function setTranscript(open) {
+      app.classList.toggle('transcript-closed', !open);
+      toggleTranscript.textContent = open ? 'Close transcript' : 'Open transcript';
+    }
+
+    menuToggle.addEventListener('click', () => {
+      const collapsed = app.classList.toggle('menu-collapsed');
+      menuToggle.title = collapsed ? 'Expand menu' : 'Collapse menu';
+      menuToggle.setAttribute('aria-label', menuToggle.title);
+    });
+
+    toggleTranscript.addEventListener('click', () => {
+      setTranscript(app.classList.contains('transcript-closed'));
+    });
+
+    openTranscript.addEventListener('click', () => setTranscript(true));
+    closeTranscript.addEventListener('click', () => setTranscript(false));
+  </script>
+</body>
+</html>
